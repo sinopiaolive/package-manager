@@ -1,0 +1,13 @@
+[package]
+authors = ["Bodil Stokke <bodil@bodil.org>"]
+name = "package-manager"
+version = "1.0.0"
+
+[[bin]]
+name = "pm"
+path = "src/bin/main.rs"
+
+[dependencies]
+docopt = "0.7"
+toml = "0.3.0"
+rustc-serialize = "0.3"
