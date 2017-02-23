@@ -16,7 +16,7 @@ pub struct Release {
     // no devDependencies here -- they only go in the manifest
 
     // TODO filesystem things
-    artifactURL: String,
+    artifact_url: String,
 
     description: String,
     author: String,
@@ -30,7 +30,7 @@ pub struct Release {
 
 pub struct Dependency {
     name: PackageName,
-    versionConstraint: VersionConstraint,
+    version_constraint: VersionConstraint,
 }
 
 pub enum VersionConstraint {
@@ -38,8 +38,8 @@ pub enum VersionConstraint {
         version: Version
     },
     Range { // exclusive
-        minimumVersion: Option<Version>,
-        maximumVersion: Option<Version>
+        minimum_version: Option<Version>,
+        maximum_version: Option<Version>
     }
 }
 
@@ -61,7 +61,7 @@ pub enum VersionIdentifier {
 }
 
 pub struct Repository {
-    repoType: String,
+    repository_type: String,
     url: String,
 }
 
