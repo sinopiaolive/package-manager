@@ -3,6 +3,10 @@ authors = ["Bodil Stokke <bodil@bodil.org>"]
 name = "package-manager"
 version = "1.0.0"
 
+[lib]
+name = "core"
+path = "src/core/lib.rs"
+
 [[bin]]
 name = "pm"
 path = "src/bin/main.rs"

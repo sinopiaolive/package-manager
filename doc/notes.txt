@@ -23,7 +23,7 @@ struct Manifest:
   author : String
   description : String
   license : String
-  license-file: String // default: [ 'LICENSE', 'LICENSE.*', ... ]
+  license-file: String // default: whatever we find in [ 'LICENSE', 'LICENSE.*', ... ]
   homepage, documentation, bugs : String
   repository : Repository
   keywords : Array<String>
