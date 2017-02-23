@@ -1,17 +1,15 @@
-use std::iter::Map;
+use std::collections::HashMap;
 
 pub struct Registry {
-    packages: Map<PackageName, Package>,
+    packages: HashMap<PackageName, Package>,
 }
 
 pub struct Package {
-    //name: String
-    releases: Map<Version, Release>,
+    releases: HashMap<Version, Release>,
     owners: Vec<Username>,
 }
 
 pub struct Release {
-    //version: Version,
     dependencies: Vec<Dependency>,
     // no devDependencies here -- they only go in the manifest
 
@@ -49,7 +47,6 @@ pub struct PackageName {
 }
 
 pub struct Version {
-    // TODO validate
     fields: Vec<u64>,
     prerelease: Vec<VersionIdentifier>,
     build: Vec<VersionIdentifier>
