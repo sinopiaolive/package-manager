@@ -1,5 +1,6 @@
 extern crate docopt;
 extern crate rustc_serialize;
+extern crate package_manager;
 
 use std::result;
 use std::env;
@@ -28,5 +29,6 @@ pub fn execute(args: Args) -> result::Result<(), String> {
         println!("This is the test command.")
     }
     println!("Also, my working directory is {:?}", env::current_dir().unwrap().display());
+
     Ok(())
 }

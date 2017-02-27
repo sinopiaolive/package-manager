@@ -4,7 +4,7 @@ name = "package-manager"
 version = "1.0.0"
 
 [lib]
-name = "core"
+name = "package_manager"
 path = "src/core/lib.rs"
 
 [[bin]]
@@ -15,3 +15,6 @@ path = "src/bin/main.rs"
 docopt = "0.7"
 toml = "0.3.0"
 rustc-serialize = "0.3"
+serde = "0.9.8"
+serde_derive = "0.9.8"
+serde_json = "0.9.8"

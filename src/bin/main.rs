@@ -1,5 +1,6 @@
 extern crate docopt;
 extern crate rustc_serialize;
+extern crate package_manager;
 
 use docopt::Docopt;
 use std::process::{self};
@@ -94,6 +95,7 @@ fn main() {
         .map(|d| d.version(Some("0.999999-rc623-beta2".to_string())))
         .and_then(|d| d.decode())
         .unwrap_or_else(|e| e.exit());
+    package_manager::test();
     if args.arg_command.is_empty() {
         println!("{:?}", args);
         print!("{}", USAGE);
