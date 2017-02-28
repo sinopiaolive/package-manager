@@ -1,11 +1,14 @@
 #![allow(dead_code)]
 
-#[macro_use] extern crate serde_derive;
-
-extern crate serde_json;
-extern crate serde;
-extern crate toml;
+#[macro_use] extern crate nom;
 extern crate semver_parser;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
+extern crate serde_json;
+extern crate toml;
+
+pub mod registry;
+pub mod version;
 
 use std::collections::HashMap;
 
@@ -59,5 +62,3 @@ dependencies = [
     let test_registry: registry::Registry = toml::from_str(test_registry_toml).unwrap();
     println!("test_registry: {:?}", test_registry)
 }
-
-pub mod registry;

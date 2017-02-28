@@ -90,6 +90,12 @@ pub struct Version {
     pub build: Vec<VersionIdentifier> // TODO Vec?
 }
 
+impl Version {
+    pub fn new(v: Vec<u64>, p: Vec<VersionIdentifier>, b: Vec<VersionIdentifier>) -> Version {
+        Version { fields: v, prerelease: p, build: b }
+    }
+}
+
 impl Serialize for Version {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
@@ -112,20 +118,13 @@ impl Deserialize for Version {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer
     {
-        let s = String::deserialize(deserializer)?;
-        let v = ::semver_parser::version::parse(&*s).unwrap();
-        fn cast_identifier(i: &::semver_parser::version::Identifier) -> VersionIdentifier {
-            match *i {
-                ::semver_parser::version::Identifier::Numeric(ref n) => VersionIdentifier::Numeric(n.clone()),
-                ::semver_parser::version::Identifier::AlphaNumeric(ref s) => VersionIdentifier::AlphaNumeric(s.clone())
-            }
-        }
-        Ok(Version {
-            fields: vec![v.major, v.minor, v.patch],
-            prerelease: v.pre.iter().map(cast_identifier).collect(),
-            build: v.build.iter().map(cast_identifier).collect(),
-        })
-
+        // let s = String::deserialize(deserializer)?;
+        Ok(Version {fields: vec![], prerelease: vec![], build: vec![]})
+        //Ok(Version {
+        //    fields: vec![v.major, v.minor, v.patch],
+        //    prerelease: v.pre.iter().map(cast_identifier).collect(),
+        //    build: v.build.iter().map(cast_identifier).collect(),
+        //})
     }
 }
 
@@ -133,14 +132,14 @@ impl Deserialize for Version {
 #[serde(deny_unknown_fields)]
 pub enum VersionIdentifier {
     Numeric(u64),
-    AlphaNumeric(String)
+    Alphanumeric(String)
 }
 
 impl Display for VersionIdentifier {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
             VersionIdentifier::Numeric(ref n) => write!(f, "{}", n),
-            VersionIdentifier::AlphaNumeric(ref s) => write!(f, "{}", s)
+            VersionIdentifier::Alphanumeric(ref s) => write!(f, "{}", s)
         }
     }
 }
