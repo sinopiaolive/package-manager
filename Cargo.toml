@@ -19,4 +19,8 @@ serde = "^0.9.8"
 serde_derive = "^0.9.8"
 serde_json = "^0.9.8"
 semver-parser = "^0.7.0"
-nom = "^2.1"
+nom = { version = "^2.1", features = ["regexp"] }
+regex = "^0.2"
+
+[replace]
+"nom:2.1.0" = { git = 'https://github.com/Geal/nom' }
