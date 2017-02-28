@@ -54,16 +54,8 @@ impl Deserialize for Version {
     {
         let s = String::deserialize(deserializer)?;
         match version(s.as_bytes()) {
-            Done(r, v) => {
-                if r == &b""[..] {
-                    Ok(v)
-                } else {
-                    Err(D::Error::custom(format!("{:?} is not a valid version descriptor", s)))
-                }
-            }
-            _ => {
-                Err(D::Error::custom(format!("{:?} is not a valid version descriptor", s)))
-            }
+            Done(b"", v) => Ok(v),
+            _ => Err(D::Error::custom(format!("{:?} is not a valid version descriptor", s)))
         }
     }
 }
