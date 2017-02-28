@@ -37,7 +37,7 @@ pub fn test() {
 
     // TODO: implement VersionConstraint serialization
     println!("version_constraint:\n{}",
-        toml::to_string(&registry::VersionConstraint::Exact(registry::Version {
+        toml::to_string(&version::VersionConstraint::Exact(version::Version {
             fields: vec![1, 0, 0],
             prerelease: vec![],
             build: vec![],
