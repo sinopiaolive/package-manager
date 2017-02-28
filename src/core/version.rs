@@ -48,7 +48,7 @@ named!(build_part<Vec<VersionIdentifier>>, alt_complete!(preceded!(
     char!('+'), return_error!(ErrorKind::Custom(1), ext_version)
 ) | empty_vec));
 
-named!(version<Version>, do_parse!(
+named!(pub version<Version>, do_parse!(
     fields: base_version >>
     pre: pre_part >>
     build: build_part >>

@@ -3,6 +3,9 @@ use std::string::String;
 use std::iter::Iterator;
 use std::fmt::Display;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de::Error;
+use version::version;
+use nom::IResult;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -118,13 +121,19 @@ impl Deserialize for Version {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer
     {
-        // let s = String::deserialize(deserializer)?;
-        Ok(Version {fields: vec![], prerelease: vec![], build: vec![]})
-        //Ok(Version {
-        //    fields: vec![v.major, v.minor, v.patch],
-        //    prerelease: v.pre.iter().map(cast_identifier).collect(),
-        //    build: v.build.iter().map(cast_identifier).collect(),
-        //})
+        let s = String::deserialize(deserializer)?;
+        match version(s.as_bytes()) {
+            IResult::Done(r, v) => {
+                if r == &b""[..] {
+                    Ok(v)
+                } else {
+                    Err(D::Error::custom(format!("{:?} is not a valid version descriptor", s)))
+                }
+            }
+            _ => {
+                Err(D::Error::custom(format!("{:?} is not a valid version descriptor", s)))
+            }
+        }
     }
 }
 
