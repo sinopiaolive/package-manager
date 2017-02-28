@@ -1,4 +1,4 @@
-use nom::{digit, ErrorKind};
+use nom::{digit, space, ErrorKind};
 #[allow(unused_imports)] use nom::IResult::Done;
 use std::str::FromStr;
 use std::str;
@@ -8,15 +8,13 @@ use std::fmt::Display;
 use serde::de::Error;
 
 use self::VersionIdentifier::{Numeric, Alphanumeric};
+use self::VersionConstraint::{Exact, Range};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub enum VersionConstraint {
     Exact(Version),
-    Range { // exclusive
-        minimum_version: Option<Version>,
-        maximum_version: Option<Version>
-    }
+    Range(Option<Version>, Option<Version>)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -138,6 +136,39 @@ named!(pub version<Version>, do_parse!(
     })
 ));
 
+
+
+named!(exact_version_constraint<VersionConstraint>, map!(version, VersionConstraint::Exact));
+
+named!(min_constraint<VersionConstraint>, ws!(do_parse!(
+    tag!(b">=") >>
+    v: version >>
+    (Range(Some(v), None))
+)));
+
+named!(max_constraint<VersionConstraint>, ws!(do_parse!(
+    tag!(b"<") >>
+    v: version >>
+    (Range(None, Some(v)))
+)));
+
+named!(closed_constraint<VersionConstraint>, ws!(do_parse!(
+    tag!(b">=") >>
+    v1: version >>
+    tag!(b"<") >>
+    v2: version >>
+    (Range(Some(v1), Some(v2)))
+)));
+
+named!(open_constraint<VersionConstraint>, ws!(do_parse!(
+    tag!(b"*") >>
+    (Range(None, None))
+)));
+
+named!(pub version_constraint<VersionConstraint>, alt_complete!(open_constraint | closed_constraint | max_constraint | min_constraint | exact_version_constraint));
+
+
+
 #[test]
 fn parse_nat() {
     assert_eq!(nat(b"1"), Done(&b""[..], 1));
@@ -181,4 +212,19 @@ fn parse_full_version() {
     assert!(version(b"1+123456789123456789123456789123456789").is_err());
     assert!(version(b"1+01").is_err());
     assert!(version(b"1+_not_alphanumeric_").is_err());
+}
+
+#[test]
+fn parse_version_constraint() {
+    assert_eq!(version_constraint(b"1.0"), Done(&b""[..], Exact(Version::new(vec![1,0], vec![], vec![]))));
+    assert_eq!(version_constraint(b">=1.0"), Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+    assert_eq!(version_constraint(b" >=1.0 "), Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+    assert_eq!(version_constraint(b">= 1.0"), Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+    assert_eq!(version_constraint(b"   >=          1.0"), Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+    assert_eq!(version_constraint(b">=1 .0"), Done(&b".0"[..], Range(Some(Version::new(vec![1], vec![], vec![])), None)));
+    assert_eq!(version_constraint(b"<1.0"), Done(&b""[..], Range(None, Some(Version::new(vec![1,0], vec![], vec![])))));
+    assert_eq!(version_constraint(b">=1.0 <2.0"), Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), Some(Version::new(vec![2,0], vec![], vec![])))));
+    assert_eq!(version_constraint(b" >= 1.0 < 2.0 "), Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), Some(Version::new(vec![2,0], vec![], vec![])))));
+    assert_eq!(version_constraint(b">=1.0<2.0"), Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), Some(Version::new(vec![2,0], vec![], vec![])))));
+    assert_eq!(version_constraint(b"*"), Done(&b""[..], Range(None, None)));
 }
