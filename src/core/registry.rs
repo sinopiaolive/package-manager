@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::string::String;
 use std::iter::Iterator;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use version::{Version, VersionConstraint, VersionIdentifier, version};
+use version::Version;
+use constraint::VersionConstraint;
 use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,7 +48,7 @@ pub struct Dependency {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct PackageName {
     pub namespace: String,
-    pub name: String
+    pub name: String,
 }
 
 impl Display for PackageName {
@@ -70,7 +71,10 @@ impl Deserialize for PackageName {
     {
         let s = String::deserialize(deserializer)?;
         let v: Vec<&str> = s.split('/').collect();
-        Ok(PackageName { namespace: v[0].to_string(), name: v[1].to_string() })
+        Ok(PackageName {
+            namespace: v[0].to_string(),
+            name: v[1].to_string(),
+        })
     }
 }
 

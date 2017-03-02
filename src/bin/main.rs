@@ -3,7 +3,7 @@ extern crate rustc_serialize;
 extern crate package_manager;
 
 use docopt::Docopt;
-use std::process::{self};
+use std::process;
 use rustc_serialize::Decodable;
 use std::env;
 use std::path::Path;
@@ -44,10 +44,7 @@ each_subcommand!(declare_mod);
 
 
 
-fn run_builtin_command<Flags: Decodable>(
-    exec: fn(Flags) -> Result,
-    usage: &str
-) -> Result {
+fn run_builtin_command<Flags: Decodable>(exec: fn(Flags) -> Result, usage: &str) -> Result {
     let docopt = Docopt::new(usage).unwrap().help(true);
     docopt.decode().map_err(|e| e.exit()).and_then(|opts| exec(opts))
 }
@@ -65,8 +62,8 @@ fn attempt_builtin_command(cmd: &str) -> Option<Result> {
 fn run_shell_command(cmd: &str, args: &Vec<String>) -> Result {
     let prefixed_cmd = format!("pm-{}", cmd);
     let sh = process::Command::new(&prefixed_cmd)
-             .args(args)
-             .output();
+        .args(args)
+        .output();
     println!("exec({:?}, {:?}) -> {:?}", prefixed_cmd, args, sh);
     Ok(()) // FIXME: report subprocess result properly
 }
@@ -109,8 +106,8 @@ fn main() {
             }
         }
         match attempt_builtin_command(&args.arg_command)
-              .or_else(|| Some(run_shell_command(&args.arg_command, &args.arg_args))).unwrap()
-        {
+            .or_else(|| Some(run_shell_command(&args.arg_command, &args.arg_args)))
+            .unwrap() {
             Ok(_) => process::exit(0),
             Err(e) => {
                 println!("{}", e);
