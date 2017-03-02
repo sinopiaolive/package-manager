@@ -9,6 +9,7 @@ use regex::Regex;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use std::fmt::Display;
 use serde::de::Error;
+use std::cmp::{Ord, PartialOrd, Ordering};
 
 use self::VersionIdentifier::{Numeric, Alphanumeric};
 
@@ -36,6 +37,12 @@ impl Version {
             prerelease: p,
             build: b,
         }
+    }
+
+    fn pre(&self, pre: &[&str]) -> Version {
+        Version::new(self.fields.clone(),
+                     pre.iter().map(|s| convert_version_identifier(s).unwrap()).collect(),
+                     self.build.clone())
     }
 
     pub fn as_string(&self) -> String {
@@ -116,13 +123,43 @@ impl Deserialize for Version {
     }
 }
 
-// impl PartialEq for Version {
-//     fn eq(&self, other: &Version) -> bool {
+fn cmp_vec<A: Ord>(v1: &Vec<A>, v2: &Vec<A>) -> Ordering {
+    let mut i1 = v1.iter();
+    let mut i2 = v2.iter();
+    loop {
+        match (i1.next(), i2.next()) {
+            (None, None) => return Ordering::Equal,
+            (Some(_), None) => return Ordering::Greater,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(a), Some(b)) if a.cmp(b) == Ordering::Equal => (),
+            (Some(a), Some(b)) => return a.cmp(b)
+        }
+    }
+}
 
-//     }
-// }
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Version) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
-// impl Eq for Version {}
+impl Ord for Version {
+    fn cmp(&self, other: &Version) -> Ordering {
+        match cmp_vec(&self.fields, &other.fields) {
+            Ordering::Equal => {
+                match (self.prerelease.is_empty(), other.prerelease.is_empty()) {
+                    (true, false) => Ordering::Greater,
+                    (false, true) => Ordering::Less,
+                    (true, true) => Ordering::Equal,
+                    (false, false) => cmp_vec(&self.prerelease, &other.prerelease)
+                }
+            },
+            a => a
+        }
+    }
+}
+
+
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 #[serde(deny_unknown_fields)]
@@ -136,6 +173,23 @@ impl Display for VersionIdentifier {
         match *self {
             VersionIdentifier::Numeric(ref n) => write!(f, "{}", n),
             VersionIdentifier::Alphanumeric(ref s) => write!(f, "{}", s),
+        }
+    }
+}
+
+impl PartialOrd for VersionIdentifier {
+    fn partial_cmp(&self, other: &VersionIdentifier) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for VersionIdentifier {
+    fn cmp(&self, other: &VersionIdentifier) -> Ordering {
+        match (self, other) {
+            (&Numeric(_), &Alphanumeric(_)) => Ordering::Less,
+            (&Alphanumeric(_), &Numeric(_)) => Ordering::Greater,
+            (&Numeric(ref a), &Numeric(ref b)) => a.cmp(b),
+            (&Alphanumeric(ref a), &Alphanumeric(ref b)) => a.cmp(b)
         }
     }
 }
@@ -252,6 +306,12 @@ named!(pub version<Version>, do_parse!(
 
 
 #[test]
+fn weird_constructors() {
+    assert_eq!(ver!(0,0,0,5,2).as_string(), "0.0.0.5.2".to_string());
+    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).as_string(), "1.2.3-rc1".to_string());
+}
+
+#[test]
 fn normalise_version() {
     assert_eq!(Version::normalise(&ver!(1,2,3)), ver!(1,2,3));
     assert_eq!(Version::normalise(&ver!(0,0,0,1,2,0,3,0)), ver!(0,0,0,1,2,0,3));
@@ -259,9 +319,25 @@ fn normalise_version() {
     assert_eq!(Version::normalise(&ver!(0,0,0,0,0)), ver!(0));
 }
 
+#[test]
 fn version_equality() {
     assert!(ver!(1,2,3) == ver!(1,2,3));
     assert!(ver!(1,2,3,0,0) == ver!(1,2,3));
+}
+
+#[test]
+fn version_ordering() {
+    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3)), Ordering::Equal);
+    assert_eq!(ver!(1,2).cmp(&ver!(1,2,3)), Ordering::Less);
+    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2)), Ordering::Greater);
+    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,4)), Ordering::Less);
+    assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3)), Ordering::Greater);
+    assert_eq!(ver!(1,3,2).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Greater);
+    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Less);
+    assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
+    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
+    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["rc2"][..])), Ordering::Less);
+    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["beta1"][..])), Ordering::Greater);
 }
 
 #[test]
