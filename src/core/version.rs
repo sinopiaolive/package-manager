@@ -12,11 +12,21 @@ use serde::de::Error;
 
 use self::VersionIdentifier::{Numeric, Alphanumeric};
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(Eq, Hash, Clone)]
 pub struct Version {
     pub fields: Vec<u64>,
     pub prerelease: Vec<VersionIdentifier>,
     pub build: Vec<VersionIdentifier>, // TODO Vec?
+}
+
+macro_rules! ver {
+    ( $( $x:expr ),* ) => {{
+        let mut version_parts = Vec::new();
+        $(
+            version_parts.push($x);
+        )*
+        Version::new(version_parts, vec![], vec![])
+    }};
 }
 
 impl Version {
@@ -45,16 +55,33 @@ impl Version {
         }
         s
     }
+
+    pub fn normalise(&self) -> Version {
+        let mut trunc = self.fields.clone();
+        loop {
+            match trunc.pop() {
+                None => break,
+                Some(0u64) => (),
+                Some(i) => {
+                    trunc.push(i);
+                    break
+                }
+            }
+        }
+        if trunc.is_empty() {
+            ver!(0)
+        } else {
+            Version::new(trunc, self.prerelease.clone(), self.build.clone())
+        }
+    }
 }
 
-macro_rules! ver {
-    ( $( $x:expr ),* ) => {{
-        let mut version_parts = Vec::new();
-        $(
-            version_parts.push($x);
-        )*
-        Version::new(version_parts, vec![], vec![])
-    }};
+impl PartialEq for Version {
+    fn eq(&self, other: &Version) -> bool {
+        let v1 = self.normalise();
+        let v2 = other.normalise();
+        v1.fields == v2.fields && v1.prerelease == v2.prerelease && v1.build == v2.build
+    }
 }
 
 impl fmt::Display for Version {
@@ -88,6 +115,14 @@ impl Deserialize for Version {
         }
     }
 }
+
+// impl PartialEq for Version {
+//     fn eq(&self, other: &Version) -> bool {
+
+//     }
+// }
+
+// impl Eq for Version {}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 #[serde(deny_unknown_fields)]
@@ -215,6 +250,19 @@ named!(pub version<Version>, do_parse!(
 ));
 
 
+
+#[test]
+fn normalise_version() {
+    assert_eq!(Version::normalise(&ver!(1,2,3)), ver!(1,2,3));
+    assert_eq!(Version::normalise(&ver!(0,0,0,1,2,0,3,0)), ver!(0,0,0,1,2,0,3));
+    assert_eq!(Version::normalise(&ver!(1,2,0,0,0)), ver!(1,2));
+    assert_eq!(Version::normalise(&ver!(0,0,0,0,0)), ver!(0));
+}
+
+fn version_equality() {
+    assert!(ver!(1,2,3) == ver!(1,2,3));
+    assert!(ver!(1,2,3,0,0) == ver!(1,2,3));
+}
 
 #[test]
 fn test_bump_last() {
