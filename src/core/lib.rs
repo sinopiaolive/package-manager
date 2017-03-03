@@ -27,42 +27,33 @@ macro_rules! map(
 );
 
 pub fn test() {
-    let r = registry::Repository {
-        repository_type: "git".to_string(),
-        url: "https://...".to_string(),
-    };
-    println!("r = {:?}", r);
-    println!("json = {}", serde_json::to_string(&r).unwrap());
-    println!("\ntoml:\n{}", toml::to_string(&r).unwrap());
-    let deserialized: registry::Repository =
-        serde_json::from_str("{\"repository_type\":\"git\",\"url\":\"https://...\"}").unwrap();
-    println!("deserialized = {:?}", deserialized);
-
-    // TODO: implement VersionConstraint serialization
-    println!("version_constraint:\n{}",
-        toml::to_string(&constraint::VersionConstraint::Exact(version::Version {
-            fields: vec![1, 0, 0],
-            prerelease: vec![],
-            build: vec![],
-        })).unwrap());
-
-    // let reg = registry::Registry {
-    //     packages: map! {
-    //         registry::PackageName { namespace: "rust".to_string(), name: "foo".to_string() }
-    //           => registry::Package { owners: vec![], releases: HashMap::new() }
-    //     }
-    // };
-    // println!("reg: {}", toml::to_string(&reg).unwrap());
-
     let test_registry_toml = r#"
 [packages."rust/foo"]
 owners = ["bodil"]
 
 [packages."rust/foo".releases."1.0.0"]
 dependencies = [
-  { name = "rust/bar", version_constraint = "" }
+  { name = "rust/bar", version_constraint = "^1.2.0" }
 ]
+artifact_url = "https://.../foo.tar"
+
+[packages."rust/bar"]
+owners = ["jo"]
+
+[packages."rust/bar".releases."1.2.0"]
+dependencies = [
+  { name = "rust/baz", version_constraint = ">= 0.5.0" }
+]
+artifact_url = "https://.../bar.tar"
+
+[packages."rust/baz"]
+owners = ["jo"]
+
+[packages."rust/baz".releases."0.5.0"]
+dependencies = [
+]
+artifact_url = "https://.../baz.tar"
     "#;
     let test_registry: registry::Registry = toml::from_str(test_registry_toml).unwrap();
-    println!("test_registry: {:?}", test_registry)
+    println!("test_registry as JSON: {}", serde_json::to_string(&test_registry).unwrap());
 }

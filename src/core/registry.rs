@@ -19,7 +19,8 @@ pub struct Package {
     pub owners: Vec<Username>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(default)] // we're using this for testing; can get rid of it later
 #[serde(deny_unknown_fields)]
 pub struct Release {
     pub dependencies: Vec<Dependency>,
@@ -32,9 +33,9 @@ pub struct Release {
     pub author: String,
     pub license: String,
     pub license_file: String, // TODO filesystem things
-    pub homepage: String,
-    pub bugs: String,
-    pub repository: Repository,
+    pub homepage: Option<String>,
+    pub bugs: Option<String>,
+    pub repository: Option<String>,
     pub keywords: Vec<String>,
 }
 

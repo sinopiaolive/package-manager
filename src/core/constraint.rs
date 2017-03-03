@@ -1,14 +1,35 @@
 #[allow(unused_imports)] use nom::IResult::Done;
 use self::VersionConstraint::{Exact, Range};
+use serde::de::Error;
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump};
 #[allow(unused_imports)] use version::VersionIdentifier;
 use std::fmt;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+#[derive(PartialEq, Eq)]
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),
+}
+
+impl Serialize for VersionConstraint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(self.as_string().as_str())
+    }
+}
+
+impl Deserialize for VersionConstraint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer
+    {
+        let s = String::deserialize(deserializer)?;
+        match version_constraint(s.as_bytes()) {
+            Done(b"", v) => Ok(v),
+            _ => Err(D::Error::custom(format!("{:?} is not a valid version constraints descriptor", s))),
+        }
+    }
 }
 
 impl VersionConstraint {
