@@ -1,15 +1,17 @@
 #[allow(unused_imports)] use nom::IResult::Done;
-use self::VersionConstraint::{Exact, Range};
+use self::VersionConstraint::{Exact, Range, Empty};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump};
-#[allow(unused_imports)] use version::VersionIdentifier;
+#[allow(unused_imports)]
+use version::VersionIdentifier;
 use std::fmt;
 
 #[derive(PartialEq, Eq)]
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),
+    Empty,
 }
 
 impl Serialize for VersionConstraint {
@@ -45,10 +47,6 @@ impl VersionConstraint {
         Range(Some(v1), Some(v2))
     }
 
-    pub fn exact(v: Version) -> VersionConstraint {
-        Exact(v)
-    }
-
     pub fn all() -> VersionConstraint {
         Range(None, None)
     }
@@ -59,8 +57,64 @@ impl VersionConstraint {
             &Range(None, None) => "*".to_string(),
             &Range(Some(ref v), None) => format!(">= {}", v),
             &Range(None, Some(ref v)) => format!("< {}", v),
-            &Range(Some(ref v1), Some(ref v2)) => format!(">= {} < {}", v1, v2)
+            &Range(Some(ref v1), Some(ref v2)) => format!(">= {} < {}", v1, v2),
+            &Empty => "∅".to_string(),
         }
+    }
+
+    pub fn contains(&self, v: &Version) -> bool {
+        match self {
+            &Empty => false,
+            &Range(None, None) => true,
+            &Exact(ref o) => v == o,
+            &Range(Some(ref min), None) => v >= min,
+            &Range(None, Some(ref max)) => v < max,
+            &Range(Some(ref min), Some(ref max)) => v >= min && v < max,
+        }
+    }
+
+    pub fn and(&self, other: &VersionConstraint) -> VersionConstraint {
+        match (self, other) {
+            (&Empty, _) => Empty,
+            (_, &Empty) => Empty,
+            (&Exact(ref a), &Exact(ref b)) if a == b => Exact(a.clone()),
+            (&Exact(_), &Exact(_)) => Empty,
+            (&Range(_, _), &Exact(ref v)) => {
+                if self.contains(v) {
+                    Exact(v.clone())
+                } else {
+                    Empty
+                }
+            }
+            (&Exact(ref v), &Range(_, _)) => {
+                if other.contains(v) {
+                    Exact(v.clone())
+                } else {
+                    Empty
+                }
+            }
+            (&Range(ref min1, ref max1), &Range(ref min2, ref max2)) => {
+                Range(min_opt(min1, min2).clone(), max_opt(max1, max2).clone())
+            }
+        }
+    }
+}
+
+fn min_opt<'a, A: Ord>(a: &'a Option<A>, b: &'a Option<A>) -> &'a Option<A> {
+    match (a, b) {
+        (&Some(ref a_val), &Some(ref b_val)) => if a_val > b_val { a } else { b },
+        (&Some(_), &None) => a,
+        (&None, &Some(_)) => b,
+        (&None, &None) => a,
+    }
+}
+
+fn max_opt<'a, A: Ord>(a: &'a Option<A>, b: &'a Option<A>) -> &'a Option<A> {
+    match (a, b) {
+        (&Some(ref a_val), &Some(ref b_val)) => if a_val < b_val { a } else { b },
+        (&Some(_), &None) => a,
+        (&None, &Some(_)) => b,
+        (&None, &None) => a,
     }
 }
 
@@ -222,5 +276,44 @@ fn constraint_to_string() {
     assert_eq!(VersionConstraint::all().as_string(), "*".to_string());
     assert_eq!(VersionConstraint::gteq(ver!(1,2,3)).as_string(), ">= 1.2.3".to_string());
     assert_eq!(VersionConstraint::lt(ver!(1,2,3)).as_string(), "< 1.2.3".to_string());
-    assert_eq!(VersionConstraint::range(ver!(1,2,3), ver!(2)).as_string(), ">= 1.2.3 < 2".to_string());
+    assert_eq!(VersionConstraint::range(ver!(1,2,3), ver!(2)).as_string(),
+               ">= 1.2.3 < 2".to_string());
+}
+
+#[test]
+fn constraint_contains() {
+    let v = ver!(1, 2, 3);
+    assert!(VersionConstraint::all().contains(&v));
+    assert!(VersionConstraint::gteq(ver!(1, 2)).contains(&v));
+    assert!(VersionConstraint::lt(ver!(3)).contains(&v));
+    assert!(VersionConstraint::range(ver!(1, 1, 5), ver!(3, 0, 1, 2)).contains(&v));
+    assert!(!VersionConstraint::lt(ver!(1)).contains(&v));
+    assert!(!VersionConstraint::gteq(ver!(3)).contains(&v));
+    assert!(!VersionConstraint::range(ver!(2), ver!(3)).contains(&v));
+}
+
+#[test]
+fn constraint_and() {
+    assert_eq!(VersionConstraint::all().and(&VersionConstraint::all()), VersionConstraint::all());
+    assert_eq!(VersionConstraint::all().and(&Exact(ver!(1, 2, 3))),
+               Exact(ver!(1, 2, 3)));
+    assert_eq!(Exact(ver!(1, 2, 3)).and(&Exact(ver!(1, 3, 5))),
+               Empty);
+    assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(1), ver!(2))),
+               Exact(ver!(1, 2, 3)));
+    assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(2), ver!(3))),
+               Empty);
+    assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::all()),
+               VersionConstraint::gteq(ver!(1, 2, 3)));
+    assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 5))),
+               VersionConstraint::gteq(ver!(1, 5)));
+    assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 0))),
+               VersionConstraint::gteq(ver!(1, 2, 3)));
+    assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 0))),
+               VersionConstraint::lt(ver!(1, 0)));
+    assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 5))),
+               VersionConstraint::lt(ver!(1, 2, 3)));
+    assert_eq!(VersionConstraint::range(ver!(1, 2, 3), ver!(1, 8))
+                 .and(&VersionConstraint::range(ver!(1, 5), ver!(2))),
+               VersionConstraint::range(ver!(1, 5), ver!(1, 8)));
 }
