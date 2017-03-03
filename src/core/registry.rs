@@ -23,20 +23,26 @@ pub struct Package {
 #[serde(default)] // we're using this for testing; can get rid of it later
 #[serde(deny_unknown_fields)]
 pub struct Release {
-    pub dependencies: DependencySet,
-    // no devDependencies here -- they only go in the manifest
-
-    // TODO filesystem things
     pub artifact_url: String,
+    pub manifest: Manifest
+}
 
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(default)] // we're using this for testing; can get rid of it later
+#[serde(deny_unknown_fields)]
+pub struct Manifest {
     pub description: String,
     pub author: String,
     pub license: String,
-    pub license_file: String, // TODO filesystem things
+    pub license_file: String,
     pub homepage: Option<String>,
     pub bugs: Option<String>,
     pub repository: Option<String>,
     pub keywords: Vec<String>,
+    pub files: Option<Vec<String>>,
+    pub private: bool,
+    pub dependencies: DependencySet,
+    pub dev_dependencies: DependencySet,
 }
 
 pub type DependencySet = HashMap<PackageName, VersionConstraint>;

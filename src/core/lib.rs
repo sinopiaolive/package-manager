@@ -35,21 +35,22 @@ pub fn test() {
 owners = ["bodil"]
 
 [packages."rust/foo".releases."1.0.0"]
-dependencies = { "rust/bar" = "^1.2.0" }
 artifact_url = "https://.../foo.tar"
+[packages."rust/foo".releases."1.0.0".manifest]
+dependencies = { "rust/bar" = "^1.2.0" }
 
 [packages."rust/bar"]
 owners = ["jo"]
 
 [packages."rust/bar".releases."1.2.0"]
-dependencies = { "rust/baz" = ">= 0.5.0" }
 artifact_url = "https://.../bar.tar"
+[packages."rust/bar".releases."1.2.0".manifest]
+dependencies = { "rust/baz" = ">= 0.5.0" }
 
 [packages."rust/baz"]
 owners = ["jo"]
 
 [packages."rust/baz".releases."0.5.0"]
-dependencies = { }
 artifact_url = "https://.../baz.tar"
     "#;
     let test_registry: registry::Registry = toml::from_str(test_registry_toml).unwrap();
