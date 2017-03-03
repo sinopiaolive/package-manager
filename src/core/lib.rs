@@ -10,9 +10,12 @@ extern crate serde_json;
 extern crate toml;
 extern crate regex;
 
-pub mod registry;
-#[macro_use] pub mod version;
-pub mod constraint;
+mod registry;
+pub use registry::*;
+#[macro_use] mod version;
+pub use version::*;
+mod constraint;
+pub use constraint::*;
 
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
@@ -32,26 +35,21 @@ pub fn test() {
 owners = ["bodil"]
 
 [packages."rust/foo".releases."1.0.0"]
-dependencies = [
-  { name = "rust/bar", version_constraint = "^1.2.0" }
-]
+dependencies = { "rust/bar" = "^1.2.0" }
 artifact_url = "https://.../foo.tar"
 
 [packages."rust/bar"]
 owners = ["jo"]
 
 [packages."rust/bar".releases."1.2.0"]
-dependencies = [
-  { name = "rust/baz", version_constraint = ">= 0.5.0" }
-]
+dependencies = { "rust/baz" = ">= 0.5.0" }
 artifact_url = "https://.../bar.tar"
 
 [packages."rust/baz"]
 owners = ["jo"]
 
 [packages."rust/baz".releases."0.5.0"]
-dependencies = [
-]
+dependencies = { }
 artifact_url = "https://.../baz.tar"
     "#;
     let test_registry: registry::Registry = toml::from_str(test_registry_toml).unwrap();

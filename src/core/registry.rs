@@ -23,7 +23,7 @@ pub struct Package {
 #[serde(default)] // we're using this for testing; can get rid of it later
 #[serde(deny_unknown_fields)]
 pub struct Release {
-    pub dependencies: Vec<Dependency>,
+    pub dependencies: DependencySet,
     // no devDependencies here -- they only go in the manifest
 
     // TODO filesystem things
@@ -38,6 +38,10 @@ pub struct Release {
     pub repository: Option<String>,
     pub keywords: Vec<String>,
 }
+
+pub type DependencySet = HashMap<PackageName, VersionConstraint>;
+
+pub type VersionSet = HashMap<PackageName, Version>;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
