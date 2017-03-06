@@ -3,4 +3,7 @@ description = "A package manager."
 author = "Some authors"
 
 [dependencies]
+a = "1.0.0"
 quick-error = "^1.1.0"
+bla = "1.0.0"
+c = "1.0.1"

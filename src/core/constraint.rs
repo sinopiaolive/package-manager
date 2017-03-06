@@ -7,7 +7,7 @@ use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump}
 use version::VersionIdentifier;
 use std::fmt;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),

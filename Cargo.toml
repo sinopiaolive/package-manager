@@ -22,6 +22,7 @@ semver-parser = "^0.7.0"
 nom = { version = "^2.1", features = ["regexp"] }
 regex = "^0.2"
 quick-error = "^1.1.0"
+linked-hash-map = { version = "^0.4.1", features = ["serde_impl"] }
 
 [replace]
 "nom:2.1.0" = { git = 'https://github.com/Geal/nom' }

@@ -13,7 +13,12 @@ quick_error! {
             description(err.description())
             from()
         }
-        Toml(err: toml::de::Error) {
+        FromToml(err: toml::de::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        ToToml(err: toml::ser::Error) {
             cause(err)
             description(err.description())
             from()

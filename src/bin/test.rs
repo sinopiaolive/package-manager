@@ -4,7 +4,7 @@ extern crate package_manager;
 
 use std::result;
 use std::env;
-use package_manager::manifest::read_manifest;
+use package_manager::manifest::{serialise_manifest, read_manifest};
 use package_manager::error::Error;
 
 pub const USAGE: &'static str = "Test page.
@@ -37,7 +37,7 @@ pub fn execute(args: Args) -> result::Result<(), Error> {
     println!("{:?}", manifest);
 
     println!("\nHere it is re-serialised:\n");
-    println!("{}", manifest.to_string());
+    println!("{}", serialise_manifest(&manifest).unwrap());
 
     Ok(())
 }
