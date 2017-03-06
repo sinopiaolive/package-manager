@@ -33,7 +33,11 @@ pub fn execute(args: Args) -> result::Result<(), Error> {
     println!("Also, my working directory is {:?}\n", env::current_dir().unwrap().display());
 
     println!("Here is the manifest file I found there:\n");
-    println!("{:?}", read_manifest());
+    let manifest = read_manifest()?;
+    println!("{:?}", manifest);
+
+    println!("\nHere it is re-serialised:\n");
+    println!("{}", manifest.to_string());
 
     Ok(())
 }

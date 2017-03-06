@@ -1,2 +1,6 @@
 name = "rust/package-manager"
-dependencies = { "rust/quick-error" = "^1.1.0" }
+description = "A package manager."
+author = "Some authors"
+
+[dependencies]
+quick-error = "^1.1.0"
