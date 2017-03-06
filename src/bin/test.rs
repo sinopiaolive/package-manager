@@ -4,6 +4,8 @@ extern crate package_manager;
 
 use std::result;
 use std::env;
+use package_manager::manifest::read_manifest;
+use package_manager::error::Error;
 
 pub const USAGE: &'static str = "Test page.
 
@@ -22,13 +24,16 @@ pub struct Args {
 
 
 
-pub fn execute(args: Args) -> result::Result<(), String> {
+pub fn execute(args: Args) -> result::Result<(), Error> {
     if args.flag_bdd {
         println!("As the test command, when I am called, then I am the test command.")
     } else {
         println!("This is the test command.")
     }
-    println!("Also, my working directory is {:?}", env::current_dir().unwrap().display());
+    println!("Also, my working directory is {:?}\n", env::current_dir().unwrap().display());
+
+    println!("Here is the manifest file I found there:\n");
+    println!("{:?}", read_manifest());
 
     Ok(())
 }

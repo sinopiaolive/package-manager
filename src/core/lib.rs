@@ -1,14 +1,13 @@
 #![allow(dead_code)]
 
-#[macro_use]
-extern crate nom;
+#[macro_use] extern crate nom;
 extern crate semver_parser;
 extern crate serde;
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde_derive;
 extern crate serde_json;
 extern crate toml;
 extern crate regex;
+#[macro_use] extern crate quick_error;
 
 mod registry;
 pub use registry::*;
@@ -16,6 +15,8 @@ pub use registry::*;
 pub use version::*;
 mod constraint;
 pub use constraint::*;
+pub mod manifest;
+pub mod error;
 
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {

@@ -6,8 +6,8 @@ use docopt::Docopt;
 use std::process;
 use rustc_serialize::Decodable;
 use std::env;
-use std::path::Path;
-use std::error::Error;
+use package_manager::error::Error;
+use package_manager::manifest::find_project_dir;
 
 const USAGE: &'static str = "Your package manager.
 
@@ -26,7 +26,7 @@ struct Args {
     arg_args: Vec<String>,
 }
 
-type Result = std::result::Result<(), String>;
+type Result = std::result::Result<(), Error>;
 
 
 
@@ -68,19 +68,9 @@ fn run_shell_command(cmd: &str, args: &Vec<String>) -> Result {
     Ok(()) // FIXME: report subprocess result properly
 }
 
-fn find_project_dir(path: &Path) -> Option<&Path> {
-    let manifest = path.join("Cargo.toml"); // FIXME: not Cargo.toml
-    if manifest.as_path().exists() {
-        Some(path)
-    } else {
-        path.parent().and_then(|p| find_project_dir(p))
-    }
-}
-
 fn change_to_project_dir() -> Result {
-    let cwd = env::current_dir().map_err(|e| e.description().to_string())?;
-    let path = find_project_dir(&cwd).ok_or("no project file found!")?;
-    env::set_current_dir(path).map_err(|e| e.description().to_string())
+    let path = find_project_dir()?;
+    Ok(env::set_current_dir(path)?)
 }
 
 
@@ -92,7 +82,6 @@ fn main() {
         .map(|d| d.version(Some("0.999999-rc623-beta2".to_string())))
         .and_then(|d| d.decode())
         .unwrap_or_else(|e| e.exit());
-    package_manager::test();
     if args.arg_command.is_empty() {
         println!("{:?}", args);
         print!("{}", USAGE);
