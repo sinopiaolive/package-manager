@@ -17,6 +17,7 @@ pub use version::*;
 mod constraint;
 pub use constraint::*;
 pub mod manifest;
+pub use manifest::*;
 pub mod error;
 
 macro_rules! map(

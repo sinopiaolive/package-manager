@@ -17,7 +17,7 @@ use self::VersionIdentifier::{Numeric, Alphanumeric};
 pub struct Version {
     pub fields: Vec<u64>,
     pub prerelease: Vec<VersionIdentifier>,
-    pub build: Vec<VersionIdentifier>, // TODO Vec?
+    pub build: Vec<VersionIdentifier>,
 }
 
 macro_rules! ver {
@@ -39,7 +39,7 @@ impl Version {
         }
     }
 
-    fn pre(&self, pre: &[&str]) -> Version {
+    pub fn pre(&self, pre: &[&str]) -> Version {
         Version::new(self.fields.clone(),
                      pre.iter().map(|s| convert_version_identifier(s).unwrap()).collect(),
                      self.build.clone())
@@ -80,6 +80,12 @@ impl Version {
         } else {
             Version::new(trunc, self.prerelease.clone(), self.build.clone())
         }
+    }
+
+    // Compare while sorting pre-releases before stable releases
+    pub fn priority_cmp(&self, other: &Version) -> Ordering {
+        return (self.prerelease.is_empty(), self)
+            .cmp(&(other.prerelease.is_empty(), other))
     }
 }
 
@@ -338,6 +344,16 @@ fn version_ordering() {
     assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
     assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["rc2"][..])), Ordering::Less);
     assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["beta1"][..])), Ordering::Greater);
+}
+
+#[test]
+fn priority_version_ordering() {
+    assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2,3)), Ordering::Equal);
+    assert_eq!(ver!(1,2).priority_cmp(&ver!(1,2,3)), Ordering::Less);
+    assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2)), Ordering::Greater);
+    assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,2,3)), Ordering::Less);
+    assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,3).pre(&["rc"][..])), Ordering::Greater);
+    assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,3).pre(&["rc", "2"])), Ordering::Less);
 }
 
 #[test]

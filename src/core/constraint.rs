@@ -11,7 +11,7 @@ use std::fmt;
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),
-    Empty,
+    Empty, // TODO is the serialization of this part of our format?
 }
 
 impl Serialize for VersionConstraint {
@@ -97,6 +97,16 @@ impl VersionConstraint {
                 Range(min_opt(min1, min2).clone(), max_opt(max1, max2).clone())
             }
         }
+    }
+
+    // Return a list of matching versions,
+    pub fn all_matching(&self, versions: &Vec<Version>) -> Vec<Version> {
+        let mut matching_versions: Vec<Version> = versions.iter()
+            .filter(|v| self.contains(v))
+            .map(|v| v.clone())
+            .collect();
+        matching_versions.sort_by(|a, b| a.priority_cmp(b));
+        matching_versions
     }
 }
 
@@ -316,4 +326,24 @@ fn constraint_and() {
     assert_eq!(VersionConstraint::range(ver!(1, 2, 3), ver!(1, 8))
                  .and(&VersionConstraint::range(ver!(1, 5), ver!(2))),
                VersionConstraint::range(ver!(1, 5), ver!(1, 8)));
+}
+
+#[test]
+fn test_all_matching() {
+    assert_eq!(
+        VersionConstraint::range(ver!(1, 1, 0), ver!(2, 0, 0)).all_matching(&vec![
+            ver!(1, 0, 0),
+            ver!(1, 1, 0).pre(&["rc", "1"][..]),
+            ver!(1, 1, 0),
+            ver!(1, 2, 0).pre(&["rc", "1"][..]),
+            ver!(1, 2, 0),
+            //ver!(2, 0, 0).pre(&["rc", "1"][..]), // TODO
+            ver!(2, 0, 0),
+        ]),
+        vec![
+            ver!(1, 2, 0).pre(&["rc", "1"][..]),
+            ver!(1, 1, 0),
+            ver!(1, 2, 0),
+        ]
+    );
 }
