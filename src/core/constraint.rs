@@ -68,8 +68,8 @@ impl VersionConstraint {
             &Range(None, None) => true,
             &Exact(ref o) => v == o,
             &Range(Some(ref min), None) => v >= min,
-            &Range(None, Some(ref max)) => v < max,
-            &Range(Some(ref min), Some(ref max)) => v >= min && v < max,
+            &Range(None, Some(ref max)) => max_match(v, max),
+            &Range(Some(ref min), Some(ref max)) => v >= min && max_match(v, max),
         }
     }
 
@@ -107,6 +107,19 @@ impl VersionConstraint {
             .collect();
         matching_versions.sort_by(|a, b| a.priority_cmp(b));
         matching_versions
+    }
+}
+
+/// When testing for membership, the max end of a range is a special case:
+/// if it has a pre tag, we match normally. If it doesn't, we need to first
+/// strip any pre tag off the version we're testing before matching.
+/// This means that `2-pre.1` will be in bounds for `< 2-pre.2` but not
+/// for `< 2`. `1.9-pre` would be in bounds for both.
+fn max_match(v: &Version, max: &Version) -> bool {
+    if max.has_pre() {
+        v < max
+    } else {
+        &v.strip() < max
     }
 }
 
@@ -300,6 +313,9 @@ fn constraint_contains() {
     assert!(!VersionConstraint::lt(ver!(1)).contains(&v));
     assert!(!VersionConstraint::gteq(ver!(3)).contains(&v));
     assert!(!VersionConstraint::range(ver!(2), ver!(3)).contains(&v));
+    assert!(!VersionConstraint::range(ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2)));
+    assert!(!VersionConstraint::range(ver!(1), ver!(2)).contains(&ver!(2).pre(&["beta"])));
+    assert!(VersionConstraint::range(ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2).pre(&["beta"])));
 }
 
 #[test]

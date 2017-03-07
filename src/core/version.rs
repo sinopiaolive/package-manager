@@ -45,6 +45,14 @@ impl Version {
                      self.build.clone())
     }
 
+    pub fn strip(&self) -> Version {
+        Version::new(self.fields.clone(), vec![], vec![])
+    }
+
+    pub fn has_pre(&self) -> bool {
+        !self.prerelease.is_empty()
+    }
+
     pub fn as_string(&self) -> String {
         let mut s = String::new();
         s.push_str(&*self.fields.iter().map(|f| f.to_string()).collect::<Vec<_>>().join("."));
