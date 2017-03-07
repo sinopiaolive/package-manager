@@ -1,4 +1,5 @@
-#[allow(unused_imports)] use nom::IResult::Done;
+#[allow(unused_imports)]
+use nom::IResult::Done;
 use self::VersionConstraint::{Exact, Range, Empty};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
@@ -6,6 +7,7 @@ use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump}
 #[allow(unused_imports)]
 use version::VersionIdentifier;
 use std::fmt;
+use nom;
 
 #[derive(PartialEq, Eq, Clone)]
 pub enum VersionConstraint {
@@ -29,7 +31,10 @@ impl Deserialize for VersionConstraint {
         let s = String::deserialize(deserializer)?;
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(D::Error::custom(format!("{:?} is not a valid version constraints descriptor", s))),
+            _ => {
+                Err(D::Error::custom(format!("{:?} is not a valid version constraints descriptor",
+                                             s)))
+            }
         }
     }
 }
@@ -210,7 +215,7 @@ named!(tilde_constraint<VersionConstraint>, ws!(do_parse!(
         })
 )));
 
-named!(pub version_constraint<VersionConstraint>,
+named!(pub version_constraint_unchecked<VersionConstraint>,
        alt_complete!(open_constraint
                      | caret_constraint
                      | tilde_constraint
@@ -219,6 +224,16 @@ named!(pub version_constraint<VersionConstraint>,
                      | max_constraint
                      | min_constraint
                      | exact_version_constraint));
+
+fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
+    match version_constraint_unchecked(input) {
+        Done(i, _) if i.len() > 0 => nom::IResult::Error(nom::ErrorKind::Eof),
+        Done(_, Range(Some(ref v1), Some(ref v2))) if v1 >= v2 => {
+            nom::IResult::Error(nom::ErrorKind::Custom(1))
+        }
+        r @ _ => r,
+    }
+}
 
 
 
@@ -238,8 +253,7 @@ fn parse_range_constraint() {
                Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
     assert_eq!(version_constraint(b"   >=          1.0"),
                Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
-    assert_eq!(version_constraint(b">=1 .0"),
-               Done(&b".0"[..], Range(Some(Version::new(vec![1], vec![], vec![])), None)));
+    assert_eq!(version_constraint(b">=1 .0"), nom::IResult::Error(nom::ErrorKind::Eof));
     assert_eq!(version_constraint(b"<1.0"),
                Done(&b""[..], Range(None, Some(Version::new(vec![1,0], vec![], vec![])))));
 
@@ -252,6 +266,7 @@ fn parse_range_constraint() {
     assert_eq!(version_constraint(b">=1.0<2.0"),
                Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
                                     Some(Version::new(vec![2,0], vec![], vec![])))));
+    assert_eq!(version_constraint(b">=2.0<1.0"), nom::IResult::Error(nom::ErrorKind::Custom(1)));
 }
 
 #[test]
@@ -315,7 +330,9 @@ fn constraint_contains() {
     assert!(!VersionConstraint::range(ver!(2), ver!(3)).contains(&v));
     assert!(!VersionConstraint::range(ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2)));
     assert!(!VersionConstraint::range(ver!(1), ver!(2)).contains(&ver!(2).pre(&["beta"])));
-    assert!(VersionConstraint::range(ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2).pre(&["beta"])));
+    assert!(VersionConstraint::range(
+        ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2).pre(&["beta"]))
+    );
 }
 
 #[test]
