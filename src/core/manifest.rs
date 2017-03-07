@@ -17,7 +17,7 @@ fn is_false(a: &bool) -> bool {
     !*a
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
     pub name: PackageName,
@@ -168,4 +168,73 @@ pub fn read_manifest() -> Result<Manifest, error::Error> {
         f.read_to_string(&mut s).map(|_| s)
     })?;
     deserialise_manifest(&data)
+}
+
+#[test]
+fn deserialise_and_normalise() {
+    let left_pad: &'static str = "name = \"javascript/left-pad\"
+description = \"A generalised sinister spatiomorphism.\"
+author = \"IEEE Text Alignment Working Group\"
+
+[dependencies]
+right-pad = \"^8.23\"
+";
+
+    let m = deserialise_manifest(&left_pad.to_string()).unwrap();
+
+    let mut my_deps = LinkedHashMap::new();
+    my_deps.insert(
+        PackageName { namespace: Some("javascript".to_string()), name: "right-pad".to_string() },
+        VersionConstraint::range(ver!(8,23), ver!(9))
+    );
+    assert_eq!(m, Manifest {
+        name: PackageName { namespace: Some("javascript".to_string()), name: "left-pad".to_string() },
+        description: "A generalised sinister spatiomorphism.".to_string(),
+        author: "IEEE Text Alignment Working Group".to_string(),
+        license: None,
+        license_file: None,
+        homepage: None,
+        bugs: None,
+        repository: None,
+        keywords: vec!(),
+        files: vec!(),
+        private: false,
+        dev_dependencies: LinkedHashMap::new(),
+        dependencies: my_deps
+    });
+}
+
+#[test]
+fn denormalise_and_serialise() {
+    let left_pad: &'static str = "name = \"javascript/left-pad\"
+description = \"A generalised sinister spatiomorphism.\"
+author = \"IEEE Text Alignment Working Group\"
+
+[dependencies]
+right-pad = \">= 8.23 < 9\"
+";
+
+    let mut my_deps = LinkedHashMap::new();
+    my_deps.insert(
+        PackageName { namespace: Some("javascript".to_string()), name: "right-pad".to_string() },
+        VersionConstraint::range(ver!(8,23), ver!(9))
+    );
+    let manifest = Manifest {
+        name: PackageName { namespace: Some("javascript".to_string()), name: "left-pad".to_string() },
+        description: "A generalised sinister spatiomorphism.".to_string(),
+        author: "IEEE Text Alignment Working Group".to_string(),
+        license: None,
+        license_file: None,
+        homepage: None,
+        bugs: None,
+        repository: None,
+        keywords: vec!(),
+        files: vec!(),
+        private: false,
+        dev_dependencies: LinkedHashMap::new(),
+        dependencies: my_deps
+    };
+
+    let m = serialise_manifest(&manifest).unwrap();
+    assert_eq!(m, left_pad);
 }
