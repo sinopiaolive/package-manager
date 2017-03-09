@@ -18,7 +18,7 @@ fn is_false(a: &bool) -> bool {
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Manifest {
     pub name: PackageName,
     pub description: String,
@@ -316,7 +316,7 @@ fn accepts_all_defined_fields() {
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
 license = \"GPL-3.0+\"
-license_file = \"LICENSE.txt\"
+licenseFile = \"LICENSE.txt\"
 homepage = \"https://left-pad.com/\"
 bugs = \"https://jira.left-pad.com\"
 repository = \"https://git.left-pad.com/left-pad.git\"
@@ -328,7 +328,7 @@ private = false
 right-pad = \"^1.2.3\"
 down-pad = \"~5.6.0\"
 
-[dev_dependencies]
+[devDependencies]
 webpack = \"^7.0.5\"
 widdershins-pad = \"^4.0.0\"
 ";
