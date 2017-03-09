@@ -27,7 +27,7 @@ macro_rules! ver {
         $(
             version_parts.push($x);
         )*
-        Version::new(version_parts, vec![], vec![])
+        ::Version::new(version_parts, vec![], vec![])
     }};
 }
 

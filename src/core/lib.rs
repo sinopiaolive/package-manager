@@ -11,7 +11,7 @@ extern crate regex;
 extern crate linked_hash_map;
 extern crate license_exprs;
 
-mod registry;
+#[macro_use] mod registry;
 pub use registry::*;
 #[macro_use] mod version;
 pub use version::*;
