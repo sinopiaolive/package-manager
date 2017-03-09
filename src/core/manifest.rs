@@ -28,11 +28,16 @@ pub struct Manifest {
     pub homepage: Option<String>,
     pub bugs: Option<String>,
     pub repository: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")] pub keywords: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")] pub files: Vec<String>,
-    #[serde(default, skip_serializing_if = "is_false")] pub private: bool,
-    #[serde(default, skip_serializing_if = "LinkedHashMap::is_empty")] pub dependencies: DependencySet,
-    #[serde(default, skip_serializing_if = "LinkedHashMap::is_empty")] pub dev_dependencies: DependencySet,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keywords: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub private: bool,
+    #[serde(default, skip_serializing_if = "LinkedHashMap::is_empty")]
+    pub dependencies: DependencySet,
+    #[serde(default, skip_serializing_if = "LinkedHashMap::is_empty")]
+    pub dev_dependencies: DependencySet,
 }
 
 impl Manifest {
@@ -55,7 +60,7 @@ impl Display for PackageName {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match &self.namespace {
             &Some(ref namespace) => write!(f, "{}/{}", namespace, self.name),
-            &None => write!(f, "{}", self.name)
+            &None => write!(f, "{}", self.name),
         }
     }
 }
@@ -75,15 +80,22 @@ impl Deserialize for PackageName {
         let s = String::deserialize(deserializer)?;
         let v: Vec<&str> = s.split('/').collect();
         match v.len() {
-            1 => Ok(PackageName {
-                namespace: None,
-                name: v[0].to_string()
-            }),
-            2 => Ok(PackageName {
-                namespace: Some(v[0].to_string()),
-                name: v[1].to_string()
-            }),
-            _ => Err(D::Error::custom(format!("Wrong number of components (1 or 2 allowed): {:?}", s)))
+            1 => {
+                Ok(PackageName {
+                    namespace: None,
+                    name: v[0].to_string(),
+                })
+            }
+            2 => {
+                Ok(PackageName {
+                    namespace: Some(v[0].to_string()),
+                    name: v[1].to_string(),
+                })
+            }
+            _ => {
+                Err(D::Error::custom(format!("Wrong number of components (1 or 2 allowed): {:?}",
+                                             s)))
+            }
         }
     }
 }
@@ -91,17 +103,23 @@ impl Deserialize for PackageName {
 fn normalise_dep(path: &String, dep: &PackageName) -> PackageName {
     PackageName {
         namespace: Some(dep.namespace.clone().unwrap_or((*path).clone())),
-        name: dep.name.clone()
+        name: dep.name.clone(),
     }
 }
 
 fn denormalise_dep(path: &String, dep: &PackageName) -> PackageName {
     match dep.namespace {
-        Some(ref ns) => PackageName {
-            namespace: if ns == path { None } else { Some((*ns).clone()) },
-            name: dep.name.clone()
-        },
-        None => dep.clone()
+        Some(ref ns) => {
+            PackageName {
+                namespace: if ns == path {
+                    None
+                } else {
+                    Some((*ns).clone())
+                },
+                name: dep.name.clone(),
+            }
+        }
+        None => dep.clone(),
     }
 }
 
@@ -110,11 +128,15 @@ fn normalise_deps(path: &String, deps: &DependencySet) -> DependencySet {
 }
 
 fn denormalise_deps(path: &String, deps: &DependencySet) -> DependencySet {
-    DependencySet::from_iter(deps.into_iter().map(|(k, v)| (denormalise_dep(path, k), (*v).clone())))
+    DependencySet::from_iter(deps.into_iter()
+        .map(|(k, v)| (denormalise_dep(path, k), (*v).clone())))
 }
 
 pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error> {
-    let path = manifest.name.clone().namespace.ok_or(error::Error::Message("Package name must contain a namespace!"))?;
+    let path = manifest.name
+        .clone()
+        .namespace
+        .ok_or(error::Error::Message("Package name must contain a namespace!"))?;
     let deps = normalise_deps(&path, &manifest.dependencies);
     let dev_deps = normalise_deps(&path, &manifest.dev_dependencies);
     let mut m = (*manifest).clone();
@@ -124,7 +146,10 @@ pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error>
 }
 
 pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error> {
-    let path = manifest.name.clone().namespace.ok_or(error::Error::Message("Package name must contain a namespace!"))?;
+    let path = manifest.name
+        .clone()
+        .namespace
+        .ok_or(error::Error::Message("Package name must contain a namespace!"))?;
     let deps = denormalise_deps(&path, &manifest.dependencies);
     let dev_deps = denormalise_deps(&path, &manifest.dev_dependencies);
     let mut m = (*manifest).clone();
@@ -164,9 +189,9 @@ pub fn find_project_dir() -> Result<PathBuf, error::Error> {
 pub fn read_manifest() -> Result<Manifest, error::Error> {
     let manifest_path = find_manifest_path()?;
     let data = File::open(manifest_path).and_then(|mut f| {
-        let mut s = String::new();
-        f.read_to_string(&mut s).map(|_| s)
-    })?;
+            let mut s = String::new();
+            f.read_to_string(&mut s).map(|_| s)
+        })?;
     deserialise_manifest(&data)
 }
 
@@ -183,25 +208,30 @@ right-pad = \"^8.23\"
     let m = deserialise_manifest(&left_pad.to_string()).unwrap();
 
     let mut my_deps = LinkedHashMap::new();
-    my_deps.insert(
-        PackageName { namespace: Some("javascript".to_string()), name: "right-pad".to_string() },
-        VersionConstraint::range(ver!(8,23), ver!(9))
-    );
-    assert_eq!(m, Manifest {
-        name: PackageName { namespace: Some("javascript".to_string()), name: "left-pad".to_string() },
-        description: "A generalised sinister spatiomorphism.".to_string(),
-        author: "IEEE Text Alignment Working Group".to_string(),
-        license: None,
-        license_file: None,
-        homepage: None,
-        bugs: None,
-        repository: None,
-        keywords: vec!(),
-        files: vec!(),
-        private: false,
-        dev_dependencies: LinkedHashMap::new(),
-        dependencies: my_deps
-    });
+    my_deps.insert(PackageName {
+                       namespace: Some("javascript".to_string()),
+                       name: "right-pad".to_string(),
+                   },
+                   VersionConstraint::range(ver!(8, 23), ver!(9)));
+    assert_eq!(m,
+               Manifest {
+                   name: PackageName {
+                       namespace: Some("javascript".to_string()),
+                       name: "left-pad".to_string(),
+                   },
+                   description: "A generalised sinister spatiomorphism.".to_string(),
+                   author: "IEEE Text Alignment Working Group".to_string(),
+                   license: None,
+                   license_file: None,
+                   homepage: None,
+                   bugs: None,
+                   repository: None,
+                   keywords: vec![],
+                   files: vec![],
+                   private: false,
+                   dev_dependencies: LinkedHashMap::new(),
+                   dependencies: my_deps,
+               });
 }
 
 #[test]
@@ -215,12 +245,16 @@ right-pad = \">= 8.23 < 9\"
 ";
 
     let mut my_deps = LinkedHashMap::new();
-    my_deps.insert(
-        PackageName { namespace: Some("javascript".to_string()), name: "right-pad".to_string() },
-        VersionConstraint::range(ver!(8,23), ver!(9))
-    );
+    my_deps.insert(PackageName {
+                       namespace: Some("javascript".to_string()),
+                       name: "right-pad".to_string(),
+                   },
+                   VersionConstraint::range(ver!(8, 23), ver!(9)));
     let manifest = Manifest {
-        name: PackageName { namespace: Some("javascript".to_string()), name: "left-pad".to_string() },
+        name: PackageName {
+            namespace: Some("javascript".to_string()),
+            name: "left-pad".to_string(),
+        },
         description: "A generalised sinister spatiomorphism.".to_string(),
         author: "IEEE Text Alignment Working Group".to_string(),
         license: None,
@@ -228,13 +262,75 @@ right-pad = \">= 8.23 < 9\"
         homepage: None,
         bugs: None,
         repository: None,
-        keywords: vec!(),
-        files: vec!(),
+        keywords: vec![],
+        files: vec![],
         private: false,
         dev_dependencies: LinkedHashMap::new(),
-        dependencies: my_deps
+        dependencies: my_deps,
     };
 
     let m = serialise_manifest(&manifest).unwrap();
     assert_eq!(m, left_pad);
+}
+
+#[test]
+#[should_panic]
+fn required_fields() {
+    let left_pad: &'static str = "name = \"javascript/left-pad\"";
+    deserialise_manifest(&left_pad.to_string()).unwrap();
+}
+
+#[test]
+#[should_panic]
+fn namespace_required() {
+    let left_pad: &'static str = "name = \"left-pad\"
+description = \"A generalised sinister spatiomorphism.\"
+author = \"IEEE Text Alignment Working Group\"
+";
+    deserialise_manifest(&left_pad.to_string()).unwrap();
+}
+
+#[test]
+fn no_unexpected_fields() {
+    let left_pad: &'static str = "name = \"javascript/left-pad\"
+description = \"A generalised sinister spatiomorphism.\"
+author = \"IEEE Text Alignment Working Group\"
+hippopotamus = \"A large, thick-skinned, semiaquatic African mammal.\"
+";
+    let r = deserialise_manifest(&left_pad.to_string());
+    assert!(r.is_err());
+    match r {
+        Err(e) => {
+            let m = format!("{:?}", e);
+            assert!(m.contains("unknown field `hippopotamus`"),
+                    "error message {:?} doesn't complain about \"hippopotamus\"",
+                    m)
+        }
+        _ => panic!("parsing unexpected fields didn't return an error!"),
+    }
+}
+
+#[test]
+fn accepts_all_defined_fields() {
+    let left_pad: &'static str = "name = \"javascript/left-pad\"
+description = \"A generalised sinister spatiomorphism.\"
+author = \"IEEE Text Alignment Working Group\"
+license = \"GPL-3.0+\"
+license_file = \"LICENSE.txt\"
+homepage = \"https://left-pad.com/\"
+bugs = \"https://jira.left-pad.com\"
+repository = \"https://git.left-pad.com/left-pad.git\"
+keywords = [ \"left-pad\", \"left\", \"pad\", \"leftpad\" ]
+files = [ \"index.js\" ]
+private = false
+
+[dependencies]
+right-pad = \"^1.2.3\"
+down-pad = \"~5.6.0\"
+
+[dev_dependencies]
+webpack = \"^7.0.5\"
+widdershins-pad = \"^4.0.0\"
+";
+    deserialise_manifest(&left_pad.to_string()).unwrap();
 }
