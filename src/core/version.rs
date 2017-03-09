@@ -10,6 +10,7 @@ use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use std::fmt::Display;
 use serde::de::Error;
 use std::cmp::{Ord, PartialOrd, Ordering};
+use super::error;
 
 use self::VersionIdentifier::{Numeric, Alphanumeric};
 
@@ -36,6 +37,13 @@ impl Version {
             fields: v,
             prerelease: p,
             build: b,
+        }
+    }
+
+    pub fn from_str(s: &str) -> Result<Version, error::Error> {
+        match version(s.as_bytes()) {
+            Done(b"", v) => Ok(v),
+            _ => Err(error::Error::Message("invalid version string"))
         }
     }
 

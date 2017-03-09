@@ -8,6 +8,7 @@ use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump}
 use version::VersionIdentifier;
 use std::fmt;
 use nom;
+use super::error;
 
 #[derive(PartialEq, Eq, Clone)]
 pub enum VersionConstraint {
@@ -54,6 +55,13 @@ impl VersionConstraint {
 
     pub fn all() -> VersionConstraint {
         Range(None, None)
+    }
+
+    pub fn from_str(s: &str) -> Result<VersionConstraint, error::Error> {
+        match version_constraint(s.as_bytes()) {
+            Done(b"", v) => Ok(v),
+            _ => Err(error::Error::Message("invalid version constraint"))
+        }
     }
 
     pub fn as_string(&self) -> String {
