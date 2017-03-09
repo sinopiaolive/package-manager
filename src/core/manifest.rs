@@ -134,10 +134,8 @@ fn denormalise_deps(path: &String, deps: &DependencySet) -> DependencySet {
 }
 
 pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error> {
-    let path = manifest.name
-        .clone()
-        .namespace
-        .ok_or(error::Error::Message("Package name must contain a namespace!"))?;
+    validate_manifest(manifest)?;
+    let path = manifest.name.clone().namespace.unwrap();
     let deps = normalise_deps(&path, &manifest.dependencies);
     let dev_deps = normalise_deps(&path, &manifest.dev_dependencies);
     let mut m = (*manifest).clone();
@@ -147,10 +145,8 @@ pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error>
 }
 
 pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error> {
-    let path = manifest.name
-        .clone()
-        .namespace
-        .ok_or(error::Error::Message("Package name must contain a namespace!"))?;
+    validate_manifest(manifest)?;
+    let path = manifest.name.clone().namespace.unwrap();
     let deps = denormalise_deps(&path, &manifest.dependencies);
     let dev_deps = denormalise_deps(&path, &manifest.dev_dependencies);
     let mut m = (*manifest).clone();
@@ -159,7 +155,13 @@ pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Erro
     Ok(m)
 }
 
-pub fn validate_manifest(manifest: &Manifest) -> Result<&Manifest, error::Error> {
+// TODO watch https://github.com/serde-rs/serde/issues/642 - when this issue is implemented,
+// make the deserialiser call this function instead of calling it manually.
+pub fn validate_manifest(manifest: &Manifest) -> Result<(), error::Error> {
+    match manifest.name.namespace {
+        None => return Err(error::Error::Message("Package name must contain a namespace!")),
+        _ => (),
+    }
     match &manifest.license {
         &Some(ref l) => {
             match validate_license_expr(l.as_str()) {
@@ -169,15 +171,15 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<&Manifest, error::Error>
         }
         _ => (),
     }
-    Ok(manifest)
+    Ok(())
 }
 
 pub fn serialise_manifest(manifest: &Manifest) -> Result<String, error::Error> {
-    denormalise_manifest(validate_manifest(manifest)?)?.to_string()
+    denormalise_manifest(manifest)?.to_string()
 }
 
 pub fn deserialise_manifest(data: &String) -> Result<Manifest, error::Error> {
-    Ok(normalise_manifest(validate_manifest(&toml::from_str(data)?)?)?)
+    Ok(normalise_manifest(&toml::from_str(data)?)?)
 }
 
 fn find_manifest(path: &Path) -> Option<PathBuf> {
