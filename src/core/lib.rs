@@ -19,6 +19,8 @@ pub use constraint::*;
 pub mod manifest;
 pub use manifest::*;
 pub mod error;
+mod solver;
+pub use solver::*;
 
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
