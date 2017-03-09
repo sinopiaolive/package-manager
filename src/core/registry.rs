@@ -36,6 +36,7 @@ pub type Username = String;
 
 macro_rules! gen_registry {
     ( $( $name:ident => ( $( $release:expr => ( $( $dep:ident => $constraint:expr ),* ) ),* ) ),* ) => {{
+        #[allow(unused_mut)]
         let mut packs = ::linked_hash_map::LinkedHashMap::new();
         $({
             let name = ::PackageName {
