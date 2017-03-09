@@ -33,3 +33,51 @@ pub struct Repository {
 }
 
 pub type Username = String;
+
+macro_rules! gen_registry {
+    ( $( $name:ident => ( $( $release:expr => ( $( $dep:ident => $constraint:expr ),* ) ),* ) ),* ) => {{
+        let mut packs = LinkedHashMap::new();
+        $({
+            let name = PackageName {
+                namespace: Some("leftpad".to_string()), name: stringify!($name).to_string()
+            };
+            let mut releases = LinkedHashMap::new();
+            $({
+                let ver = Version::from_str($release).unwrap();
+                let mut deps = LinkedHashMap::new();
+                $({
+                    let pkg = PackageName {
+                        namespace: Some("leftpad".to_string()), name: stringify!($dep).to_string()
+                    };
+                    let constraint = VersionConstraint::from_str($constraint).unwrap();
+                    deps.insert(pkg, constraint);
+                })*;
+
+                let manifest = Manifest {
+                    name: name.clone(),
+                    description: "A generalised sinister spatiomorphism.".to_string(),
+                    author: "IEEE Text Alignment Working Group".to_string(),
+                    license: None,
+                    license_file: None,
+                    homepage: None,
+                    bugs: None,
+                    repository: None,
+                    keywords: vec![],
+                    files: vec![],
+                    private: false,
+                    dev_dependencies: LinkedHashMap::new(),
+                    dependencies: deps,
+                };
+                releases.insert(ver, Release {
+                    manifest: manifest, artifact_url: "http://left-pad.com/left-pad.tar.gz".to_string()
+                });
+            })*;
+            let pack = Package {
+                owners: vec!["Left Pad Working Group".to_string()],
+                releases: releases
+            };
+            packs.insert(name, pack);
+        })*;
+        packs
+    }}
+}
