@@ -9,6 +9,7 @@ extern crate toml;
 extern crate regex;
 #[macro_use] extern crate quick_error;
 extern crate linked_hash_map;
+extern crate license_exprs;
 
 mod registry;
 pub use registry::*;

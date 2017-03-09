@@ -11,6 +11,7 @@ use std::iter::FromIterator;
 use std::clone::Clone;
 use toml;
 use linked_hash_map::LinkedHashMap;
+use license_exprs::validate_license_expr;
 use super::error;
 
 fn is_false(a: &bool) -> bool {
@@ -158,12 +159,25 @@ pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Erro
     Ok(m)
 }
 
+pub fn validate_manifest(manifest: &Manifest) -> Result<&Manifest, error::Error> {
+    match &manifest.license {
+        &Some(ref l) => {
+            match validate_license_expr(l.as_str()) {
+                Err(ref e) => return Err(error::Error::Custom(format!("{}", e))),
+                _ => (),
+            }
+        }
+        _ => (),
+    }
+    Ok(manifest)
+}
+
 pub fn serialise_manifest(manifest: &Manifest) -> Result<String, error::Error> {
-    denormalise_manifest(manifest)?.to_string()
+    denormalise_manifest(validate_manifest(manifest)?)?.to_string()
 }
 
 pub fn deserialise_manifest(data: &String) -> Result<Manifest, error::Error> {
-    Ok(normalise_manifest(&toml::from_str(data)?)?)
+    Ok(normalise_manifest(validate_manifest(&toml::from_str(data)?)?)?)
 }
 
 fn find_manifest(path: &Path) -> Option<PathBuf> {
@@ -286,6 +300,17 @@ fn namespace_required() {
     let left_pad: &'static str = "name = \"left-pad\"
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
+";
+    deserialise_manifest(&left_pad.to_string()).unwrap();
+}
+
+#[test]
+#[should_panic]
+fn reject_invalid_license_field() {
+    let left_pad: &'static str = "name = \"left-pad\"
+description = \"A generalised sinister spatiomorphism.\"
+author = \"IEEE Text Alignment Working Group\"
+license = \"LOLPL\"
 ";
     deserialise_manifest(&left_pad.to_string()).unwrap();
 }

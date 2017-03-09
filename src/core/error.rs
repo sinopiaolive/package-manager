@@ -8,6 +8,10 @@ quick_error! {
             description(err)
             from()
         }
+        Custom(err: String) {
+            description(err)
+            from()
+        }
         Io(err: std::io::Error) {
             cause(err)
             description(err.description())
