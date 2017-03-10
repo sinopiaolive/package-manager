@@ -20,16 +20,6 @@ pub struct Version {
     pub build: Vec<VersionIdentifier>,
 }
 
-macro_rules! ver {
-    ( $( $x:expr ),* ) => {{
-        let mut version_parts = Vec::new();
-        $(
-            version_parts.push($x);
-        )*
-        ::Version::new(version_parts, vec![], vec![])
-    }};
-}
-
 impl Version {
     pub fn new(v: Vec<u64>, p: Vec<VersionIdentifier>, b: Vec<VersionIdentifier>) -> Version {
         Version {
@@ -42,7 +32,7 @@ impl Version {
     pub fn from_str(s: &str) -> Result<Version, error::Error> {
         match version(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Message("invalid version string"))
+            _ => Err(error::Error::Custom(format!("invalid version string {:?}", s))),
         }
     }
 
@@ -86,7 +76,7 @@ impl Version {
                 Some(0u64) => (),
                 Some(i) => {
                     trunc.push(i);
-                    break
+                    break;
                 }
             }
         }
@@ -99,8 +89,7 @@ impl Version {
 
     // Compare while sorting pre-releases before stable releases
     pub fn priority_cmp(&self, other: &Version) -> Ordering {
-        return (self.prerelease.is_empty(), self)
-            .cmp(&(other.prerelease.is_empty(), other))
+        return (self.prerelease.is_empty(), self).cmp(&(other.prerelease.is_empty(), other));
     }
 }
 
@@ -153,7 +142,7 @@ fn cmp_vec<A: Ord>(v1: &Vec<A>, v2: &Vec<A>) -> Ordering {
             (Some(_), None) => return Ordering::Greater,
             (None, Some(_)) => return Ordering::Less,
             (Some(a), Some(b)) if a.cmp(b) == Ordering::Equal => (),
-            (Some(a), Some(b)) => return a.cmp(b)
+            (Some(a), Some(b)) => return a.cmp(b),
         }
     }
 }
@@ -172,10 +161,10 @@ impl Ord for Version {
                     (true, false) => Ordering::Greater,
                     (false, true) => Ordering::Less,
                     (true, true) => Ordering::Equal,
-                    (false, false) => cmp_vec(&self.prerelease, &other.prerelease)
+                    (false, false) => cmp_vec(&self.prerelease, &other.prerelease),
                 }
-            },
-            a => a
+            }
+            a => a,
         }
     }
 }
@@ -210,7 +199,7 @@ impl Ord for VersionIdentifier {
             (&Numeric(_), &Alphanumeric(_)) => Ordering::Less,
             (&Alphanumeric(_), &Numeric(_)) => Ordering::Greater,
             (&Numeric(ref a), &Numeric(ref b)) => a.cmp(b),
-            (&Alphanumeric(ref a), &Alphanumeric(ref b)) => a.cmp(b)
+            (&Alphanumeric(ref a), &Alphanumeric(ref b)) => a.cmp(b),
         }
     }
 }
@@ -249,7 +238,7 @@ pub fn caret_bump(v: &Version) -> Version {
             parts.push(i);
         } else {
             parts.push(i + 1);
-            return Version::new(parts, vec![], vec![])
+            return Version::new(parts, vec![], vec![]);
         }
     }
     Version::new(vec![], vec![], vec![])
@@ -265,7 +254,9 @@ pub fn caret_bump(v: &Version) -> Version {
 ///
 /// This drops all tags from the version.
 pub fn tilde_bump(v: &Version) -> Version {
-    bump_last(&Version::new(v.fields.iter().map(|i| *i).take(2).collect(), vec![], vec![]))
+    bump_last(&Version::new(v.fields.iter().map(|i| *i).take(2).collect(),
+                            vec![],
+                            vec![]))
 }
 
 
@@ -328,83 +319,75 @@ named!(pub version<Version>, do_parse!(
 #[cfg(test)]
 mod test {
     use super::*;
+    use test::ver;
 
     #[test]
     fn weird_constructors() {
-        assert_eq!(ver!(0,0,0,5,2).as_string(), "0.0.0.5.2".to_string());
-        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).as_string(), "1.2.3-rc1".to_string());
+        assert_eq!(ver("0.0.0.5.2").as_string(), "0.0.0.5.2".to_string());
+        assert_eq!(ver("1.2.3").pre(&["rc1"][..]).as_string(), "1.2.3-rc1".to_string());
     }
 
     #[test]
     fn normalise_version() {
-        assert_eq!(Version::normalise(&ver!(1,2,3)), ver!(1,2,3));
-        assert_eq!(Version::normalise(&ver!(0,0,0,1,2,0,3,0)), ver!(0,0,0,1,2,0,3));
-        assert_eq!(Version::normalise(&ver!(1,2,0,0,0)), ver!(1,2));
-        assert_eq!(Version::normalise(&ver!(0,0,0,0,0)), ver!(0));
+        assert_eq!(Version::normalise(&ver("1.2.3")), ver("1.2.3"));
+        assert_eq!(Version::normalise(&ver("0.0.0.1.2.0.3.0")), ver("0.0.0.1.2.0.3"));
+        assert_eq!(Version::normalise(&ver("1.2.0.0.0")), ver("1.2"));
+        assert_eq!(Version::normalise(&ver("0.0.0.0.0")), ver("0"));
     }
 
     #[test]
     fn version_equality() {
-        assert!(ver!(1,2,3) == ver!(1,2,3));
-        assert!(ver!(1,2,3,0,0) == ver!(1,2,3));
+        assert!(ver("1.2.3") == ver("1.2.3"));
+        assert!(ver("1.2.3.0.0") == ver("1.2.3"));
     }
 
     #[test]
     fn version_ordering() {
-        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3)), Ordering::Equal);
-        assert_eq!(ver!(1,2).cmp(&ver!(1,2,3)), Ordering::Less);
-        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2)), Ordering::Greater);
-        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,4)), Ordering::Less);
-        assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3)), Ordering::Greater);
-        assert_eq!(ver!(1,3,2).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Greater);
-        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Less);
-        assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
-        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
-        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["rc2"][..])), Ordering::Less);
-        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["beta1"][..])), Ordering::Greater);
+        assert_eq!(ver("1.2.3").cmp(&ver("1.2.3")), Ordering::Equal);
+        assert_eq!(ver("1.2").cmp(&ver("1.2.3")), Ordering::Less);
+        assert_eq!(ver("1.2.3").cmp(&ver("1.2")), Ordering::Greater);
+        assert_eq!(ver("1.2.3").cmp(&ver("1.2.4")), Ordering::Less);
+        assert_eq!(ver("1.3.2").cmp(&ver("1.2.3")), Ordering::Greater);
+        assert_eq!(ver("1.3.2-rc1").cmp(&ver("1.2.3")), Ordering::Greater);
+        assert_eq!(ver("1.2.3-rc1").cmp(&ver("1.2.3")), Ordering::Less);
+        assert_eq!(ver("1.3.2").cmp(&ver("1.2.3-rc1")), Ordering::Greater);
+        assert_eq!(ver("1.2.3").cmp(&ver("1.2.3-rc1")), Ordering::Greater);
+        assert_eq!(ver("1.2.3-rc1").cmp(&ver("1.2.3-rc2")), Ordering::Less);
+        assert_eq!(ver("1.2.3-rc1").cmp(&ver("1.2.3-beta1")), Ordering::Greater);
     }
 
     #[test]
     fn priority_version_ordering() {
-        assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2,3)), Ordering::Equal);
-        assert_eq!(ver!(1,2).priority_cmp(&ver!(1,2,3)), Ordering::Less);
-        assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2)), Ordering::Greater);
-        assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,2,3)), Ordering::Less);
-        assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,3).pre(&["rc"][..])), Ordering::Greater);
-        assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,3).pre(&["rc", "2"])), Ordering::Less);
+        assert_eq!(ver("1.2.3").priority_cmp(&ver("1.2.3")), Ordering::Equal);
+        assert_eq!(ver("1.2").priority_cmp(&ver("1.2.3")), Ordering::Less);
+        assert_eq!(ver("1.2.3").priority_cmp(&ver("1.2")), Ordering::Greater);
+        assert_eq!(ver("1.3-rc").priority_cmp(&ver("1.2.3")), Ordering::Less);
+        assert_eq!(ver("1.2.3").priority_cmp(&ver("1.3-rc")), Ordering::Greater);
+        assert_eq!(ver("1.3-rc").priority_cmp(&ver("1.3-rc.2")), Ordering::Less);
     }
 
     #[test]
     fn test_bump_last() {
-        assert_eq!(bump_last(&ver!(1,2,3)), ver!(1,2,4));
-        assert_eq!(bump_last(&ver!(1,2)), ver!(1,3));
-        assert_eq!(bump_last(&ver!(3)), ver!(4));
-        assert_eq!(bump_last(&Version::new(vec![1,2,3],
-                                           vec![Alphanumeric("beta2".to_string())],
-                                           vec![Alphanumeric("lol".to_string())])),
-                   ver!(1,2,4));
+        assert_eq!(bump_last(&ver("1.2.3")), ver("1.2.4"));
+        assert_eq!(bump_last(&ver("1.2")), ver("1.3"));
+        assert_eq!(bump_last(&ver("3")), ver("4"));
+        assert_eq!(bump_last(&ver("1.2.3-beta2+lol")), ver("1.2.4"));
     }
 
     #[test]
     fn test_caret_bump() {
-        assert_eq!(caret_bump(&ver!(1,2,3)), ver!(2));
-        assert_eq!(caret_bump(&ver!(0,1,2)), ver!(0,2));
-        assert_eq!(caret_bump(&ver!(0,0,3)), ver!(0,0,4));
-        assert_eq!(caret_bump(&Version::new(vec![0,1,2,3],
-                                            vec![Alphanumeric("beta2".to_string())],
-                                            vec![Alphanumeric("lol".to_string())])),
-                   ver!(0,2));
+        assert_eq!(caret_bump(&ver("1.2.3")), ver("2"));
+        assert_eq!(caret_bump(&ver("0.1.2")), ver("0.2"));
+        assert_eq!(caret_bump(&ver("0.0.3")), ver("0.0.4"));
+        assert_eq!(caret_bump(&ver("0.1.2.3-beta2+lol")), ver("0.2"));
     }
 
     #[test]
     fn test_tilde_bump() {
-        assert_eq!(tilde_bump(&ver!(1,2,3)), ver!(1,3));
-        assert_eq!(tilde_bump(&ver!(1,2)), ver!(1,3));
-        assert_eq!(tilde_bump(&ver!(1)), ver!(2));
-        assert_eq!(tilde_bump(&Version::new(vec![1,2,3],
-                                            vec![Alphanumeric("beta2".to_string())],
-                                            vec![Alphanumeric("lol".to_string())])),
-                   ver!(1,3));
+        assert_eq!(tilde_bump(&ver("1.2.3")), ver("1.3"));
+        assert_eq!(tilde_bump(&ver("1.2")), ver("1.3"));
+        assert_eq!(tilde_bump(&ver("1")), ver("2"));
+        assert_eq!(tilde_bump(&ver("1.2.3-beta2+lol")), ver("1.3"));
     }
 
     #[test]

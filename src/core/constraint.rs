@@ -57,7 +57,7 @@ impl VersionConstraint {
     pub fn from_str(s: &str) -> Result<VersionConstraint, error::Error> {
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Message("invalid version constraint"))
+            _ => Err(error::Error::Custom(format!("invalid version constraint {:?}", s)))
         }
     }
 
@@ -244,6 +244,7 @@ fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
 mod test {
     use super::*;
     use version::VersionIdentifier;
+    use test::{ver, range};
 
     #[test]
     fn parse_exact_constraint() {
@@ -328,64 +329,40 @@ mod test {
 
     #[test]
     fn constraint_contains() {
-        let v = ver!(1, 2, 3);
-        assert!(VersionConstraint::all().contains(&v));
-        assert!(VersionConstraint::gteq(ver!(1, 2)).contains(&v));
-        assert!(VersionConstraint::lt(ver!(3)).contains(&v));
-        assert!(VersionConstraint::range(ver!(1, 1, 5), ver!(3, 0, 1, 2)).contains(&v));
-        assert!(!VersionConstraint::lt(ver!(1)).contains(&v));
-        assert!(!VersionConstraint::gteq(ver!(3)).contains(&v));
-        assert!(!VersionConstraint::range(ver!(2), ver!(3)).contains(&v));
-        assert!(!VersionConstraint::range(ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2)));
-        assert!(!VersionConstraint::range(ver!(1), ver!(2)).contains(&ver!(2).pre(&["beta"])));
-        assert!(VersionConstraint::range(
-            ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2).pre(&["beta"]))
-        );
+        let v = ver("1.2.3");
+        assert!(range("*").contains(&v));
+        assert!(range(">=1.2").contains(&v));
+        assert!(range("<3").contains(&v));
+        assert!(range(">=1.1.5 <3.0.1.2").contains(&v));
+        assert!(!range("1").contains(&v));
+        assert!(!range(">=3").contains(&v));
+        assert!(!range(">=2 <3").contains(&v));
+        assert!(!range(">=1 <2-pre").contains(&ver("2")));
+        assert!(!range(">=1 <2").contains(&ver("2-beta")));
+        assert!(range(">=1 <2-pre").contains(&ver("2-beta")));
     }
 
     #[test]
     fn constraint_and() {
-        assert_eq!(VersionConstraint::all().and(&VersionConstraint::all()), VersionConstraint::all());
-        assert_eq!(VersionConstraint::all().and(&Exact(ver!(1, 2, 3))),
-                   Exact(ver!(1, 2, 3)));
-        assert_eq!(Exact(ver!(1, 2, 3)).and(&Exact(ver!(1, 3, 5))),
-                   Empty);
-        assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(1), ver!(2))),
-                   Exact(ver!(1, 2, 3)));
-        assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(2), ver!(3))),
-                   Empty);
-        assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::all()),
-                   VersionConstraint::gteq(ver!(1, 2, 3)));
-        assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 5))),
-                   VersionConstraint::gteq(ver!(1, 5)));
-        assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 0))),
-                   VersionConstraint::gteq(ver!(1, 2, 3)));
-        assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 0))),
-                   VersionConstraint::lt(ver!(1, 0)));
-        assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 5))),
-                   VersionConstraint::lt(ver!(1, 2, 3)));
-        assert_eq!(VersionConstraint::range(ver!(1, 2, 3), ver!(1, 8))
-                     .and(&VersionConstraint::range(ver!(1, 5), ver!(2))),
-                   VersionConstraint::range(ver!(1, 5), ver!(1, 8)));
+        assert_eq!(range("*").and(&range("*")), range("*"));
+        assert_eq!(range("*").and(&range("1.2.3")), range("1.2.3"));
+        assert_eq!(range("1.2.3").and(&range("1.3.5")), Empty);
+        assert_eq!(range("1.2.3").and(&range("^1")), range("1.2.3"));
+        assert_eq!(range("1.2.3").and(&range("^2")), Empty);
+        assert_eq!(range(">=1.2.3").and(&range("*")), range(">=1.2.3"));
+        assert_eq!(range(">=1.2.3").and(&range(">=1.5")), range(">=1.5"));
+        assert_eq!(range(">=1.2.3").and(&range(">=1.0")), range(">=1.2.3"));
+        assert_eq!(range("<1.2.3").and(&range("<1")), range("<1"));
+        assert_eq!(range("<1.2.3").and(&range("<1.5")), range("<1.2.3"));
+        assert_eq!(range(">=1.2.3 <1.8") .and(&range(">=1.5 <2")), range(">=1.5 <1.8"));
     }
 
     #[test]
     fn test_all_matching() {
-        assert_eq!(
-            VersionConstraint::range(ver!(1, 1, 0), ver!(2, 0, 0)).all_matching(&vec![
-                ver!(1, 0, 0),
-                ver!(1, 1, 0).pre(&["rc", "1"][..]),
-                ver!(1, 1, 0),
-                ver!(1, 2, 0).pre(&["rc", "1"][..]),
-                ver!(1, 2, 0),
-                //ver!(2, 0, 0).pre(&["rc", "1"][..]), // TODO
-                ver!(2, 0, 0),
-            ]),
-            vec![
-                ver!(1, 2, 0).pre(&["rc", "1"][..]),
-                ver!(1, 1, 0),
-                ver!(1, 2, 0),
-            ]
-        );
+        assert_eq!(range(">=1.1 <2").all_matching(&vec![
+            ver("1"), ver("1.1-rc.1"), ver("1.1"), ver("1.2-rc.1"), ver("1.2"), ver("2")
+        ]), vec![
+            ver("1.2-rc.1"), ver("1.1"), ver("1.2")
+        ]);
     }
 }

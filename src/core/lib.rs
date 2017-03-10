@@ -11,9 +11,10 @@ extern crate regex;
 extern crate linked_hash_map;
 extern crate license_exprs;
 
-#[macro_use] mod registry;
+#[macro_use] mod test;
+mod registry;
 pub use registry::*;
-#[macro_use] mod version;
+mod version;
 pub use version::*;
 mod constraint;
 pub use constraint::*;
@@ -22,8 +23,6 @@ pub use manifest::*;
 pub mod error;
 mod solver;
 pub use solver::*;
-
-mod literal_helpers;
 
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
