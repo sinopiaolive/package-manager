@@ -1,5 +1,4 @@
 use nom::{digit, ErrorKind};
-#[allow(unused_imports)]
 use nom::IResult::Done;
 use std::fmt;
 use std::str::FromStr;
@@ -326,136 +325,140 @@ named!(pub version<Version>, do_parse!(
 ));
 
 
+#[cfg(test)]
+mod test {
+    use super::*;
 
-#[test]
-fn weird_constructors() {
-    assert_eq!(ver!(0,0,0,5,2).as_string(), "0.0.0.5.2".to_string());
-    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).as_string(), "1.2.3-rc1".to_string());
-}
+    #[test]
+    fn weird_constructors() {
+        assert_eq!(ver!(0,0,0,5,2).as_string(), "0.0.0.5.2".to_string());
+        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).as_string(), "1.2.3-rc1".to_string());
+    }
 
-#[test]
-fn normalise_version() {
-    assert_eq!(Version::normalise(&ver!(1,2,3)), ver!(1,2,3));
-    assert_eq!(Version::normalise(&ver!(0,0,0,1,2,0,3,0)), ver!(0,0,0,1,2,0,3));
-    assert_eq!(Version::normalise(&ver!(1,2,0,0,0)), ver!(1,2));
-    assert_eq!(Version::normalise(&ver!(0,0,0,0,0)), ver!(0));
-}
+    #[test]
+    fn normalise_version() {
+        assert_eq!(Version::normalise(&ver!(1,2,3)), ver!(1,2,3));
+        assert_eq!(Version::normalise(&ver!(0,0,0,1,2,0,3,0)), ver!(0,0,0,1,2,0,3));
+        assert_eq!(Version::normalise(&ver!(1,2,0,0,0)), ver!(1,2));
+        assert_eq!(Version::normalise(&ver!(0,0,0,0,0)), ver!(0));
+    }
 
-#[test]
-fn version_equality() {
-    assert!(ver!(1,2,3) == ver!(1,2,3));
-    assert!(ver!(1,2,3,0,0) == ver!(1,2,3));
-}
+    #[test]
+    fn version_equality() {
+        assert!(ver!(1,2,3) == ver!(1,2,3));
+        assert!(ver!(1,2,3,0,0) == ver!(1,2,3));
+    }
 
-#[test]
-fn version_ordering() {
-    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3)), Ordering::Equal);
-    assert_eq!(ver!(1,2).cmp(&ver!(1,2,3)), Ordering::Less);
-    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2)), Ordering::Greater);
-    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,4)), Ordering::Less);
-    assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3)), Ordering::Greater);
-    assert_eq!(ver!(1,3,2).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Greater);
-    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Less);
-    assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
-    assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
-    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["rc2"][..])), Ordering::Less);
-    assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["beta1"][..])), Ordering::Greater);
-}
+    #[test]
+    fn version_ordering() {
+        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3)), Ordering::Equal);
+        assert_eq!(ver!(1,2).cmp(&ver!(1,2,3)), Ordering::Less);
+        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2)), Ordering::Greater);
+        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,4)), Ordering::Less);
+        assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3)), Ordering::Greater);
+        assert_eq!(ver!(1,3,2).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Greater);
+        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3)), Ordering::Less);
+        assert_eq!(ver!(1,3,2).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
+        assert_eq!(ver!(1,2,3).cmp(&ver!(1,2,3).pre(&["rc1"][..])), Ordering::Greater);
+        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["rc2"][..])), Ordering::Less);
+        assert_eq!(ver!(1,2,3).pre(&["rc1"][..]).cmp(&ver!(1,2,3).pre(&["beta1"][..])), Ordering::Greater);
+    }
 
-#[test]
-fn priority_version_ordering() {
-    assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2,3)), Ordering::Equal);
-    assert_eq!(ver!(1,2).priority_cmp(&ver!(1,2,3)), Ordering::Less);
-    assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2)), Ordering::Greater);
-    assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,2,3)), Ordering::Less);
-    assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,3).pre(&["rc"][..])), Ordering::Greater);
-    assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,3).pre(&["rc", "2"])), Ordering::Less);
-}
+    #[test]
+    fn priority_version_ordering() {
+        assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2,3)), Ordering::Equal);
+        assert_eq!(ver!(1,2).priority_cmp(&ver!(1,2,3)), Ordering::Less);
+        assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,2)), Ordering::Greater);
+        assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,2,3)), Ordering::Less);
+        assert_eq!(ver!(1,2,3).priority_cmp(&ver!(1,3).pre(&["rc"][..])), Ordering::Greater);
+        assert_eq!(ver!(1,3).pre(&["rc"][..]).priority_cmp(&ver!(1,3).pre(&["rc", "2"])), Ordering::Less);
+    }
 
-#[test]
-fn test_bump_last() {
-    assert_eq!(bump_last(&ver!(1,2,3)), ver!(1,2,4));
-    assert_eq!(bump_last(&ver!(1,2)), ver!(1,3));
-    assert_eq!(bump_last(&ver!(3)), ver!(4));
-    assert_eq!(bump_last(&Version::new(vec![1,2,3],
-                                       vec![Alphanumeric("beta2".to_string())],
-                                       vec![Alphanumeric("lol".to_string())])),
-               ver!(1,2,4));
-}
+    #[test]
+    fn test_bump_last() {
+        assert_eq!(bump_last(&ver!(1,2,3)), ver!(1,2,4));
+        assert_eq!(bump_last(&ver!(1,2)), ver!(1,3));
+        assert_eq!(bump_last(&ver!(3)), ver!(4));
+        assert_eq!(bump_last(&Version::new(vec![1,2,3],
+                                           vec![Alphanumeric("beta2".to_string())],
+                                           vec![Alphanumeric("lol".to_string())])),
+                   ver!(1,2,4));
+    }
 
-#[test]
-fn test_caret_bump() {
-    assert_eq!(caret_bump(&ver!(1,2,3)), ver!(2));
-    assert_eq!(caret_bump(&ver!(0,1,2)), ver!(0,2));
-    assert_eq!(caret_bump(&ver!(0,0,3)), ver!(0,0,4));
-    assert_eq!(caret_bump(&Version::new(vec![0,1,2,3],
-                                        vec![Alphanumeric("beta2".to_string())],
-                                        vec![Alphanumeric("lol".to_string())])),
-               ver!(0,2));
-}
+    #[test]
+    fn test_caret_bump() {
+        assert_eq!(caret_bump(&ver!(1,2,3)), ver!(2));
+        assert_eq!(caret_bump(&ver!(0,1,2)), ver!(0,2));
+        assert_eq!(caret_bump(&ver!(0,0,3)), ver!(0,0,4));
+        assert_eq!(caret_bump(&Version::new(vec![0,1,2,3],
+                                            vec![Alphanumeric("beta2".to_string())],
+                                            vec![Alphanumeric("lol".to_string())])),
+                   ver!(0,2));
+    }
 
-#[test]
-fn test_tilde_bump() {
-    assert_eq!(tilde_bump(&ver!(1,2,3)), ver!(1,3));
-    assert_eq!(tilde_bump(&ver!(1,2)), ver!(1,3));
-    assert_eq!(tilde_bump(&ver!(1)), ver!(2));
-    assert_eq!(tilde_bump(&Version::new(vec![1,2,3],
-                                        vec![Alphanumeric("beta2".to_string())],
-                                        vec![Alphanumeric("lol".to_string())])),
-               ver!(1,3));
-}
+    #[test]
+    fn test_tilde_bump() {
+        assert_eq!(tilde_bump(&ver!(1,2,3)), ver!(1,3));
+        assert_eq!(tilde_bump(&ver!(1,2)), ver!(1,3));
+        assert_eq!(tilde_bump(&ver!(1)), ver!(2));
+        assert_eq!(tilde_bump(&Version::new(vec![1,2,3],
+                                            vec![Alphanumeric("beta2".to_string())],
+                                            vec![Alphanumeric("lol".to_string())])),
+                   ver!(1,3));
+    }
 
-#[test]
-fn parse_nat() {
-    assert_eq!(nat(b"1"), Done(&b""[..], 1));
-    assert_eq!(nat(b"123"), Done(&b""[..], 123));
-    assert!(nat(b"123456789123456789123456789123456789").is_err());
-    assert_eq!(nat(b"123lol"), Done(&b"lol"[..], 123));
-    assert!(nat(b"wat").is_err());
-}
+    #[test]
+    fn parse_nat() {
+        assert_eq!(nat(b"1"), Done(&b""[..], 1));
+        assert_eq!(nat(b"123"), Done(&b""[..], 123));
+        assert!(nat(b"123456789123456789123456789123456789").is_err());
+        assert_eq!(nat(b"123lol"), Done(&b"lol"[..], 123));
+        assert!(nat(b"wat").is_err());
+    }
 
-#[test]
-fn parse_version_identifier() {
-    assert_eq!(version_id(b"1"), Done(&b""[..], Numeric(1)));
-    assert_eq!(version_id(b"-1"), Done(&b""[..], Alphanumeric("-1".to_string())));
-    assert_eq!(version_id(b"1a-"), Done(&b""[..], Alphanumeric("1a-".to_string())));
-    assert_eq!(version_id(b"1a-_"), Done(&b"_"[..], Alphanumeric("1a-".to_string())));
-    assert!(version_id(b"00").is_err());
-    assert!(version_id(b"01").is_err());
-    assert!(version_id(b"123456789123456789123456789123456789").is_err());
-}
+    #[test]
+    fn parse_version_identifier() {
+        assert_eq!(version_id(b"1"), Done(&b""[..], Numeric(1)));
+        assert_eq!(version_id(b"-1"), Done(&b""[..], Alphanumeric("-1".to_string())));
+        assert_eq!(version_id(b"1a-"), Done(&b""[..], Alphanumeric("1a-".to_string())));
+        assert_eq!(version_id(b"1a-_"), Done(&b"_"[..], Alphanumeric("1a-".to_string())));
+        assert!(version_id(b"00").is_err());
+        assert!(version_id(b"01").is_err());
+        assert!(version_id(b"123456789123456789123456789123456789").is_err());
+    }
 
-#[test]
-fn parse_base_version() {
-    assert_eq!(base_version(b"1"), Done(&b""[..], vec![1]));
-    assert_eq!(base_version(b"1.2.3"), Done(&b""[..], vec![1, 2, 3]));
-    assert_eq!(base_version(b"1.2.3.4.5"), Done(&b""[..], vec![1, 2, 3, 4, 5]));
-}
+    #[test]
+    fn parse_base_version() {
+        assert_eq!(base_version(b"1"), Done(&b""[..], vec![1]));
+        assert_eq!(base_version(b"1.2.3"), Done(&b""[..], vec![1, 2, 3]));
+        assert_eq!(base_version(b"1.2.3.4.5"), Done(&b""[..], vec![1, 2, 3, 4, 5]));
+    }
 
-#[test]
-fn parse_full_version() {
-    assert_eq!(version(b"1"), Done(&b""[..], Version::new(vec![1], vec![], vec![])));
-    assert_eq!(version(b"1.2.3"), Done(&b""[..], Version::new(vec![1, 2, 3], vec![], vec![])));
-    assert_eq!(version(b"1-2+3"),
-               Done(&b""[..], Version::new(vec![1], vec![Numeric(2)], vec![Numeric(3)])));
-    assert_eq!(version(b"1+3"), Done(&b""[..], Version::new(vec![1], vec![], vec![Numeric(3)])));
-    assert_eq!(version(b"1-2"), Done(&b""[..], Version::new(vec![1], vec![Numeric(2)], vec![])));
-    assert_eq!(version(b"1.2-2.foo+bar.3"),
-               Done(&b""[..], Version::new(vec![1, 2],
-                                           vec![Numeric(2), Alphanumeric("foo".to_string())],
-                                           vec![Alphanumeric("bar".to_string()), Numeric(3)])));
-    assert_eq!(version(b"1.2+3.4.lol"),
-               Done(&b""[..], Version::new(vec![1, 2], vec![],
-                                           vec![Numeric(3), Numeric(4),
-                                                Alphanumeric("lol".to_string())])));
-    assert_eq!(version(b"1.3-omg.2"),
-               Done(&b""[..], Version::new(vec![1, 3],
-                                           vec![Alphanumeric("omg".to_string()), Numeric(2)],
-                                           vec![])));
-    assert!(version(b"1-123456789123456789123456789123456789").is_err());
-    assert!(version(b"1-01").is_err());
-    assert!(version(b"1-_not_alphanumeric_").is_err());
-    assert!(version(b"1+123456789123456789123456789123456789").is_err());
-    assert!(version(b"1+01").is_err());
-    assert!(version(b"1+_not_alphanumeric_").is_err());
+    #[test]
+    fn parse_full_version() {
+        assert_eq!(version(b"1"), Done(&b""[..], Version::new(vec![1], vec![], vec![])));
+        assert_eq!(version(b"1.2.3"), Done(&b""[..], Version::new(vec![1, 2, 3], vec![], vec![])));
+        assert_eq!(version(b"1-2+3"),
+                   Done(&b""[..], Version::new(vec![1], vec![Numeric(2)], vec![Numeric(3)])));
+        assert_eq!(version(b"1+3"), Done(&b""[..], Version::new(vec![1], vec![], vec![Numeric(3)])));
+        assert_eq!(version(b"1-2"), Done(&b""[..], Version::new(vec![1], vec![Numeric(2)], vec![])));
+        assert_eq!(version(b"1.2-2.foo+bar.3"),
+                   Done(&b""[..], Version::new(vec![1, 2],
+                                               vec![Numeric(2), Alphanumeric("foo".to_string())],
+                                               vec![Alphanumeric("bar".to_string()), Numeric(3)])));
+        assert_eq!(version(b"1.2+3.4.lol"),
+                   Done(&b""[..], Version::new(vec![1, 2], vec![],
+                                               vec![Numeric(3), Numeric(4),
+                                                    Alphanumeric("lol".to_string())])));
+        assert_eq!(version(b"1.3-omg.2"),
+                   Done(&b""[..], Version::new(vec![1, 3],
+                                               vec![Alphanumeric("omg".to_string()), Numeric(2)],
+                                               vec![])));
+        assert!(version(b"1-123456789123456789123456789123456789").is_err());
+        assert!(version(b"1-01").is_err());
+        assert!(version(b"1-_not_alphanumeric_").is_err());
+        assert!(version(b"1+123456789123456789123456789123456789").is_err());
+        assert!(version(b"1+01").is_err());
+        assert!(version(b"1+_not_alphanumeric_").is_err());
+    }
 }

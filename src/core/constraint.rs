@@ -1,11 +1,8 @@
-#[allow(unused_imports)]
 use nom::IResult::Done;
 use self::VersionConstraint::{Exact, Range, Empty};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump};
-#[allow(unused_imports)]
-use version::VersionIdentifier;
 use std::fmt;
 use nom;
 use super::error;
@@ -243,148 +240,152 @@ fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+    use version::VersionIdentifier;
 
+    #[test]
+    fn parse_exact_constraint() {
+        assert_eq!(version_constraint(b"1.0"),
+                   Done(&b""[..], Exact(Version::new(vec![1,0], vec![], vec![]))));
+    }
 
-#[test]
-fn parse_exact_constraint() {
-    assert_eq!(version_constraint(b"1.0"),
-               Done(&b""[..], Exact(Version::new(vec![1,0], vec![], vec![]))));
-}
+    #[test]
+    fn parse_range_constraint() {
+        assert_eq!(version_constraint(b">=1.0"),
+                   Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+        assert_eq!(version_constraint(b" >=1.0 "),
+                   Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+        assert_eq!(version_constraint(b">= 1.0"),
+                   Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+        assert_eq!(version_constraint(b"   >=          1.0"),
+                   Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
+        assert_eq!(version_constraint(b">=1 .0"), nom::IResult::Error(nom::ErrorKind::Eof));
+        assert_eq!(version_constraint(b"<1.0"),
+                   Done(&b""[..], Range(None, Some(Version::new(vec![1,0], vec![], vec![])))));
 
-#[test]
-fn parse_range_constraint() {
-    assert_eq!(version_constraint(b">=1.0"),
-               Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
-    assert_eq!(version_constraint(b" >=1.0 "),
-               Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
-    assert_eq!(version_constraint(b">= 1.0"),
-               Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
-    assert_eq!(version_constraint(b"   >=          1.0"),
-               Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])), None)));
-    assert_eq!(version_constraint(b">=1 .0"), nom::IResult::Error(nom::ErrorKind::Eof));
-    assert_eq!(version_constraint(b"<1.0"),
-               Done(&b""[..], Range(None, Some(Version::new(vec![1,0], vec![], vec![])))));
+        assert_eq!(version_constraint(b">=1.0 <2.0"),
+                   Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
+                                        Some(Version::new(vec![2,0], vec![], vec![])))));
+        assert_eq!(version_constraint(b" >= 1.0 < 2.0 "),
+                   Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
+                                        Some(Version::new(vec![2,0], vec![], vec![])))));
+        assert_eq!(version_constraint(b">=1.0<2.0"),
+                   Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
+                                        Some(Version::new(vec![2,0], vec![], vec![])))));
+        assert_eq!(version_constraint(b">=2.0<1.0"), nom::IResult::Error(nom::ErrorKind::Custom(1)));
+    }
 
-    assert_eq!(version_constraint(b">=1.0 <2.0"),
-               Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
-                                    Some(Version::new(vec![2,0], vec![], vec![])))));
-    assert_eq!(version_constraint(b" >= 1.0 < 2.0 "),
-               Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
-                                    Some(Version::new(vec![2,0], vec![], vec![])))));
-    assert_eq!(version_constraint(b">=1.0<2.0"),
-               Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
-                                    Some(Version::new(vec![2,0], vec![], vec![])))));
-    assert_eq!(version_constraint(b">=2.0<1.0"), nom::IResult::Error(nom::ErrorKind::Custom(1)));
-}
+    #[test]
+    fn parse_open_constraint() {
+        assert_eq!(version_constraint(b"*"),
+                   Done(&b""[..], Range(None, None)));
+    }
 
-#[test]
-fn parse_open_constraint() {
-    assert_eq!(version_constraint(b"*"),
-               Done(&b""[..], Range(None, None)));
-}
+    #[test]
+    fn parse_x_constraint() {
+        assert_eq!(version_constraint(b"1.2.x"),
+                   Done(&b""[..], VersionConstraint::range(ver!(1, 2), ver!(1, 3))));
+        assert_eq!(version_constraint(b"2.x"),
+                   Done(&b""[..], VersionConstraint::range(ver!(2), ver!(3))));
+    }
 
-#[test]
-fn parse_x_constraint() {
-    assert_eq!(version_constraint(b"1.2.x"),
-               Done(&b""[..], VersionConstraint::range(ver!(1, 2), ver!(1, 3))));
-    assert_eq!(version_constraint(b"2.x"),
-               Done(&b""[..], VersionConstraint::range(ver!(2), ver!(3))));
-}
+    #[test]
+    fn parse_caret_constraint() {
+        assert_eq!(version_constraint(b"^1.2.3"),
+                   Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(2))));
+        assert_eq!(version_constraint(b"^0.5.2"),
+                   Done(&b""[..], VersionConstraint::range(ver!(0,5,2), ver!(0,6))));
+        let v1 = Version::new(vec![0,0,0,0,8],
+                              vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
+                              vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
+        assert_eq!(version_constraint(b"^0.0.0.0.8-rc1+wtf"),
+                   Done(&b""[..], VersionConstraint::range(v1, ver!(0,0,0,0,9))));
+    }
 
-#[test]
-fn parse_caret_constraint() {
-    assert_eq!(version_constraint(b"^1.2.3"),
-               Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(2))));
-    assert_eq!(version_constraint(b"^0.5.2"),
-               Done(&b""[..], VersionConstraint::range(ver!(0,5,2), ver!(0,6))));
-    let v1 = Version::new(vec![0,0,0,0,8],
-                          vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
-                          vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
-    assert_eq!(version_constraint(b"^0.0.0.0.8-rc1+wtf"),
-               Done(&b""[..], VersionConstraint::range(v1, ver!(0,0,0,0,9))));
-}
+    #[test]
+    fn parse_tilde_constraint() {
+        assert_eq!(version_constraint(b"~1.2.3"),
+                   Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(1,3))));
+        assert_eq!(version_constraint(b"~1.2"),
+                   Done(&b""[..], VersionConstraint::range(ver!(1,2), ver!(1,3))));
+        let v1 = Version::new(vec![1,2,3,4],
+                              vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
+                              vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
+        assert_eq!(version_constraint(b"~1.2.3.4-rc1+wtf"),
+                   Done(&b""[..], VersionConstraint::range(v1, ver!(1,3))));
+    }
 
-#[test]
-fn parse_tilde_constraint() {
-    assert_eq!(version_constraint(b"~1.2.3"),
-               Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(1,3))));
-    assert_eq!(version_constraint(b"~1.2"),
-               Done(&b""[..], VersionConstraint::range(ver!(1,2), ver!(1,3))));
-    let v1 = Version::new(vec![1,2,3,4],
-                          vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
-                          vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
-    assert_eq!(version_constraint(b"~1.2.3.4-rc1+wtf"),
-               Done(&b""[..], VersionConstraint::range(v1, ver!(1,3))));
-}
+    #[test]
+    fn constraint_to_string() {
+        assert_eq!(VersionConstraint::all().as_string(), "*".to_string());
+        assert_eq!(VersionConstraint::gteq(ver!(1,2,3)).as_string(), ">= 1.2.3".to_string());
+        assert_eq!(VersionConstraint::lt(ver!(1,2,3)).as_string(), "< 1.2.3".to_string());
+        assert_eq!(VersionConstraint::range(ver!(1,2,3), ver!(2)).as_string(),
+                   ">= 1.2.3 < 2".to_string());
+    }
 
-#[test]
-fn constraint_to_string() {
-    assert_eq!(VersionConstraint::all().as_string(), "*".to_string());
-    assert_eq!(VersionConstraint::gteq(ver!(1,2,3)).as_string(), ">= 1.2.3".to_string());
-    assert_eq!(VersionConstraint::lt(ver!(1,2,3)).as_string(), "< 1.2.3".to_string());
-    assert_eq!(VersionConstraint::range(ver!(1,2,3), ver!(2)).as_string(),
-               ">= 1.2.3 < 2".to_string());
-}
+    #[test]
+    fn constraint_contains() {
+        let v = ver!(1, 2, 3);
+        assert!(VersionConstraint::all().contains(&v));
+        assert!(VersionConstraint::gteq(ver!(1, 2)).contains(&v));
+        assert!(VersionConstraint::lt(ver!(3)).contains(&v));
+        assert!(VersionConstraint::range(ver!(1, 1, 5), ver!(3, 0, 1, 2)).contains(&v));
+        assert!(!VersionConstraint::lt(ver!(1)).contains(&v));
+        assert!(!VersionConstraint::gteq(ver!(3)).contains(&v));
+        assert!(!VersionConstraint::range(ver!(2), ver!(3)).contains(&v));
+        assert!(!VersionConstraint::range(ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2)));
+        assert!(!VersionConstraint::range(ver!(1), ver!(2)).contains(&ver!(2).pre(&["beta"])));
+        assert!(VersionConstraint::range(
+            ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2).pre(&["beta"]))
+        );
+    }
 
-#[test]
-fn constraint_contains() {
-    let v = ver!(1, 2, 3);
-    assert!(VersionConstraint::all().contains(&v));
-    assert!(VersionConstraint::gteq(ver!(1, 2)).contains(&v));
-    assert!(VersionConstraint::lt(ver!(3)).contains(&v));
-    assert!(VersionConstraint::range(ver!(1, 1, 5), ver!(3, 0, 1, 2)).contains(&v));
-    assert!(!VersionConstraint::lt(ver!(1)).contains(&v));
-    assert!(!VersionConstraint::gteq(ver!(3)).contains(&v));
-    assert!(!VersionConstraint::range(ver!(2), ver!(3)).contains(&v));
-    assert!(!VersionConstraint::range(ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2)));
-    assert!(!VersionConstraint::range(ver!(1), ver!(2)).contains(&ver!(2).pre(&["beta"])));
-    assert!(VersionConstraint::range(
-        ver!(1), ver!(2).pre(&["pre"])).contains(&ver!(2).pre(&["beta"]))
-    );
-}
+    #[test]
+    fn constraint_and() {
+        assert_eq!(VersionConstraint::all().and(&VersionConstraint::all()), VersionConstraint::all());
+        assert_eq!(VersionConstraint::all().and(&Exact(ver!(1, 2, 3))),
+                   Exact(ver!(1, 2, 3)));
+        assert_eq!(Exact(ver!(1, 2, 3)).and(&Exact(ver!(1, 3, 5))),
+                   Empty);
+        assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(1), ver!(2))),
+                   Exact(ver!(1, 2, 3)));
+        assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(2), ver!(3))),
+                   Empty);
+        assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::all()),
+                   VersionConstraint::gteq(ver!(1, 2, 3)));
+        assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 5))),
+                   VersionConstraint::gteq(ver!(1, 5)));
+        assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 0))),
+                   VersionConstraint::gteq(ver!(1, 2, 3)));
+        assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 0))),
+                   VersionConstraint::lt(ver!(1, 0)));
+        assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 5))),
+                   VersionConstraint::lt(ver!(1, 2, 3)));
+        assert_eq!(VersionConstraint::range(ver!(1, 2, 3), ver!(1, 8))
+                     .and(&VersionConstraint::range(ver!(1, 5), ver!(2))),
+                   VersionConstraint::range(ver!(1, 5), ver!(1, 8)));
+    }
 
-#[test]
-fn constraint_and() {
-    assert_eq!(VersionConstraint::all().and(&VersionConstraint::all()), VersionConstraint::all());
-    assert_eq!(VersionConstraint::all().and(&Exact(ver!(1, 2, 3))),
-               Exact(ver!(1, 2, 3)));
-    assert_eq!(Exact(ver!(1, 2, 3)).and(&Exact(ver!(1, 3, 5))),
-               Empty);
-    assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(1), ver!(2))),
-               Exact(ver!(1, 2, 3)));
-    assert_eq!(Exact(ver!(1, 2, 3)).and(&VersionConstraint::range(ver!(2), ver!(3))),
-               Empty);
-    assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::all()),
-               VersionConstraint::gteq(ver!(1, 2, 3)));
-    assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 5))),
-               VersionConstraint::gteq(ver!(1, 5)));
-    assert_eq!(VersionConstraint::gteq(ver!(1, 2, 3)).and(&VersionConstraint::gteq(ver!(1, 0))),
-               VersionConstraint::gteq(ver!(1, 2, 3)));
-    assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 0))),
-               VersionConstraint::lt(ver!(1, 0)));
-    assert_eq!(VersionConstraint::lt(ver!(1, 2, 3)).and(&VersionConstraint::lt(ver!(1, 5))),
-               VersionConstraint::lt(ver!(1, 2, 3)));
-    assert_eq!(VersionConstraint::range(ver!(1, 2, 3), ver!(1, 8))
-                 .and(&VersionConstraint::range(ver!(1, 5), ver!(2))),
-               VersionConstraint::range(ver!(1, 5), ver!(1, 8)));
-}
-
-#[test]
-fn test_all_matching() {
-    assert_eq!(
-        VersionConstraint::range(ver!(1, 1, 0), ver!(2, 0, 0)).all_matching(&vec![
-            ver!(1, 0, 0),
-            ver!(1, 1, 0).pre(&["rc", "1"][..]),
-            ver!(1, 1, 0),
-            ver!(1, 2, 0).pre(&["rc", "1"][..]),
-            ver!(1, 2, 0),
-            //ver!(2, 0, 0).pre(&["rc", "1"][..]), // TODO
-            ver!(2, 0, 0),
-        ]),
-        vec![
-            ver!(1, 2, 0).pre(&["rc", "1"][..]),
-            ver!(1, 1, 0),
-            ver!(1, 2, 0),
-        ]
-    );
+    #[test]
+    fn test_all_matching() {
+        assert_eq!(
+            VersionConstraint::range(ver!(1, 1, 0), ver!(2, 0, 0)).all_matching(&vec![
+                ver!(1, 0, 0),
+                ver!(1, 1, 0).pre(&["rc", "1"][..]),
+                ver!(1, 1, 0),
+                ver!(1, 2, 0).pre(&["rc", "1"][..]),
+                ver!(1, 2, 0),
+                //ver!(2, 0, 0).pre(&["rc", "1"][..]), // TODO
+                ver!(2, 0, 0),
+            ]),
+            vec![
+                ver!(1, 2, 0).pre(&["rc", "1"][..]),
+                ver!(1, 1, 0),
+                ver!(1, 2, 0),
+            ]
+        );
+    }
 }

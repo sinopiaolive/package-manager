@@ -211,9 +211,13 @@ pub fn read_manifest() -> Result<Manifest, error::Error> {
     deserialise_manifest(&data)
 }
 
-#[test]
-fn deserialise_and_normalise() {
-    let left_pad: &'static str = "name = \"javascript/left-pad\"
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn deserialise_and_normalise() {
+        let left_pad: &'static str = "name = \"javascript/left-pad\"
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
 
@@ -221,38 +225,38 @@ author = \"IEEE Text Alignment Working Group\"
 right-pad = \"^8.23\"
 ";
 
-    let m = deserialise_manifest(&left_pad.to_string()).unwrap();
+        let m = deserialise_manifest(&left_pad.to_string()).unwrap();
 
-    let mut my_deps = LinkedHashMap::new();
-    my_deps.insert(PackageName {
-                       namespace: Some("javascript".to_string()),
-                       name: "right-pad".to_string(),
-                   },
-                   VersionConstraint::range(ver!(8, 23), ver!(9)));
-    assert_eq!(m,
-               Manifest {
-                   name: PackageName {
-                       namespace: Some("javascript".to_string()),
-                       name: "left-pad".to_string(),
-                   },
-                   description: "A generalised sinister spatiomorphism.".to_string(),
-                   author: "IEEE Text Alignment Working Group".to_string(),
-                   license: None,
-                   license_file: None,
-                   homepage: None,
-                   bugs: None,
-                   repository: None,
-                   keywords: vec![],
-                   files: vec![],
-                   private: false,
-                   dev_dependencies: LinkedHashMap::new(),
-                   dependencies: my_deps,
-               });
-}
+        let mut my_deps = LinkedHashMap::new();
+        my_deps.insert(PackageName {
+                           namespace: Some("javascript".to_string()),
+                           name: "right-pad".to_string(),
+                       },
+                       VersionConstraint::range(ver!(8, 23), ver!(9)));
+        assert_eq!(m,
+                   Manifest {
+                       name: PackageName {
+                           namespace: Some("javascript".to_string()),
+                           name: "left-pad".to_string(),
+                       },
+                       description: "A generalised sinister spatiomorphism.".to_string(),
+                       author: "IEEE Text Alignment Working Group".to_string(),
+                       license: None,
+                       license_file: None,
+                       homepage: None,
+                       bugs: None,
+                       repository: None,
+                       keywords: vec![],
+                       files: vec![],
+                       private: false,
+                       dev_dependencies: LinkedHashMap::new(),
+                       dependencies: my_deps,
+                   });
+    }
 
-#[test]
-fn denormalise_and_serialise() {
-    let left_pad: &'static str = "name = \"javascript/left-pad\"
+    #[test]
+    fn denormalise_and_serialise() {
+        let left_pad: &'static str = "name = \"javascript/left-pad\"
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
 
@@ -260,86 +264,86 @@ author = \"IEEE Text Alignment Working Group\"
 right-pad = \">= 8.23 < 9\"
 ";
 
-    let mut my_deps = LinkedHashMap::new();
-    my_deps.insert(PackageName {
-                       namespace: Some("javascript".to_string()),
-                       name: "right-pad".to_string(),
-                   },
-                   VersionConstraint::range(ver!(8, 23), ver!(9)));
-    let manifest = Manifest {
-        name: PackageName {
-            namespace: Some("javascript".to_string()),
-            name: "left-pad".to_string(),
-        },
-        description: "A generalised sinister spatiomorphism.".to_string(),
-        author: "IEEE Text Alignment Working Group".to_string(),
-        license: None,
-        license_file: None,
-        homepage: None,
-        bugs: None,
-        repository: None,
-        keywords: vec![],
-        files: vec![],
-        private: false,
-        dev_dependencies: LinkedHashMap::new(),
-        dependencies: my_deps,
-    };
+        let mut my_deps = LinkedHashMap::new();
+        my_deps.insert(PackageName {
+                           namespace: Some("javascript".to_string()),
+                           name: "right-pad".to_string(),
+                       },
+                       VersionConstraint::range(ver!(8, 23), ver!(9)));
+        let manifest = Manifest {
+            name: PackageName {
+                namespace: Some("javascript".to_string()),
+                name: "left-pad".to_string(),
+            },
+            description: "A generalised sinister spatiomorphism.".to_string(),
+            author: "IEEE Text Alignment Working Group".to_string(),
+            license: None,
+            license_file: None,
+            homepage: None,
+            bugs: None,
+            repository: None,
+            keywords: vec![],
+            files: vec![],
+            private: false,
+            dev_dependencies: LinkedHashMap::new(),
+            dependencies: my_deps,
+        };
 
-    let m = serialise_manifest(&manifest).unwrap();
-    assert_eq!(m, left_pad);
-}
+        let m = serialise_manifest(&manifest).unwrap();
+        assert_eq!(m, left_pad);
+    }
 
-#[test]
-#[should_panic]
-fn required_fields() {
-    let left_pad: &'static str = "name = \"javascript/left-pad\"";
-    deserialise_manifest(&left_pad.to_string()).unwrap();
-}
+    #[test]
+    #[should_panic]
+    fn required_fields() {
+        let left_pad: &'static str = "name = \"javascript/left-pad\"";
+        deserialise_manifest(&left_pad.to_string()).unwrap();
+    }
 
-#[test]
-#[should_panic]
-fn namespace_required() {
-    let left_pad: &'static str = "name = \"left-pad\"
+    #[test]
+    #[should_panic]
+    fn namespace_required() {
+        let left_pad: &'static str = "name = \"left-pad\"
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
 ";
-    deserialise_manifest(&left_pad.to_string()).unwrap();
-}
+        deserialise_manifest(&left_pad.to_string()).unwrap();
+    }
 
-#[test]
-#[should_panic]
-fn reject_invalid_license_field() {
-    let left_pad: &'static str = "name = \"left-pad\"
+    #[test]
+    #[should_panic]
+    fn reject_invalid_license_field() {
+        let left_pad: &'static str = "name = \"left-pad\"
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
 license = \"LOLPL\"
 ";
-    deserialise_manifest(&left_pad.to_string()).unwrap();
-}
+        deserialise_manifest(&left_pad.to_string()).unwrap();
+    }
 
-#[test]
-fn no_unexpected_fields() {
-    let left_pad: &'static str = "name = \"javascript/left-pad\"
+    #[test]
+    fn no_unexpected_fields() {
+        let left_pad: &'static str = "name = \"javascript/left-pad\"
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
 hippopotamus = \"A large, thick-skinned, semiaquatic African mammal.\"
 ";
-    let r = deserialise_manifest(&left_pad.to_string());
-    assert!(r.is_err());
-    match r {
-        Err(e) => {
-            let m = format!("{:?}", e);
-            assert!(m.contains("unknown field `hippopotamus`"),
-                    "error message {:?} doesn't complain about \"hippopotamus\"",
-                    m)
+        let r = deserialise_manifest(&left_pad.to_string());
+        assert!(r.is_err());
+        match r {
+            Err(e) => {
+                let m = format!("{:?}", e);
+                assert!(m.contains("unknown field `hippopotamus`"),
+                        "error message {:?} doesn't complain about \"hippopotamus\"",
+                        m)
+            }
+            _ => panic!("parsing unexpected fields didn't return an error!"),
         }
-        _ => panic!("parsing unexpected fields didn't return an error!"),
     }
-}
 
-#[test]
-fn accepts_all_defined_fields() {
-    let left_pad: &'static str = "name = \"javascript/left-pad\"
+    #[test]
+    fn accepts_all_defined_fields() {
+        let left_pad: &'static str = "name = \"javascript/left-pad\"
 description = \"A generalised sinister spatiomorphism.\"
 author = \"IEEE Text Alignment Working Group\"
 license = \"GPL-3.0+\"
@@ -359,5 +363,6 @@ down-pad = \"~5.6.0\"
 webpack = \"^7.0.5\"
 widdershins-pad = \"^4.0.0\"
 ";
-    deserialise_manifest(&left_pad.to_string()).unwrap();
+        deserialise_manifest(&left_pad.to_string()).unwrap();
+    }
 }
