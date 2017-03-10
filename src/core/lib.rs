@@ -23,6 +23,8 @@ pub mod error;
 mod solver;
 pub use solver::*;
 
+mod literal_helpers;
+
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
         {
