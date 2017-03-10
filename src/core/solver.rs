@@ -1,5 +1,4 @@
 use super::{DependencySet, Registry, VersionSet, VersionConstraint, PackageName};
-#[allow(unused_imports)] use linked_hash_map::LinkedHashMap;
 
 // TODO make this a Result
 pub fn simple_solver(registry: &Registry, deps: &DependencySet) -> Option<VersionSet> {
@@ -57,20 +56,28 @@ fn simple_solver_inner(registry: &Registry, mut deps: DependencyList, mut alread
     }
 }
 
-#[test]
-fn test_simple_solver() {
-    let deps = &mut LinkedHashMap::new();
-    deps.insert(
-        PackageName{namespace: Some("leftpad".to_string()), name: "a".to_string()},
-        VersionConstraint::Range(Some(ver!(1, 0, 0)), Some(ver!(2, 0, 0))));
-    deps.insert(
-        PackageName{namespace: Some("leftpad".to_string()), name: "b".to_string()},
-        VersionConstraint::Range(Some(ver!(1, 0, 0)), Some(ver!(2, 0, 0))));
-    assert_eq!(simple_solver(&gen_registry!{
-        a => (
-            "1.0.0" => (
-            )
-        )
-        // b missing
-    }, deps), None);
+#[cfg(test)]
+mod test {
+    use super::*;
+    use linked_hash_map::LinkedHashMap;
+
+    #[test]
+    fn test_simple_solver() {
+        let deps = &mut LinkedHashMap::new();
+        deps.insert(
+            PackageName{namespace: Some("leftpad".to_string()), name: "a".to_string()},
+            VersionConstraint::Range(Some(ver!(1, 0, 0)), Some(ver!(2, 0, 0))));
+        deps.insert(
+            PackageName{namespace: Some("leftpad".to_string()), name: "b".to_string()},
+            VersionConstraint::Range(Some(ver!(1, 0, 0)), Some(ver!(2, 0, 0))));
+
+        assert_eq!(simple_solver(&gen_registry!{
+            a => ( "1.0.0" => () )
+            // b missing
+        }, deps), None);
+        assert_eq!(simple_solver(&gen_registry!{
+            a => ( "1.0.0" => () ),
+            b => ( "0.1.0" => () ) // no matching release
+        }, deps), None);
+    }
 }
