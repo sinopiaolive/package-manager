@@ -1,7 +1,8 @@
 use super::{DependencySet, Registry, VersionSet, VersionConstraint, PackageName};
+use error::Error;
 
 // TODO make this a Result
-pub fn simple_solver(registry: &Registry, deps: &DependencySet) -> Option<VersionSet> {
+pub fn simple_solver(registry: &Registry, deps: &DependencySet) -> Result<VersionSet, Error> {
     let dep_list = dependency_set_to_list(deps);
     simple_solver_inner(registry, dep_list, VersionSet::new())
 }
@@ -18,21 +19,26 @@ type DependencyList = Vec<(PackageName, VersionConstraint)>;
 fn simple_solver_inner(registry: &Registry,
                        mut deps: DependencyList,
                        mut already_activated: VersionSet)
-                       -> Option<VersionSet> {
+                       -> Result<VersionSet, Error> {
     match deps.pop() {
-        None => Some(already_activated),
+        None => Ok(already_activated),
         Some((ref package_name, ref version_constraint)) => {
             if already_activated.get(&package_name).map_or(false, |activated_version| {
                 !version_constraint.contains(activated_version)
             }) {
                 // We have already activated a version that doesn't satisfy this
                 // constraint.
-                return None;
+                let selected = already_activated.get(&package_name).unwrap();
+                return Err(Error::Custom(format!("{}: selected version {} outside requested \
+                                                  bounds {}",
+                                                 package_name,
+                                                 selected,
+                                                 version_constraint)));
             }
             match registry.packages.get(&package_name) {
                 None => {
                     // Package name not found in registry.
-                    return None;
+                    return Err(Error::Custom(format!("package {} not in registry", package_name)));
                 }
                 Some(ref package) => {
                     let mut matching_versions = version_constraint.all_matching(&package.releases
@@ -43,7 +49,10 @@ fn simple_solver_inner(registry: &Registry,
                         None => {
                             // No versions satisfying the constraint found in
                             // registry.
-                            return None;
+                            return Err(Error::Custom(format!("package {} has no versions \
+                                                              satisfying {}",
+                                                             package_name,
+                                                             version_constraint)));
                         }
                         Some(version) => {
                             let ref indirect_dependencies = package.releases
@@ -81,17 +90,17 @@ mod test {
                     },
                     VersionConstraint::Range(Some(ver!(1, 0, 0)), Some(ver!(2, 0, 0))));
 
-        assert_eq!(simple_solver(&gen_registry!{
+        assert!(simple_solver(&gen_registry!{
             a => ( "1.0.0" => deps!() )
             // b missing
         },
-                                 deps),
-                   None);
-        assert_eq!(simple_solver(&gen_registry!{
+                              deps)
+            .is_err());
+        assert!(simple_solver(&gen_registry!{
             a => ( "1.0.0" => deps!() ),
             b => ( "0.1.0" => deps!() ) // no matching release
         },
-                                 deps),
-                   None);
+                              deps)
+            .is_err());
     }
 }
