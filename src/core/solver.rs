@@ -74,21 +74,14 @@ fn simple_solver_inner(registry: &Registry,
 #[cfg(test)]
 mod test {
     use super::*;
+    use test::*;
     use linked_hash_map::LinkedHashMap;
 
     #[test]
     fn test_simple_solver() {
         let deps = &mut LinkedHashMap::new();
-        deps.insert(PackageName {
-                        namespace: Some("leftpad".to_string()),
-                        name: "a".to_string(),
-                    },
-                    VersionConstraint::Range(Some(ver!(1, 0, 0)), Some(ver!(2, 0, 0))));
-        deps.insert(PackageName {
-                        namespace: Some("leftpad".to_string()),
-                        name: "b".to_string(),
-                    },
-                    VersionConstraint::Range(Some(ver!(1, 0, 0)), Some(ver!(2, 0, 0))));
+        deps.insert(pkg("leftpad/a"), range("^1.0.0"));
+        deps.insert(pkg("leftpad/b"), range("^1.0.0"));
 
         assert!(simple_solver(&gen_registry!{
             a => ( "1.0.0" => deps!() )

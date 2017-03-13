@@ -9,6 +9,9 @@ use std::fs::File;
 use std::io::Read;
 use std::iter::FromIterator;
 use std::clone::Clone;
+use std::collections::BTreeMap;
+use std::str;
+use nom::IResult::Done;
 use toml;
 use linked_hash_map::LinkedHashMap;
 use license_exprs::validate_license_expr;
@@ -49,12 +52,21 @@ impl Manifest {
 
 pub type DependencySet = LinkedHashMap<PackageName, VersionConstraint>;
 
-pub type VersionSet = LinkedHashMap<PackageName, Version>;
+pub type VersionSet = BTreeMap<PackageName, Version>;
 
-#[derive(Debug, PartialEq, Eq, Hash, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Default, Clone, PartialOrd, Ord)]
 pub struct PackageName {
     pub namespace: Option<String>,
     pub name: String,
+}
+
+impl PackageName {
+    pub fn from_str(s: &str) -> Result<PackageName, error::Error> {
+        match package_name(s.as_bytes()) {
+            Done(b"", v) => Ok(v),
+            _ => Err(error::Error::Custom(format!("invalid package name {:?}", s))),
+        }
+    }
 }
 
 impl Display for PackageName {
@@ -79,24 +91,9 @@ impl Deserialize for PackageName {
         where D: Deserializer
     {
         let s = String::deserialize(deserializer)?;
-        let v: Vec<&str> = s.split('/').collect();
-        match v.len() {
-            1 => {
-                Ok(PackageName {
-                    namespace: None,
-                    name: v[0].to_string(),
-                })
-            }
-            2 => {
-                Ok(PackageName {
-                    namespace: Some(v[0].to_string()),
-                    name: v[1].to_string(),
-                })
-            }
-            _ => {
-                Err(D::Error::custom(format!("Wrong number of components (1 or 2 allowed): {:?}",
-                                             s)))
-            }
+        match PackageName::from_str(&s) {
+            Ok(package_name) => Ok(package_name),
+            _ => Err(D::Error::custom("Invalid package name"))
         }
     }
 }
@@ -210,6 +207,22 @@ pub fn read_manifest() -> Result<Manifest, error::Error> {
         })?;
     deserialise_manifest(&data)
 }
+
+named!(package_name_component<&str>,
+       map_res!(re_bytes_find!(r"^[a-zA-Z0-9_-]+"), str::from_utf8));
+named!(package_name_namespace<&str>,
+       map_res!(re_bytes_find!(r"^[a-zA-Z0-9_-]+"), str::from_utf8));
+named!(package_name_name<&str>,
+       map_res!(re_bytes_find!(r"^[a-zA-Z0-9_-]+"), str::from_utf8));
+named!(package_name<PackageName>,
+       map_res!(
+           separated_list!(tag!("/"), package_name_component), |v: Vec<&str>| {
+             match v.len() {
+                 1 => Ok(PackageName { namespace: None, name: v[0].to_string() }),
+                 2 => Ok(PackageName { namespace: Some(v[0].to_string()), name: v[1].to_string() }),
+                 _ => Err("Invalid package name")
+             }
+           }));
 
 #[cfg(test)]
 mod test {

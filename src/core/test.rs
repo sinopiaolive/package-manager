@@ -1,4 +1,5 @@
 use version::Version;
+use manifest::PackageName;
 use constraint::VersionConstraint;
 
 pub fn ver(s: &str) -> Version {
@@ -7,6 +8,10 @@ pub fn ver(s: &str) -> Version {
 
 pub fn range(s: &str) -> VersionConstraint {
     VersionConstraint::from_str(s).unwrap()
+}
+
+pub fn pkg(s: &str) -> PackageName {
+    PackageName::from_str(s).unwrap()
 }
 
 macro_rules! ver {
