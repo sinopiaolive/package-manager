@@ -23,6 +23,8 @@ pub use manifest::*;
 pub mod error;
 mod solver;
 pub use solver::*;
+mod lockfile;
+pub use lockfile::*;
 
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {

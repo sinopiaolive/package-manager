@@ -210,10 +210,6 @@ pub fn read_manifest() -> Result<Manifest, error::Error> {
 
 named!(package_name_component<&str>,
        map_res!(re_bytes_find!(r"^[a-zA-Z0-9_-]+"), str::from_utf8));
-named!(package_name_namespace<&str>,
-       map_res!(re_bytes_find!(r"^[a-zA-Z0-9_-]+"), str::from_utf8));
-named!(package_name_name<&str>,
-       map_res!(re_bytes_find!(r"^[a-zA-Z0-9_-]+"), str::from_utf8));
 named!(package_name<PackageName>,
        map_res!(
            separated_list!(tag!("/"), package_name_component), |v: Vec<&str>| {
