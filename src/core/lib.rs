@@ -12,6 +12,7 @@ extern crate linked_hash_map;
 extern crate license_exprs;
 
 #[macro_use] mod test;
+mod lazy;
 mod registry;
 pub use registry::*;
 mod version;
@@ -29,7 +30,7 @@ pub use lockfile::*;
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
         {
-            let mut m = ::std::collections::HashMap::new();
+            let mut m = ::linked_hash_map::LinkedHashMap::new();
             $(
                 m.insert($key, $value);
             )+
