@@ -1,3 +1,4 @@
+#![feature(slice_patterns)]
 #![allow(dead_code)]
 
 #[macro_use] extern crate nom;
@@ -12,7 +13,6 @@ extern crate linked_hash_map;
 extern crate license_exprs;
 
 #[macro_use] mod test;
-mod lazy;
 mod registry;
 pub use registry::*;
 mod version;
