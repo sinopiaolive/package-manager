@@ -11,6 +11,7 @@ extern crate regex;
 #[macro_use] extern crate quick_error;
 extern crate linked_hash_map;
 extern crate license_exprs;
+extern crate hamt_rs;
 
 #[macro_use] mod test;
 mod registry;
@@ -26,18 +27,6 @@ mod solver;
 pub use solver::*;
 mod lockfile;
 pub use lockfile::*;
-
-macro_rules! map(
-    { $($key:expr => $value:expr),+ } => {
-        {
-            let mut m = ::linked_hash_map::LinkedHashMap::new();
-            $(
-                m.insert($key, $value);
-            )+
-            m
-        }
-     };
-);
 
 pub fn test() {
     let test_registry_toml = r#"

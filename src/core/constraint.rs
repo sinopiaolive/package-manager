@@ -108,16 +108,6 @@ impl VersionConstraint {
             }
         }
     }
-
-    // Return a list of matching versions,
-    pub fn all_matching(&self, versions: &Vec<Version>) -> Vec<Version> {
-        let mut matching_versions: Vec<Version> = versions.iter()
-            .filter(|v| self.contains(v))
-            .map(|v| v.clone())
-            .collect();
-        matching_versions.sort_by(|a, b| a.priority_cmp(b));
-        matching_versions
-    }
 }
 
 /// When testing for membership, the max end of a range is a special case:
@@ -355,14 +345,5 @@ mod test {
         assert_eq!(range("<1.2.3").and(&range("<1")), range("<1"));
         assert_eq!(range("<1.2.3").and(&range("<1.5")), range("<1.2.3"));
         assert_eq!(range(">=1.2.3 <1.8") .and(&range(">=1.5 <2")), range(">=1.5 <1.8"));
-    }
-
-    #[test]
-    fn test_all_matching() {
-        assert_eq!(range(">=1.1 <2").all_matching(&vec![
-            ver("1"), ver("1.1-rc.1"), ver("1.1"), ver("1.2-rc.1"), ver("1.2"), ver("2")
-        ]), vec![
-            ver("1.2-rc.1"), ver("1.1"), ver("1.2")
-        ]);
     }
 }
