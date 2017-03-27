@@ -1,4 +1,4 @@
-use linked_hash_map::LinkedHashMap;
+use std::collections::HashMap;
 use std::string::String;
 use version::Version;
 use manifest::{PackageName, Manifest};
@@ -6,13 +6,13 @@ use manifest::{PackageName, Manifest};
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Registry {
-    pub packages: LinkedHashMap<PackageName, Package>,
+    pub packages: HashMap<PackageName, Package>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Package {
-    pub releases: LinkedHashMap<Version, Release>,
+    pub releases: HashMap<Version, Release>,
     pub owners: Vec<Username>,
 }
 

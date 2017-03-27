@@ -14,6 +14,22 @@ pub fn pkg(s: &str) -> PackageName {
     PackageName::from_str(s).unwrap()
 }
 
+macro_rules! solution(
+    { $($dep:ident => $version:expr),+ } => {
+        {
+            let mut m = ::hamt_rs::HamtMap::new();
+            $(
+                let pkg = ::PackageName {
+                    namespace: Some("leftpad".to_string()), name: stringify!($dep).to_string()
+                };
+                let version = ::Version::from_str($version).unwrap();
+                m = m.plus(pkg, version);
+            )+
+            ::solver::Solution::Solution(m)
+        }
+     };
+);
+
 macro_rules! ver {
     ( $( $x:expr ),* ) => {{
         let mut version_parts = Vec::new();
@@ -42,12 +58,12 @@ macro_rules! deps {
 
 macro_rules! gen_registry {
     ( $( $name:ident => ( $( $release:expr => $deps:expr ),+ ) ),+ ) => {{
-        let mut packs = ::linked_hash_map::LinkedHashMap::new();
+        let mut packs = ::std::collections::HashMap::new();
         $({
             let name = ::PackageName {
                 namespace: Some("leftpad".to_string()), name: stringify!($name).to_string()
             };
-            let mut releases = ::linked_hash_map::LinkedHashMap::new();
+            let mut releases = ::std::collections::HashMap::new();
             $({
                 let ver = ::Version::from_str($release).unwrap();
 
