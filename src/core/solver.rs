@@ -147,7 +147,7 @@ struct SolverState {
     registry: Rc<Registry>,
     package: PackageName,
     constraint: VersionConstraint,
-    constraint_set: DependencySet
+    constraint_set: Rc<DependencySet>
 }
 
 fn permute_solutions(mut streams: Vec<SolverState>)
@@ -178,14 +178,15 @@ fn solve_with(state: SolverState)
         let maybe_deps = constrain_by(&deps_for(&*reg, &pkg, &version), &const_set);
         let maybe_const_set = merge_deps(&maybe_deps, &const_set);
         let it: Box<Iterator<Item = Solution>> = match (maybe_deps, maybe_const_set) {
-            (Some(mut deps), Some(new_const_set)) => {
+            (Some(deps), Some(new_const_set)) => {
                 let mut dep_streams = Vec::new();
-                for entry in deps.entries() {
+                let const_set_ref = Rc::new(new_const_set);
+                for (k, v) in deps.iter() {
                     let state = SolverState {
                         registry: reg.clone(),
-                        package: entry.key().to_owned(),
-                        constraint: entry.get().to_owned(),
-                        constraint_set: new_const_set.to_owned()
+                        package: k.to_owned(),
+                        constraint: v.to_owned(),
+                        constraint_set: const_set_ref.clone()
                     };
                     dep_streams.push(state)
                 }
@@ -202,15 +203,14 @@ fn solve_with(state: SolverState)
     }))
 }
 
-pub fn solutions(reg: Rc<Registry>, deps: DependencySet) -> Box<Iterator<Item = Solution>> {
+pub fn solutions(reg: Rc<Registry>, deps: Rc<DependencySet>) -> Box<Iterator<Item = Solution>> {
     let mut dep_streams = Vec::new();
-    let mut mut_deps = deps.to_owned();
-    for entry in mut_deps.entries() {
+    for (k, v) in deps.iter() {
         let state = SolverState {
             registry: reg.clone(),
-            package: entry.key().to_owned(),
-            constraint: entry.get().to_owned(),
-            constraint_set: deps.to_owned()
+            package: k.to_owned(),
+            constraint: v.to_owned(),
+            constraint_set: deps.clone()
         };
         dep_streams.push(state);
     }
@@ -269,7 +269,7 @@ fn find_solution_set() {
         left_pad => "^2.0.0"
     );
 
-    let mut answers = solutions(Rc::new(reg), problem);
+    let mut answers = solutions(Rc::new(reg), Rc::new(problem));
 
     assert_eq!(answers.next(), Some(solution!(
         left_pad => "2.0.0",
