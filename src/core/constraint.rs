@@ -39,15 +39,15 @@ impl Deserialize for VersionConstraint {
 
 impl VersionConstraint {
     pub fn gteq(v: Version) -> VersionConstraint {
-        Range(Some(v), None)
+        Range(Some(v.normalise()), None)
     }
 
     pub fn lt(v: Version) -> VersionConstraint {
-        Range(None, Some(v))
+        Range(None, Some(v.normalise()))
     }
 
     pub fn range(v1: Version, v2: Version) -> VersionConstraint {
-        Range(Some(v1), Some(v2))
+        Range(Some(v1.normalise()), Some(v2.normalise()))
     }
 
     pub fn all() -> VersionConstraint {
@@ -104,7 +104,10 @@ impl VersionConstraint {
                 }
             }
             (&Range(ref min1, ref max1), &Range(ref min2, ref max2)) => {
-                Range(min_opt(min1, min2).clone(), max_opt(max1, max2).clone())
+                match (min_opt(min1, min2), max_opt(max1, max2)) {
+                    (&Some(ref from), &Some(ref to)) if from >= to => Empty,
+                    (min, max) => Range(min.clone(), max.clone())
+                }
             }
         }
     }
@@ -159,27 +162,27 @@ named!(exact_version_constraint<VersionConstraint>, map!(version, VersionConstra
 
 named!(min_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b">=") >>
-    v: version >>
-    (Range(Some(v), None))
+        v: version >>
+        (Range(Some(v.normalise()), None))
 )));
 
 named!(max_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"<") >>
-    v: version >>
-    (Range(None, Some(v)))
+        v: version >>
+        (Range(None, Some(v.normalise())))
 )));
 
 named!(closed_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b">=") >>
-    v1: version >>
-    tag!(b"<") >>
-    v2: version >>
-    (Range(Some(v1), Some(v2)))
+        v1: version >>
+        tag!(b"<") >>
+        v2: version >>
+        (Range(Some(v1.normalise()), Some(v2.normalise())))
 )));
 
 named!(open_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"*") >>
-    (Range(None, None))
+        (Range(None, None))
 )));
 
 named!(x_constraint<VersionConstraint>, ws!(do_parse!(
@@ -188,7 +191,7 @@ named!(x_constraint<VersionConstraint>, ws!(do_parse!(
         ({
             let vmin = Version::new(v, vec![], vec![]);
             let vmax = bump_last(&vmin);
-            (Range(Some(vmin), Some(vmax)))
+            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
         })
 )));
 
@@ -197,7 +200,7 @@ named!(caret_constraint<VersionConstraint>, ws!(do_parse!(
         vmin: version >>
         ({
             let vmax = caret_bump(&vmin);
-            (Range(Some(vmin), Some(vmax)))
+            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
         })
 )));
 
@@ -206,7 +209,7 @@ named!(tilde_constraint<VersionConstraint>, ws!(do_parse!(
         vmin: version >>
         ({
             let vmax = tilde_bump(&vmin);
-            (Range(Some(vmin), Some(vmax)))
+            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
         })
 )));
 
@@ -293,6 +296,8 @@ mod test {
                               vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
         assert_eq!(version_constraint(b"^0.0.0.0.8-rc1+wtf"),
                    Done(&b""[..], VersionConstraint::range(v1, ver!(0,0,0,0,9))));
+        assert_eq!(version_constraint(b"^2.0.0"),
+                   Done(&b""[..], VersionConstraint::range(ver!(2), ver!(3))));
     }
 
     #[test]
@@ -344,6 +349,7 @@ mod test {
         assert_eq!(range(">=1.2.3").and(&range(">=1.0")), range(">=1.2.3"));
         assert_eq!(range("<1.2.3").and(&range("<1")), range("<1"));
         assert_eq!(range("<1.2.3").and(&range("<1.5")), range("<1.2.3"));
-        assert_eq!(range(">=1.2.3 <1.8") .and(&range(">=1.5 <2")), range(">=1.5 <1.8"));
-    }
+        assert_eq!(range(">=1.2.3 <1.8").and(&range(">=1.5 <2")), range(">=1.5 <1.8"));
+        assert_eq!(range("^2.0.0").and(&range("^1.0.0")), Empty);
+   }
 }
