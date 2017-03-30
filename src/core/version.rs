@@ -155,13 +155,15 @@ impl PartialOrd for Version {
 
 impl Ord for Version {
     fn cmp(&self, other: &Version) -> Ordering {
-        match cmp_vec(&self.fields, &other.fields) {
+        let left = self.normalise();
+        let right = other.normalise();
+        match cmp_vec(&left.fields, &right.fields) {
             Ordering::Equal => {
-                match (self.prerelease.is_empty(), other.prerelease.is_empty()) {
+                match (left.prerelease.is_empty(), right.prerelease.is_empty()) {
                     (true, false) => Ordering::Greater,
                     (false, true) => Ordering::Less,
                     (true, true) => Ordering::Equal,
-                    (false, false) => cmp_vec(&self.prerelease, &other.prerelease),
+                    (false, false) => cmp_vec(&left.prerelease, &right.prerelease),
                 }
             }
             a => a,
