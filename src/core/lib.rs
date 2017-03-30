@@ -13,6 +13,7 @@ extern crate linked_hash_map;
 extern crate license_exprs;
 extern crate hamt_rs;
 
+#[macro_use] mod list;
 #[macro_use] mod test;
 mod registry;
 pub use registry::*;
