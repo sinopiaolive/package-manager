@@ -1,6 +1,40 @@
 use version::Version;
 use manifest::PackageName;
 use constraint::VersionConstraint;
+use std::collections::HashMap;
+use linked_hash_map::LinkedHashMap;
+use hamt_rs::HamtMap;
+use std::hash::Hash;
+
+pub fn to_mut<A, B>(hamt: &HamtMap<A, B>) -> HashMap<A, B>
+    where A: Eq + Hash + Clone + Sync + Send, B: Clone + Sync + Send
+{
+    let mut map = HashMap::new();
+    for (key, value) in hamt.iter() {
+        map.insert(key.clone(), value.clone());
+    }
+    map
+}
+
+pub fn unlink<A, B>(linked: &LinkedHashMap<A, B>) -> HashMap<A, B>
+    where A: Eq + Hash + Clone, B: Clone
+{
+    let mut map = HashMap::new();
+    for (key, value) in linked.iter() {
+        map.insert(key.clone(), value.clone());
+    }
+    map
+}
+
+pub fn to_im<A, B>(linked: &LinkedHashMap<A, B>) -> HamtMap<A, B>
+    where A: Eq + Hash + Clone + Sync + Send, B: Clone + Sync + Send
+{
+    let mut hamt = HamtMap::new();
+    for (key, value) in linked.iter() {
+        hamt = hamt.plus(key.clone(), value.clone());
+    }
+    hamt
+}
 
 pub fn ver(s: &str) -> Version {
     Version::from_str(s).unwrap()
@@ -12,6 +46,18 @@ pub fn range(s: &str) -> VersionConstraint {
 
 pub fn pkg(s: &str) -> PackageName {
     PackageName::from_str(s).unwrap()
+}
+
+macro_rules! dict {
+    () => { ::hamt_rs::HamtMap::new() };
+
+    ( $( $key:expr => $value:expr ),* ) => {{
+        let mut map = ::hamt_rs::HamtMap::new();
+        $({
+            map = map.plus($key, $value);
+        })*;
+        map
+    }};
 }
 
 macro_rules! solution(
