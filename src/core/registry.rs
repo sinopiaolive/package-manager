@@ -25,11 +25,4 @@ pub struct Release {
     pub manifest: Manifest,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct Repository {
-    pub repository_type: String,
-    pub url: String,
-}
-
 pub type Username = String;
