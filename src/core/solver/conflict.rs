@@ -5,7 +5,7 @@ use constraint::VersionConstraint;
 use list::List;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Constraint {
+pub struct NamedConstraint {
     pub path: Path,
     pub package: PackageName,
     pub constraint: VersionConstraint,
@@ -13,6 +13,6 @@ pub struct Constraint {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Conflict {
-    pub existing: Arc<List<Constraint>>,
-    pub conflicting: Constraint,
+    pub existing: Arc<List<NamedConstraint>>,
+    pub conflicting: NamedConstraint,
 }
