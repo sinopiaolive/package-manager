@@ -155,7 +155,7 @@ fn solve_with(state: SolverState, errors: Errors) -> Box<Iterator<Item = Solutio
             let it: Box<Iterator<Item = Solution>> = match maybe_const_set {
                 Some(new_const_set) => {
                     let mut dep_streams = Vec::new();
-                    for (k, v) in current_deps.sum.iter() {
+                    for (k, v) in current_deps.as_deps().iter() {
                         let next_state = SolverState {
                             registry: reg.clone(),
                             package: k.to_owned(),

@@ -12,6 +12,7 @@ pub enum Solution {
 impl Solution {
     fn plus(self, key: PackageName, value: Version) -> Solution {
         match self {
+            // TODO should probably crash hard if trying to overwrite an existing solution?
             Solution::Solution(m) => Solution::Solution(m.plus(key, value)),
         }
     }
