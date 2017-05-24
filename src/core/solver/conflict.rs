@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use solver::path::Path;
 use manifest::PackageName;
 use constraint::VersionConstraint;
@@ -11,8 +10,18 @@ pub struct NamedConstraint {
     pub constraint: VersionConstraint,
 }
 
+impl NamedConstraint {
+    pub fn new(package: &PackageName, constraint: &VersionConstraint) -> NamedConstraint {
+        NamedConstraint {
+            path: list![],
+            package: package.clone(),
+            constraint: constraint.clone()
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Conflict {
-    pub existing: Arc<List<NamedConstraint>>,
+    pub existing: List<NamedConstraint>,
     pub conflicting: NamedConstraint,
 }
