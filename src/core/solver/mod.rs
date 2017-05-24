@@ -7,7 +7,7 @@ use registry::Registry;
 use manifest::{PackageName, DependencySet};
 use version::Version;
 use constraint::VersionConstraint;
-use list::List;
+use list::{List, cons};
 
 #[cfg(test)] use test;
 
@@ -18,7 +18,7 @@ mod solution;
 
 use self::path::Path;
 use self::constraints::Constraints;
-use self::conflict::Conflict;
+use self::conflict::{NamedConstraint, Conflict};
 use self::solution::Solution;
 
 pub type Errors = Rc<RefCell<Vec<Conflict>>>;
@@ -36,6 +36,7 @@ struct SolverState {
     constraint: VersionConstraint,
     constraint_set: Constraints,
     path: Path,
+    remaining: List<NamedConstraint>
 }
 
 fn versions_in_range(reg: &Registry,
@@ -78,39 +79,6 @@ fn merge_deps(a: &Constraints,
     }
 }
 
-// fn constrain_by(deps: &Constraints,
-//                 constraints: &Constraints,
-//                 path: Path,
-//                 errors: Errors)
-//                 -> Option<Constraints> {
-//     let mut out: Constraints = Constraints::default();
-//     for key in deps.keys() {
-//         match (deps.get(key), constraints.get(key)) {
-//             (Some(deps_c), Some(cons_c)) => {
-//                 match deps_c.and(cons_c) {
-//                     VersionConstraint::Empty => {
-//                         errors.borrow_mut().push(Conflict {
-//                             path: path.clone(),
-//                             package: key.clone(),
-//                             existing: cons_c.clone(),
-//                             conflicting: deps_c.clone(),
-//                         });
-//                         return None;
-//                     }
-//                     c => {
-//                         out.insert(key.to_owned(), c);
-//                     }
-//                 }
-//             }
-//             (Some(c), None) => {
-//                 out.insert(key.to_owned(), c.to_owned());
-//             }
-//             _ => unreachable!(),
-//         }
-//     }
-//     Some(out)
-// }
-
 fn permute_solutions(mut streams: Vec<SolverState>,
                      errors: Errors)
                      -> Box<Iterator<Item = Solution>> {
@@ -133,8 +101,10 @@ fn solve_with(state: SolverState, errors: Errors) -> Box<Iterator<Item = Solutio
     let constraint = state.constraint;
     let const_set = state.constraint_set;
     let path = state.path;
+    let remaining = state.remaining;
     let versions = versions_in_range(&*reg, &pkg, &constraint);
     if versions.is_empty() {
+        // TODO don't panic
         panic!("no versions found oops");
         // errors.borrow_mut().push(Conflict {
         //     path: path.clone(),
@@ -145,7 +115,7 @@ fn solve_with(state: SolverState, errors: Errors) -> Box<Iterator<Item = Solutio
         // Box::new(::std::iter::empty::<Solution>())
     } else {
         Box::new(versions.into_iter().flat_map(move |version| {
-            let new_path = List::cons((pkg.clone(), version.clone()), path.clone());
+            let new_path = cons((pkg.clone(), version.clone()), &path);
             let current_deps = deps_for(&*reg, &pkg, &version, new_path.clone());
             // let maybe_deps = constrain_by(&deps_for(&*reg, &pkg, &version),
             //                               &const_set,
@@ -162,6 +132,7 @@ fn solve_with(state: SolverState, errors: Errors) -> Box<Iterator<Item = Solutio
                             constraint: v.to_owned(),
                             constraint_set: new_const_set.clone(),
                             path: new_path.clone(),
+                            remaining: remaining.clone(),
                         };
                         dep_streams.push(next_state)
                     }
@@ -183,19 +154,22 @@ fn solve_with(state: SolverState, errors: Errors) -> Box<Iterator<Item = Solutio
 pub fn solutions(reg: Rc<Registry>,
                  deps: &DependencySet)
                  -> (Box<Iterator<Item = Solution>>, Errors) {
-    let mut dep_streams = Vec::new();
-    for (k, v) in deps.iter() {
-        let state = SolverState {
-            registry: reg.clone(),
-            package: k.to_owned(),
-            constraint: v.to_owned(),
-            constraint_set: Constraints::from(deps),
-            path: List::empty(),
-        };
-        dep_streams.push(state);
-    }
     let errors = Rc::new(RefCell::new(vec![]));
-    (Box::new(permute_solutions(dep_streams, errors.clone())), errors.clone())
+    let mut it = deps.iter();
+    match it.next() {
+        None => (Box::new(::std::iter::once(Solution::empty())), errors.clone()),
+        Some((k, v)) => {
+            let state = SolverState {
+                registry: reg.clone(),
+                package: k.clone(),
+                constraint: v.clone(),
+                constraint_set: Constraints::from(deps),
+                path: list![],
+                remaining: it.map(|(k, v)| NamedConstraint::new(k, v)).collect()
+            };
+            (solve_with(state, errors.clone()), errors.clone())
+        }
+    }
 }
 
 
@@ -208,6 +182,11 @@ fn sample_registry() -> Rc<Registry> {
                 right_pad => "^1.0.0"
             ),
             "2.0.0" => deps!(
+                right_pad => "^2.0.0"
+            )
+        ),
+        lol_pad => (
+            "1.0.0" => deps!(
                 right_pad => "^2.0.0"
             )
         ),
@@ -280,7 +259,8 @@ fn find_best_solution_set() {
 }
 
 #[test]
-fn empty_solution_set() {
+fn dependency_conflicts_with_subdependency() {
+    // left_pad has a right_pad constraint conflicting with the top level right_pad constraint
     let problem = deps!(
         left_pad => "^1.0.0",
         right_pad => "^2.0.0"
@@ -288,13 +268,38 @@ fn empty_solution_set() {
 
     assert_errors(sample_registry(), problem, vec![
         Conflict {
-            existing: list![conflict::Constraint {
+            existing: list![conflict::NamedConstraint {
                 path: list![(test::pkg("leftpad/left_pad"), test::ver("1.0.0"))],
                 package: test::pkg("leftpad/right_pad"),
                 constraint: test::range("^1")
             }],
-            conflicting: conflict::Constraint {
+            conflicting: conflict::NamedConstraint {
                 path: list![],
+                package: test::pkg("leftpad/right_pad"),
+                constraint: test::range("^2")
+            }
+        }
+    ]);
+}
+
+#[test]
+fn conflicting_subdependencies() {
+    // left_pad and lol_pad have conflicting constraints for right_pad,
+    // thus no solution is possible.
+    let problem = deps!(
+        left_pad => "^1.0.0",
+        lol_pad => "^1.0.0"
+    );
+
+    assert_errors(sample_registry(), problem, vec![
+        Conflict {
+            existing: list![conflict::NamedConstraint {
+                path: list![(test::pkg("leftpad/left_pad"), test::ver("1.0.0"))],
+                package: test::pkg("leftpad/right_pad"),
+                constraint: test::range("^1")
+            }],
+            conflicting: conflict::NamedConstraint {
+                path: list![(test::pkg("leftpad/lol_pad"), test::ver("1.0.0"))],
                 package: test::pkg("leftpad/right_pad"),
                 constraint: test::range("^2")
             }

@@ -10,6 +10,10 @@ pub enum Solution {
 }
 
 impl Solution {
+    pub fn empty() -> Solution {
+        Solution::Solution(Map::new())
+    }
+
     fn plus(self, key: PackageName, value: Version) -> Solution {
         match self {
             // TODO should probably crash hard if trying to overwrite an existing solution?

@@ -1,115 +1,191 @@
-use std::iter::FromIterator;
+use std::iter::{Iterator, FromIterator};
 use std::fmt::{Debug, Formatter, Error};
 use std::ops::Deref;
 use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 
-pub use self::List::{Cons, Nil};
+use self::ListNode::{Cons, Nil};
+
+macro_rules! list {
+    () => { ::list::List::empty() };
+
+    ( $($x:expr),* ) => {{
+        let mut l = ::list::List::empty();
+        $(
+            l = l.cons($x);
+        )*
+        l.reverse()
+    }};
+}
+
+pub fn cons<A>(car: A, cdr: &List<A>) -> List<A> {
+    cdr.cons(car)
+}
 
 pub enum List<A> {
-    Cons(A, Arc<List<A>>),
+    List(Arc<ListNode<A>>)
+}
+
+pub enum ListNode<A> {
+    Cons(usize, A, List<A>),
     Nil,
 }
 
-impl<A> List<A> where A: Clone {
-    pub fn empty() -> Arc<List<A>> {
-        Arc::new(Nil)
+impl<A> List<A> {
+    pub fn empty() -> List<A> {
+        List::List(Arc::new(Nil))
     }
 
-    pub fn singleton(v: A) -> Arc<List<A>> {
-        Arc::new(Cons(v, List::empty()))
+    pub fn singleton(v: A) -> List<A> {
+        List::List(Arc::new(Cons(1, v, list![])))
     }
 
-    pub fn from_slice(slice: &[A]) -> Arc<List<A>> {
-        Arc::new(From::from(slice))
+    fn as_arc<'a>(&'a self) -> &'a Arc<ListNode<A>> {
+        match self {
+            &List::List(ref arc) => arc
+        }
     }
 
     pub fn null(&self) -> bool {
-        match self {
+        match self.as_arc().deref() {
             &Nil => true,
             _ => false
         }
     }
 
-    pub fn cons(car: A, cdr: Arc<List<A>>) -> Arc<List<A>> {
-        Arc::new(Cons(car, cdr))
+    pub fn cons(&self, car: A) -> List<A> {
+        match self.as_arc().deref() {
+            &Nil => List::singleton(car),
+            &Cons(l, _, _) => List::List(Arc::new(Cons(l + 1, car, self.clone())))
+        }
     }
 
-    pub fn car<'a>(&'a self) -> Option<&'a A> {
-        match self {
-            &Cons(ref a, _) => Some(a),
+    pub fn head<'a>(&'a self) -> Option<&'a A> {
+        match self.as_arc().deref() {
+            &Cons(_, ref a, _) => Some(a),
             _ => None
         }
     }
 
-    pub fn cdr(&self) -> Arc<List<A>> {
-        match self {
-            &Cons(_, ref d) => d.clone(),
-            _ => List::empty()
+    pub fn tail(&self) -> Option<List<A>> {
+        match self.as_arc().deref() {
+            &Cons(_, _, ref d) => Some(d.clone()),
+            &Nil => None
+        }
+    }
+
+    pub fn uncons<'a>(&'a self) -> Option<(&'a A, List<A>)> {
+        match self.as_arc().deref() {
+            &Nil => None,
+            &Cons(_, ref a, ref d) => Some((a, d.clone()))
         }
     }
 
     pub fn length(&self) -> usize {
-        self.iter().count()
-    }
-
-    pub fn append(l: Arc<List<A>>, r: Arc<List<A>>) -> Arc<List<A>> {
-        match *l {
-            Nil => r,
-            Cons(ref a, ref d) => List::cons(a.clone(), List::append(d.clone(), r))
+        match self.as_arc().deref() {
+            &Nil => 0,
+            &Cons(l, _, _) => l
         }
-    }
-
-    pub fn reverse(list: Arc<List<A>>) -> Arc<List<A>> {
-        match *list {
-            Nil => list.clone(),
-            Cons(ref a, ref d) => List::append(List::reverse(d.clone()), List::singleton(a.clone()))
-        }
-    }
-
-    pub fn iter(&self) -> ListIter<A> {
-        ListIter { current: Arc::new(self.clone()) }
     }
 }
 
-impl<A> Clone for List<A> where A: Clone {
+impl List<i32> {
+    pub fn range(from: i32, to: i32) -> List<i32> {
+        let mut list = List::empty();
+        let mut c = to;
+        while c >= from {
+            list = cons(c, &list);
+            c -= 1;
+        }
+        list
+    }
+}
+
+impl<A> List<A> where A: Clone + Ord {
+    pub fn insert(&self, item: &A) -> List<A> {
+        match self.as_arc().deref() {
+            &Nil => List::singleton(item.clone()),
+            &Cons(_, ref a, ref d) => if a > item {
+                cons(item.clone(), self)
+            } else {
+                cons(a.clone(), &d.insert(item))
+            }
+        }
+    }
+}
+
+impl<A> List<A> where A: Clone {
+    pub fn from_slice(slice: &[A]) -> List<A> {
+        From::from(slice)
+    }
+
+    pub fn append(&self, r: &List<A>) -> List<A> {
+        match self.as_arc().deref() {
+            &Nil => r.as_ref().clone(),
+            &Cons(_, ref a, ref d) => cons(a.clone(), &d.append(r.as_ref()))
+        }
+    }
+
+    pub fn reverse(&self) -> List<A> {
+        let mut out = List::empty();
+        for i in self.iter() {
+            out = out.cons(i);
+        }
+        out
+    }
+
+    pub fn iter(&self) -> ListIter<A> {
+        ListIter { current: self.as_arc().clone() }
+    }
+}
+
+impl<A> Clone for List<A> {
     fn clone(&self) -> Self {
         match self {
-            &Nil => Nil,
-            &Cons(ref a, ref d) => Cons(a.clone(), d.clone())
+            &List::List(ref arc) => List::List(arc.clone())
         }
     }
 }
 
 impl<A> Default for List<A> {
     fn default() -> Self {
-        Nil
+        List::empty()
     }
 }
 
 pub struct ListIter<A> {
-    current: Arc<List<A>>
+    current: Arc<ListNode<A>>
 }
 
 impl<A> Iterator for ListIter<A> where A: Clone {
     type Item = A;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match *self.current.clone() {
-            Nil => None,
-            Cons(ref a, ref d) => {
-                self.current = d.clone();
+        match self.current.clone().deref() {
+            &Nil => None,
+            &Cons(_, ref a, ref d) => {
+                self.current = d.as_arc().clone();
                 Some(a.clone())
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.current.deref() {
+            &Nil => (0, Some(0)),
+            &Cons(l, _, _) => (l, Some(l))
+        }
+    }
 }
+
+impl<A> ExactSizeIterator for ListIter<A> where A: Clone {}
 
 impl<A> IntoIterator for List<A> where A: Clone {
     type Item = A;
     type IntoIter = ListIter<A>;
 
     fn into_iter(self) -> Self::IntoIter {
-        ListIter { current: Arc::new(self) }
+        self.iter()
     }
 }
 
@@ -117,9 +193,19 @@ impl<A> FromIterator<A> for List<A> where A: Clone {
     fn from_iter<T>(iter: T) -> Self where T: IntoIterator<Item=A> {
         let mut l = List::empty();
         for i in iter {
-            l = List::cons(i, l)
+            l = cons(i, &l)
         }
-        List::reverse(l).deref().clone()
+        l.reverse()
+    }
+}
+
+impl<'a, A> FromIterator<&'a A> for List<A> where A: 'a + Clone {
+    fn from_iter<T>(iter: T) -> Self where T: IntoIterator<Item=&'a A> {
+        let mut l = List::empty();
+        for i in iter {
+            l = cons(i.clone(), &l)
+        }
+        l.reverse()
     }
 }
 
@@ -129,21 +215,12 @@ impl<'a, A> From<&'a [A]> for List<A> where A: Clone {
     }
 }
 
-impl<A> Into<Vec<A>> for List<A> where A: Clone {
-    fn into(self) -> Vec<A> {
-        let mut v = Vec::with_capacity(self.length());
-        for i in self.iter() {
-            v.push(i.clone())
-        }
-        v
-    }
-}
-
 impl<A> PartialEq for List<A> where A: PartialEq {
     fn eq(&self, other: &List<A>) -> bool {
-        match (self, other) {
+        match (self.as_arc().deref(), other.as_arc().deref()) {
             (&Nil, &Nil) => true,
-            (&Cons(ref a1, ref d1), &Cons(ref a2, ref d2)) if a1 == a2 => d1 == d2,
+            (&Cons(l1, _, _), &Cons(l2, _, _)) if l1 != l2 => false,
+            (&Cons(_, ref a1, ref d1), &Cons(_, ref a2, ref d2)) if a1 == a2 => d1 == d2,
             _ => false
         }
     }
@@ -151,21 +228,35 @@ impl<A> PartialEq for List<A> where A: PartialEq {
 
 impl<A> Eq for List<A> where A: Eq {}
 
+impl<A> Hash for List<A> where A: Clone + Hash {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        for i in self.iter() {
+            i.hash(state);
+        }
+    }
+}
+
+impl<A> AsRef<List<A>> for List<A> {
+    fn as_ref(&self) -> &List<A> {
+        self
+    }
+}
+
 impl<A> Debug for List<A> where A: Debug {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         fn items<A>(l: &List<A>, f: &mut Formatter) -> Result<(), Error> where A: Debug {
-            match l {
+            match l.as_arc().deref() {
                 &Nil => Ok(()),
-                &Cons(ref a, ref d) => {
+                &Cons(_, ref a, ref d) => {
                     write!(f, ", {:?}", a)?;
                     items(d, f)
                 }
             }
         }
         write!(f, "[")?;
-        match self {
+        match self.as_arc().deref() {
             &Nil => Ok(()),
-            &Cons(ref a, ref d) => {
+            &Cons(_, ref a, ref d) => {
                 write!(f, "{:?}", a)?;
                 items(d, f)
             }
@@ -174,26 +265,21 @@ impl<A> Debug for List<A> where A: Debug {
     }
 }
 
-macro_rules! list {
-    () => { ::list::List::empty() };
-
-    ( $($x:expr),* ) => {{
-        let mut l = ::list::List::empty();
-        $(
-            l = ::list::List::cons($x, l);
-        )*
-        ::list::List::reverse(l)
-    }};
-}
-
 #[test]
 fn cons_up_some_trouble() {
-    let l = List::cons(1, List::cons(2, List::cons(3, List::empty())));
+    let l = cons(1, &cons(2, &cons(3, &list![])));
     assert_eq!(l, list![1, 2, 3]);
-    let m = List::append(l.clone(), l.clone());
+    assert_eq!(l, From::from(&[1, 2, 3][..]));
+    assert_eq!(3, l.length());
+    assert_eq!(List::range(1, 3), l);
+    let m = l.append(&l);
     assert_eq!(m, list![1, 2, 3, 1, 2, 3]);
-    let n = List::append(l.clone(), List::reverse(l.clone()));
+    assert_eq!(l, list![1, 2, 3]);
+    let n = l.append(&l.reverse());
     assert_eq!(n, list![1, 2, 3, 3, 2, 1]);
+    assert_eq!(l, list![1, 2, 3]);
     let o: List<i32> = vec![5, 6, 7].iter().cloned().collect();
-    assert_eq!(Arc::new(o), list![5, 6, 7]);
+    assert_eq!(o, list![5, 6, 7]);
+    assert_eq!(list![2, 4, 6].insert(&5).insert(&1).insert(&3), list![1, 2, 3, 4, 5, 6]);
+    assert_eq!(3, l.iter().len());
 }

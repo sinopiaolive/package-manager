@@ -1,40 +1,43 @@
-use std::sync::Arc;
 use std::fmt;
 use hamt_rs::HamtMap as Map;
 use manifest::{PackageName, DependencySet};
 use constraint::VersionConstraint;
-use list::List;
+use list::{List, cons};
 use solver::path::Path;
 use solver::conflict::{NamedConstraint, Conflict};
 use linked_hash_map::LinkedHashMap;
 
-#[cfg(test)] use test;
+#[cfg(test)]
+use test;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Constraint {
     sum: VersionConstraint,
-    paths: Arc<List<(Path, VersionConstraint)>>,
+    paths: List<(Path, VersionConstraint)>,
 }
 
 impl Constraint {
     fn new(constraint: &VersionConstraint, path: Path) -> Constraint {
         Constraint {
             sum: constraint.clone(),
-            paths: list![(path.clone(), constraint.clone())]
+            paths: list![(path.clone(), constraint.clone())],
         }
     }
 
     fn with_path(&self, path: Path) -> Constraint {
         Constraint {
             sum: self.sum.clone(),
-            paths: Arc::new(self.paths.iter().map(|(p, c)| (List::append(path.clone(), p.clone()), c.clone())).collect())
+            paths: self.paths
+                .iter()
+                .map(|(p, c)| (path.append(&p), c.clone()))
+                .collect(),
         }
     }
 
     fn add(&self, constraint: &VersionConstraint, path: &Path) -> Constraint {
         Constraint {
             sum: self.sum.and(constraint),
-            paths: List::cons((path.clone(), constraint.clone()), self.paths.clone())
+            paths: cons((path.clone(), constraint.clone()), &self.paths),
         }
     }
 }
@@ -47,7 +50,7 @@ impl fmt::Debug for Constraint {
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum Constraints {
-    Constraints(Map<PackageName, Constraint>)
+    Constraints(Map<PackageName, Constraint>),
 }
 
 impl Constraints {
@@ -61,13 +64,15 @@ impl Constraints {
 
     fn find(&self, pkg: &PackageName) -> Option<&Constraint> {
         match self {
-            &Constraints::Constraints(ref m) => m.find(pkg)
+            &Constraints::Constraints(ref m) => m.find(pkg),
         }
     }
 
     fn plus(&self, pkg: &PackageName, constraint: &Constraint) -> Constraints {
         match self {
-            &Constraints::Constraints(ref m) => Constraints::Constraints(m.clone().plus(pkg.clone(), constraint.clone()))
+            &Constraints::Constraints(ref m) => {
+                Constraints::Constraints(m.clone().plus(pkg.clone(), constraint.clone()))
+            }
         }
     }
 
@@ -79,7 +84,7 @@ impl Constraints {
         out
     }
 
-    pub fn as_paths(&self) -> LinkedHashMap<PackageName, Arc<List<(Path, VersionConstraint)>>> {
+    pub fn as_paths(&self) -> LinkedHashMap<PackageName, List<(Path, VersionConstraint)>> {
         let mut out = LinkedHashMap::new();
         for (pkg, constraint) in self.as_map().iter() {
             out.insert(pkg.clone(), constraint.paths.clone());
@@ -89,7 +94,7 @@ impl Constraints {
 
     pub fn as_map(&self) -> &Map<PackageName, Constraint> {
         match self {
-            &Constraints::Constraints(ref m) => m
+            &Constraints::Constraints(ref m) => m,
         }
     }
 
@@ -102,15 +107,20 @@ impl Constraints {
             None => {
                 let new_cons = Constraint::new(constraint, path);
                 Ok(self.plus(pkg, &new_cons))
-            },
+            }
             Some(old_cons) => {
                 let new_cons = old_cons.add(&constraint, &path);
                 if new_cons.sum == VersionConstraint::Empty {
                     let conflicting = NamedConstraint {
-                        path: path.clone(), package: pkg.clone(), constraint: constraint.clone()
+                        path: path.clone(),
+                        package: pkg.clone(),
+                        constraint: constraint.clone(),
                     };
                     let existing = conflicts_with(self, &conflicting);
-                    Err(Conflict { conflicting, existing })
+                    Err(Conflict {
+                        conflicting: conflicting,
+                        existing: existing,
+                    })
                 } else {
                     Ok(self.plus(pkg, &new_cons))
                 }
@@ -125,7 +135,7 @@ impl Constraints {
             for (ref path, ref constraint) in c.paths.iter() {
                 match out.add(path.clone(), pkg, constraint) {
                     Ok(r) => out = r,
-                    Err(e) => return Err(e)
+                    Err(e) => return Err(e),
                 }
             }
         }
@@ -158,7 +168,8 @@ impl<'a> From<&'a DependencySet> for Constraints {
         let mut news = Map::new();
         let empty_path: Path = list![];
         for (pkg, constraint) in deps {
-            news = news.plus(pkg.clone(), Constraint::new(&constraint, empty_path.clone()))
+            news = news.plus(pkg.clone(),
+                             Constraint::new(&constraint, empty_path.clone()))
         }
         Constraints::Constraints(news)
     }
@@ -170,20 +181,27 @@ impl Into<DependencySet> for Constraints {
     }
 }
 
-impl Into<LinkedHashMap<PackageName, Arc<List<(Path, VersionConstraint)>>>> for Constraints {
-    fn into(self) -> LinkedHashMap<PackageName, Arc<List<(Path, VersionConstraint)>>> {
+impl Into<LinkedHashMap<PackageName, List<(Path, VersionConstraint)>>> for Constraints {
+    fn into(self) -> LinkedHashMap<PackageName, List<(Path, VersionConstraint)>> {
         self.as_paths()
     }
 }
 
-fn conflicts_with(cs: &Constraints, c: &NamedConstraint) -> Arc<List<NamedConstraint>> {
+fn conflicts_with(cs: &Constraints, c: &NamedConstraint) -> List<NamedConstraint> {
     match cs.find(&c.package) {
-        None => List::empty(),
+        None => list![],
         Some(ref constraint) => {
-            Arc::new(constraint.paths.iter()
-                     .filter(|&(_, ref c2)| c.constraint.and(c2) == VersionConstraint::Empty)
-                     .map(|(p, c2)| NamedConstraint { package: c.package.clone(), path: p, constraint: c2 })
-                     .collect())
+            constraint.paths
+                .iter()
+                .filter(|&(_, ref c2)| c.constraint.and(c2) == VersionConstraint::Empty)
+                .map(|(p, c2)| {
+                    NamedConstraint {
+                        package: c.package.clone(),
+                        path: p,
+                        constraint: c2,
+                    }
+                })
+                .collect()
         }
     }
 }
@@ -198,19 +216,22 @@ fn merge_constraints() {
     let c2 = Constraints::from(&deps!(
         up_pad => "^2",
         right_pad => "^1.3"
-    )).with_path(omg_pad.clone());
+    ))
+        .with_path(omg_pad.clone());
     let c3 = c1.merge(&c2).unwrap();
-    assert_eq!(test::unlink(&c3.as_deps()), test::unlink(&deps!(
+    assert_eq!(test::unlink(&c3.as_deps()),
+               test::unlink(&deps!(
         left_pad => "^1",
         right_pad => "^1.3",
         up_pad => "^2"
     )));
-    assert_eq!(test::unlink(&Into::into(c3.clone())), test::to_mut(&dict!(
-        test::pkg("leftpad/left_pad") => list![(List::empty(), test::range("^1"))],
+    assert_eq!(test::unlink(&Into::into(c3.clone())),
+               test::to_mut(&dict!(
+        test::pkg("leftpad/left_pad") => list![(list![], test::range("^1"))],
         test::pkg("leftpad/up_pad") => list![(omg_pad.clone(), test::range("^2"))],
         test::pkg("leftpad/right_pad") => list![
             (omg_pad.clone(), test::range("^1.3")),
-            (List::empty(), test::range("^1"))
+            (list![], test::range("^1"))
         ]
     )));
 }
