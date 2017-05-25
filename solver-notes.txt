@@ -1,0 +1,480 @@
+TODO:
+
+ensure deps are pkg_id -> (version_index, version_index) maps
+cache?
+
+
+
+B 1,2
+I1
+..
+I10
+A
+  1
+    B 1,2
+  2
+    B 1
+  3
+    B 1
+now insert
+B 1,2    # record for error messaging: required by A 3
+
+for each package
+  for each version
+    intersect the dependencies
+
+
+
+cost per excluded version: O(p v)
+maximum cost to find solution: O(p v p v) = O(p^2 v^2)
+recursive version, max cost to find solution: O(v^p)
+so this is efficient :)
+
+
+intersection of exclusions for each version for each package
+
+deps[C,1] = (A,(1,2,3))
+want to augment:
+deps[C,1] = (A,(1,2,3)),(B,(1,2))
+deps[C,2] = ()
+
+if we also know: (B,3)
+then: (C,2)
+
+C
+  1
+    A
+      1
+        B 1,2
+      2
+        B 1
+      3
+        B 2,3
+
+algo1(A, [1,2,3]) returns B =~ [1,2,3]
+
+record path A 3 -> B [1,2,3]
+we might later discover A =~ [1,2]
+
+A 3 -> B [1,2,3]
+
+
+
+J1
+..
+J5
+  Y 1,2
+..
+J10
+A
+  X 1,2
+B
+  X 1
+C
+  Y 1
+
+
+1. for each package, for each version, intersect dependencies
+   (keep doing this until we don't make progress)
+# 2. for each package, for each version
+#      for each dependent_package, for each version
+#        intersect dependencies
+
+solve(false, [], toplevel_deps)
+
+
+
+for each partial_solution[i], record a path of how we got there
+for each package in deps, record a path of how we got there
+
+report errors like this:
+
+    conflict in X due to A and C
+    A 4 -> B 7 -> X 1,2
+    C 5 -> D 1 -> X 3,4
+
+even though
+
+    B 7 depends on X = 1,2
+    D 1 depends on X = 2,3,4
+
+A = 4,5
+
+So now the user changes
+
+    C = 5
+
+to
+
+    C = 4
+
+
+A 1,2,3
+  (Path(Z 1), A 1,2,3)
+  (Path(Z 2), A 1,2,3)
+  (Path(Z 3), A 2,3)
+
+
+A
+  1
+    B 1
+  2
+    B 1,2
+  3
+    B 2
+
+
+manifest:
+Z 1,2,3
+
+algo1:
+
+Z 1,2,3
+A 1,2,3
+
+
+algo1 returns
+B 1,2
+  Path(Z, A)
+
+B 2,3
+  Path(Y, A)
+
+intersection B 2
+  Path(Z, A)
+
+there exists function f(b_version) -> a_version such that for any
+b_version satisfying this constraint, the dependencies of a_version,
+where a_version = f(b_version), include b_version.
+
+
+  and records that it was justified
+  (Path(Z 1, A 1), B 1)
+  (Path(Z 2, A 1), B 1)
+
+  (Path(Z 1, A 2), B 1,2)
+  (Path(Z 2, A 2), B 1,2)
+  (Path(Z 3, A 2), B 1,2)
+
+  (Path(Z 1, A 3), B 2)
+  (Path(Z 2, A 3), B 2)
+  (Path(Z 3, A 3), B 2)
+
+
+
+deps : Constraints # Map<PackageName, Constraint>
+partial_solution : Solution # Map<PackageName, Version>
+path : List<(PackageName, Version)>
+
+
+
+# assuming we have disjoint we can do:
+def algo0():
+    # kick out all impossible package versions
+    for each package in deps:
+        for each possible version of package per deps:
+            if that package version's depependencies conflict with deps:
+                disallow that package version in deps
+
+
+def merge(deps1, deps2, ...) -> Result<deps, conflict>
+
+deps:
+  A = 1,2
+  B = 1
+  C = 1
+
+A
+  1
+    B = 2
+  2
+    C = 2
+
+
+
+
+deps:
+  B 1,2
+
+B
+  1
+    C 1
+  2
+    C 2
+
+deps[B]
+  constraint: 1,2
+  path: (A=1)
+
+run algo1 on B:
+C 1,2
+  Path(A=1, B=[1,2])
+
+C 2,3
+  Path(H=1, J=1)
+
+intersection:
+merge(C 1,2; C 2,3) ->
+  constraint: C 2
+  path: Path(A=1, B=[1,2])
+
+algo1(D, ...) => B 2,3 => B 2
+algo1(E, ...) => C 1
+algo1(F, ...) => C 3
+
+
+Error: C conflicts because
+
+A 1 -> B 1 -> C 1
+F 1 -> C 3
+
+
+partial_solution = [(X, 1)] (via A)
+
+discover X = 2,3 (via B)
+
+manifest:
+A 1
+B 1
+C 1
+
+A
+  1
+    X 2,3,4
+X
+  2
+    something impossible
+  3
+    B 0,1
+B
+  0
+    something impossible
+  1
+    X 1,2
+C
+  1
+    X 1,2,3
+
+want to print:
+
+    Conflict in X
+
+    A 1 -> X 3 (2,3,4)
+    B 1 -> X 1,2
+
+
+
+A
+  1
+    C 1
+  2
+    C 2
+
+C 1,2
+  Path(A, [1, 2])
+
+later merge to get:
+C 2
+  Path(A, [1, 2])
+
+pick partial_solution = [A, 1]
+
+
+
+Path = List<(
+  PackageName,
+  VersionRange
+)>
+
+ExactPath = List<(
+  PackageName,
+  Version
+)>
+
+Constraint = (
+  VersionRange,
+  Path
+)
+
+Conflict = (
+  conflictingPackage : PackageName,
+  constraint1 : Constraint,
+  constraint1_version_picked : Option<Version>,
+  constraint2 : Constraint
+)
+
+def algo1(deps, partial_solution) -> Result<solution, conflict>:
+    new_deps = deps # accumulate
+
+    for each package in deps:
+        let `versions` be the list of possible versions of that package per deps
+
+        # assuming we require contiguous ranges and don't use algo0:
+        new_versions = versions.filter(version =>
+            conflict = check_conflict(version.deps, deps, partial_solution)
+            if conflict return false else return true
+        )
+        if new_versions is empty:
+            best_conflict = check_conflict(versions[0].deps, deps, partial_solution)
+            return best_conflict # as the best example of a conflict
+
+        inferred_dependencies = infer_dependencies(package, versions)
+        try new_deps = merge(new_deps, inferred_dependencies)
+        if there's a conflict:
+            return the `conflict`
+
+    return new_deps
+
+def infer_dependencies(package, versions, partial_solution): # part of algo1
+    // TODO insert here?
+    // a primitive checkdep function for a single
+    // dependency:
+    // checkdep()
+    let `deps` be the intersection of the sets of dependency names for every package version
+    keep only the `deps` not contained in `partial_solution`
+    # Now every `dep` in `deps` is present in every package version.
+    for each dep in deps:
+        let union_dep be the union of all constraints for that dep
+    return all union_deps
+
+
+def solve(cheap, partial_solution, deps) -> Result<solution, conflict>:
+    last_cheap_conflict = null
+    if not cheap:
+        while true:
+            match solve(cheap=true, partial_solution, deps)
+            if it's a solution `sln`:
+                return sln
+            else it's a `conflict`:
+                last_cheap_conflict = conflict
+
+                try new_deps = algo1(deps)
+                if new_deps != deps: # some progress
+                    deps = new_deps
+                else if new_deps == deps: # no more progress
+                    break
+                else there's a `conflict`:
+                    return the `conflict`
+
+    # Recurse
+    constraint, deps_tail = pop_good_package_to_recurse_into from deps based on last_cheap_conflict
+    first_failure = null
+    for ver in constraint.possible_versions:
+        // TODO can we move this into merge?
+        ver_deps = get_depset(constraint.package, ver)
+        if get_depset returned a failure or
+           ver's dependencies conflict with partial_solution:
+            record first_failure
+            continue
+
+        match merge(deps_tail, ver's dependencies not contained in partial_solution)
+        if it's a `conflict`:
+            record first_failure = conflict
+            continue
+        else assign it to `new_deps`
+
+        match solve(cheap=cheap, partial_solution + [(pkg, ver)], new_deps)
+        if it's a solution `sln`:
+            return sln
+        else it's a `conflict`:
+            if cheap:
+                return conflict
+            else:
+                record first_conflict
+                pass # continue with next ver
+    return first_conflict
+
+
+
+conflict from try_finding_perfect_solution:
+    A=1 -> B=1 -> X=1
+    C=1 -> D=1 -> X=2
+
+
+def try_finding_perfect_solution(deps):
+    sln = []
+    while pkg = deps.pop():
+        if pkg not in sln:
+            sln.push((pkg, version))
+            deps.push(pkg[version].deps)
+        else:
+
+
+
+
+I1
+..
+I10
+A # <-> B
+  ...
+B # <-> A
+  ...
+
+
+
+A 1
+  B ^ abs,2,3
+A 2
+  B ^ abs,1,3
+A 3
+=>
+A
+  B ^ {}
+
+A 1
+  B ^ abs,2,3
+A 2
+  B ^ abs,1,3
+A 3
+  B ^ abs,1,2
+=>
+A
+  B ^ abs
+
+
+
+A
+  A2
+    X 1
+I1
+...
+I10
+C
+  C2
+    X 2
+
+A
+  A2
+    X 1
+C
+  C2
+    X 2
+I1
+...
+I10
+
+
+
+
+
+
+
+fn solver(deps, partial_solution):
+    while deps.first() in partial_solution:
+        if not partial_solution.satisfies(dep):
+            return // no solution
+        deps = deps.rest()
+    if deps.empty:
+        yield partial_solution
+        return
+
+    // just another instance of solver
+    find_facts()
+
+    // source of chaos -- need to have same logic for each call
+    try_using_top_version_for_each_and_move_conflicting_deps_to_the_top()
+
+    for candidate_version in dep.matching_versions():
+        yield all solver(
+            deps.rest() + candidate_version.deps(),
+            partial_solution + [candidate_version])
