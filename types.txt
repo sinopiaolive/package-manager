@@ -103,13 +103,10 @@ JustifiedConstraint (never used more than once)
 
 
 Constraint = Set<Arc<Version>>
-JustifiedConstraint = (
-    min: Arc<Version>
-    max: Arc<Version> // inclusive
-    min_justification: Path
-    max_justification: Path
-)
-// Depset = Map<Arc<PackageName>, Arc<Constraint>>
+JustifiedConstraint = Map<
+  Arc<Version>,
+  Path
+>
 Depset = Map<
   Arc<PackageName>,
   JustifiedConstraint
@@ -118,13 +115,12 @@ get_depset(package: Arc<PackageName>, version: Arc<Version>, path: Path)
   -> Result<Arc<Depset>, Failure>
 JustifiedVersion = {
     version: Arc<Version>
-    justified_constraint: JustifiedConstraint
+    path: Path
 }
-PartialSolution = HamtMap<Arc<PackageName>, JustifiedVersion>
+PartialSolution = Map<Arc<PackageName>, JustifiedVersion>
 Solution = Map<Arc<PackageName>, Arc<Version>>
 
-Path = List<(Arc<PackageName>, Arc<Constraint>)>
-ExactPath = List<(Arc<PackageName>, Arc<Version>)>
+Path = List<(Arc<PackageName>, Arc<Version>)>
 
 solve(registry: Arc<Registry>, manifest: Arc<Manifest>) -> Result<Solution, ResolvedFailure>
 solve_inner(
@@ -139,38 +135,11 @@ Failure = enum {
     PackageMissing(PackageMissing),
     UninhabitedConstraint(UninhabitedConstraint)
 }
-// TODO when we instantiate this, we could cheaply (but probably don't need to?)
-// (1) drop half of each justified_constraint
-// (2) null the constraint1_version_picked unless lower_constraint_max < upper_constraint_min
-//
-// so we get
-// lower_constraint_max + path
-// upper_constraint_min + path
 Conflict = (
   conflicting_package: Arc<PackageName>,
-  constraint1: JustifiedConstrain
-  constraint1_version_picked: Option<Arc<Version>>,
+  constraint1: JustifiedConstraint
   constraint2: JustifiedConstraint
 )
-
-// TODO the min/max path thing is maybe dodgy? need to think about again... maybe:
-//   1 path for every version in constraint
-//   drop contiguousness
-//   opportunistically replace artificial constraints with real constraints when printing
-//   be smart about picking good paths for edges of range
-
-
-// TODO
-ResolvedConflict = {
-  conflicting_package: Arc<PackageName>
-  constraint1: SemverConstraint
-  constraint1_version_picked: Option<Arc<Version>>
-  constraint1_path: ExactPath
-  constraint2: SemverConstraint
-  constraint2_path: ExactPath
-}
-
-
 PackageMissing = (
     package: Arc<PackageName>
     path: Path
@@ -182,16 +151,6 @@ UninhabitedConstraint = (
 )
 // re-use the Failure for resolved failures by collapsing all the constraints in the paths
 ResolvedFailure = Failure
-
-// We need Conflict::constraint1_version_picked for a silly, rare reason:
-A 1 -> X picked 2 (from constraint 1,2)
-B 1 -> X 1
-we need to print what we picked or the error message is confusing
-
-// TODO when to resolve conflicts:
-// (a) resolve all over the place
-// (b) store a snapshot of deps, partial_solution state (immutable :-) )
-// (c) Thunks, but they don't work?
 
 
 
@@ -216,14 +175,6 @@ c2 = Constraint {
 print
 A 1 -> X 1-3   (from c1.max_justification)
 C 1 -> X 4-6   (from c2.min_justification)
-
-
-
-
-
-
-
-
 
 
 
@@ -308,59 +259,4 @@ X 4,5
 
 pick X
 recurse for X=4
-
-
-
-
-
-A
-  1
-  2
-B
-  1
-  2
-C
-  1
-  2
-
-A 1,2
-B 1,2
-C 1,2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
