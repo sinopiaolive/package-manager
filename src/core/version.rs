@@ -9,11 +9,12 @@ use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use std::fmt::Display;
 use serde::de::Error;
 use std::cmp::{Ord, PartialOrd, Ordering};
+use std::hash::{Hash, Hasher};
 use super::error;
 
 use self::VersionIdentifier::{Numeric, Alphanumeric};
 
-#[derive(Eq, Hash, Clone)]
+#[derive(Eq, Clone)]
 pub struct Version {
     pub fields: Vec<u64>,
     pub prerelease: Vec<VersionIdentifier>,
@@ -98,6 +99,15 @@ impl PartialEq for Version {
         let v1 = self.normalise();
         let v2 = other.normalise();
         v1.fields == v2.fields && v1.prerelease == v2.prerelease && v1.build == v2.build
+    }
+}
+
+impl Hash for Version {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let me = self.normalise();
+        me.fields.hash(state);
+        me.prerelease.hash(state);
+        me.build.hash(state);
     }
 }
 
