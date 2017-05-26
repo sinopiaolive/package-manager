@@ -543,3 +543,35 @@ D
   1 with path [(A 1)]
   2 with path [(A 2)] // [(A 1)] works too but A 2 is a better version
   3 with path [(A 2)]
+
+
+
+
+
+### Cached lookup of constraints from registry
+
+A
+  1.0.0
+     B ^1.0.0
+     C ^1.0.0
+B
+  1.0.0
+  1.1.0
+C
+  1.0.0
+  1.1.0
+
+want to get A 1.0.0 dependencies:
+
+First, turn the VersionConstraints into Constraints (without Paths):
+lookup(A 1.0.0) =>
+  B -> UnjustifiedConstraint(1.0.0, 1.1.0)
+  C -> UnjustifiedConstraint(1.0.0, 1.1.0)
+This could also signal missing package or uninhabited constraint.
+This we can cache.
+
+get_justified_constraint_set(A 1.0.0, some_path) =>
+  get lookup(A 1.0.0)
+  if error, return error with some_path added; else,
+  new_path = some_path + (A 1.0.0)
+  return the constraint set with the new_path tacked onto each constraint

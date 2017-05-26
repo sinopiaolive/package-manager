@@ -73,6 +73,7 @@ impl VersionConstraint {
     }
 
     pub fn contains(&self, v: &Version) -> bool {
+        // TODO implement questionable beta ranges: ^1.0.0 < 2.0.0 should not match 2.0.0-beta.1
         match self {
             &Empty => false,
             &Range(None, None) => true,
