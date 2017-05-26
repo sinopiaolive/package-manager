@@ -1,53 +1,48 @@
 use std::fmt;
+use std::sync::Arc;
 use std::ops::Add;
-use hamt_rs::HamtMap as Map;
 use manifest::PackageName;
 use version::Version;
+use solver::path::Path;
+use immutable_map::map::TreeMap as Map;
 
-#[derive(Clone, PartialEq, Eq)]
-pub enum Solution {
-    Solution(Map<PackageName, Version>),
+
+
+pub struct JustifiedVersion {
+    version: Arc<Version>,
+    path: Path
 }
 
-impl Solution {
-    pub fn empty() -> Solution {
-        Solution::Solution(Map::new())
-    }
+pub type PartialSolution = Map<Arc<PackageName>, JustifiedVersion>;
 
-    fn plus(self, key: PackageName, value: Version) -> Solution {
-        match self {
-            // TODO should probably crash hard if trying to overwrite an existing solution?
-            Solution::Solution(m) => Solution::Solution(m.plus(key, value)),
-        }
-    }
-}
+pub type Solution = Map<Arc<PackageName>, Arc<Version>>;
 
-impl Add for Solution {
-    type Output = Solution;
+// impl Add for Solution {
+//     type Output = Solution;
 
-    fn add(self, other: Solution) -> Solution {
-        match (self, other) {
-            (Solution::Solution(a), Solution::Solution(b)) => {
-                let mut out = a;
-                for (k, v) in b.into_iter() {
-                    out = out.plus(k.to_owned(), v.to_owned())
-                }
-                Solution::Solution(out)
-            }
-        }
-    }
-}
+//     fn add(self, other: Solution) -> Solution {
+//         match (self, other) {
+//             (Solution::Solution(a), Solution::Solution(b)) => {
+//                 let mut out = a;
+//                 for (k, v) in b.into_iter() {
+//                     out = out.plus(k.to_owned(), v.to_owned())
+//                 }
+//                 Solution::Solution(out)
+//             }
+//         }
+//     }
+// }
 
-impl fmt::Debug for Solution {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "Solution( ")?;
-        match self {
-            &Solution::Solution(ref m) => {
-                for (k, v) in m.into_iter() {
-                    write!(f, "{}: {}", k, v)?;
-                }
-            }
-        }
-        write!(f, ")")
-    }
-}
+// impl fmt::Debug for Solution {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+//         write!(f, "Solution( ")?;
+//         match self {
+//             &Solution::Solution(ref m) => {
+//                 for (k, v) in m.into_iter() {
+//                     write!(f, "{}: {}", k, v)?;
+//                 }
+//             }
+//         }
+//         write!(f, ")")
+//     }
+// }

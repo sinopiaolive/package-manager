@@ -11,7 +11,7 @@ extern crate regex;
 #[macro_use] extern crate quick_error;
 extern crate linked_hash_map;
 extern crate license_exprs;
-extern crate hamt_rs;
+extern crate immutable_map;
 
 #[macro_use] mod list;
 #[macro_use] mod test;
