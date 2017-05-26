@@ -102,11 +102,7 @@ Constraint (only copied into Paths, already cheap)
 JustifiedConstraint (never used more than once)
 
 
-// actual versions -- not the same as what the user specified
-Constraint = (
-    min: Arc<Version>
-    max: Arc<Version> // inclusive
-)
+Constraint = Set<Arc<Version>>
 JustifiedConstraint = (
     min: Arc<Version>
     max: Arc<Version> // inclusive
@@ -143,12 +139,38 @@ Failure = enum {
     PackageMissing(PackageMissing),
     UninhabitedConstraint(UninhabitedConstraint)
 }
+// TODO when we instantiate this, we could cheaply (but probably don't need to?)
+// (1) drop half of each justified_constraint
+// (2) null the constraint1_version_picked unless lower_constraint_max < upper_constraint_min
+//
+// so we get
+// lower_constraint_max + path
+// upper_constraint_min + path
 Conflict = (
   conflicting_package: Arc<PackageName>,
-  constraint1: JustifiedConstraint
+  constraint1: JustifiedConstrain
   constraint1_version_picked: Option<Arc<Version>>,
   constraint2: JustifiedConstraint
 )
+
+// TODO the min/max path thing is maybe dodgy? need to think about again... maybe:
+//   1 path for every version in constraint
+//   drop contiguousness
+//   opportunistically replace artificial constraints with real constraints when printing
+//   be smart about picking good paths for edges of range
+
+
+// TODO
+ResolvedConflict = {
+  conflicting_package: Arc<PackageName>
+  constraint1: SemverConstraint
+  constraint1_version_picked: Option<Arc<Version>>
+  constraint1_path: ExactPath
+  constraint2: SemverConstraint
+  constraint2_path: ExactPath
+}
+
+
 PackageMissing = (
     package: Arc<PackageName>
     path: Path
@@ -194,4 +216,151 @@ c2 = Constraint {
 print
 A 1 -> X 1-3   (from c1.max_justification)
 C 1 -> X 4-6   (from c2.min_justification)
+
+
+
+
+
+
+
+
+
+
+
+
+
+Rails
+  1
+  2
+  3
+Sass
+  1
+    Rails 1
+  2
+    Rails 3
+
+Rails *
+Sass *
+
+union(Rails 1, Rails 3) -> Rails 1,2,3 with path (Sass [1,2]) // whoops
+
+union(Rails 1, Rails 3) ->
+Rails Constraint 1,3
+  path[1] = (Sass 1)
+  path[3] = (Sass 2)
+
+
+
+
+Conflict
+  2,3   can find Semver(1,2,3)
+  4,5   can find Semver(4,5,6)
+
+Conflict
+  1,3
+  2,4
+
+
+A 1 -> B 1 -> X Semver(1,2,3)
+C 1 -> D 1 -> X Semver(4,5,6)
+
+
+A 1 -> B 1 -> X 3
+C 1 -> D 1 -> X 4
+
+
+
+
+A
+  1
+    X 4-5
+  2
+    X 4-5
+
+
+X Constraint 4,5
+  path[4] = (A, [1,2])
+  path[5] = (A, [1,2])
+
+X Constraint 4,5
+  path[4] = (A, 2)
+  path[5] = (A, 2)
+
+
+
+
+A
+  1
+    X 4
+  2
+    X 5
+
+A 1,2
+run algo 1, get new constraint:
+X Constraint 4,5
+  path[4] = (A, 1)
+  path[5] = (A, 2)
+
+now we have
+A 1,2
+X 4,5
+
+
+pick X
+recurse for X=4
+
+
+
+
+
+A
+  1
+  2
+B
+  1
+  2
+C
+  1
+  2
+
+A 1,2
+B 1,2
+C 1,2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
