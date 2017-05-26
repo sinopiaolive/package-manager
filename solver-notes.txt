@@ -1,10 +1,3 @@
-TODO:
-
-ensure deps are pkg_id -> (version_index, version_index) maps
-cache?
-
-
-
 B 1,2
 I1
 ..
@@ -326,10 +319,6 @@ def algo1(deps, partial_solution) -> Result<solution, conflict>:
     return new_deps
 
 def infer_dependencies(package, versions, partial_solution): # part of algo1
-    // TODO insert here?
-    // a primitive checkdep function for a single
-    // dependency:
-    // checkdep()
     let `deps` be the intersection of the sets of dependency names for every package version
     keep only the `deps` not contained in `partial_solution`
     # Now every `dep` in `deps` is present in every package version.
@@ -530,6 +519,15 @@ partial_solution = [(A, 1) with empty path]
 intersect D 1,2 with D 2,3
 D
   2 (with path []) // could also have picked path [(A 1)] but it's longer
+
+
+A
+  1 -> D 2,3
+D
+  1,2,3,4
+when we intersect(D 2,3; D 1,2,3,4)
+we probably want to keep the A 1 path
+need to write good logic here :)
 
 
 #### Union case

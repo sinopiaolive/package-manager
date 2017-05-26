@@ -23,6 +23,25 @@ use self::solution::Solution;
 
 pub type Errors = Rc<RefCell<Vec<Conflict>>>;
 
+
+
+
+
+
+
+
+struct RegistryAdapter {
+    // caching
+}
+impl RegistryAdapter {
+    get_depset(...)
+}
+solve(registry: Registry, deps) -> Result<Solution,
+
+
+
+
+
 #[derive(Clone)]
 pub enum SolverError {
     PackageMissing(PackageName),
