@@ -10,7 +10,9 @@ extern crate regex;
 #[macro_use] extern crate quick_error;
 extern crate linked_hash_map;
 extern crate license_exprs;
+extern crate immutable_map;
 
+#[macro_use] mod list;
 #[macro_use] mod test;
 mod registry;
 pub use registry::*;
@@ -25,18 +27,6 @@ mod solver;
 pub use solver::*;
 mod lockfile;
 pub use lockfile::*;
-
-macro_rules! map(
-    { $($key:expr => $value:expr),+ } => {
-        {
-            let mut m = ::std::collections::HashMap::new();
-            $(
-                m.insert($key, $value);
-            )+
-            m
-        }
-     };
-);
 
 pub fn test() {
     let test_registry_toml = r#"

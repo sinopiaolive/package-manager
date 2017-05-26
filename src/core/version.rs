@@ -9,11 +9,12 @@ use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use std::fmt::Display;
 use serde::de::Error;
 use std::cmp::{Ord, PartialOrd, Ordering};
+use std::hash::{Hash, Hasher};
 use super::error;
 
 use self::VersionIdentifier::{Numeric, Alphanumeric};
 
-#[derive(Eq, Hash, Clone)]
+#[derive(Eq, Clone)]
 pub struct Version {
     pub fields: Vec<u64>,
     pub prerelease: Vec<VersionIdentifier>,
@@ -101,6 +102,15 @@ impl PartialEq for Version {
     }
 }
 
+impl Hash for Version {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let me = self.normalise();
+        me.fields.hash(state);
+        me.prerelease.hash(state);
+        me.build.hash(state);
+    }
+}
+
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_string())
@@ -155,13 +165,15 @@ impl PartialOrd for Version {
 
 impl Ord for Version {
     fn cmp(&self, other: &Version) -> Ordering {
-        match cmp_vec(&self.fields, &other.fields) {
+        let left = self.normalise();
+        let right = other.normalise();
+        match cmp_vec(&left.fields, &right.fields) {
             Ordering::Equal => {
-                match (self.prerelease.is_empty(), other.prerelease.is_empty()) {
+                match (left.prerelease.is_empty(), right.prerelease.is_empty()) {
                     (true, false) => Ordering::Greater,
                     (false, true) => Ordering::Less,
                     (true, true) => Ordering::Equal,
-                    (false, false) => cmp_vec(&self.prerelease, &other.prerelease),
+                    (false, false) => cmp_vec(&left.prerelease, &right.prerelease),
                 }
             }
             a => a,

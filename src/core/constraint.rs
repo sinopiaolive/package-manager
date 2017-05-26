@@ -7,7 +7,7 @@ use std::fmt;
 use nom;
 use super::error;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),
@@ -39,15 +39,15 @@ impl Deserialize for VersionConstraint {
 
 impl VersionConstraint {
     pub fn gteq(v: Version) -> VersionConstraint {
-        Range(Some(v), None)
+        Range(Some(v.normalise()), None)
     }
 
     pub fn lt(v: Version) -> VersionConstraint {
-        Range(None, Some(v))
+        Range(None, Some(v.normalise()))
     }
 
     pub fn range(v1: Version, v2: Version) -> VersionConstraint {
-        Range(Some(v1), Some(v2))
+        Range(Some(v1.normalise()), Some(v2.normalise()))
     }
 
     pub fn all() -> VersionConstraint {
@@ -73,6 +73,7 @@ impl VersionConstraint {
     }
 
     pub fn contains(&self, v: &Version) -> bool {
+        // TODO implement questionable beta ranges: ^1.0.0 < 2.0.0 should not match 2.0.0-beta.1
         match self {
             &Empty => false,
             &Range(None, None) => true,
@@ -104,19 +105,12 @@ impl VersionConstraint {
                 }
             }
             (&Range(ref min1, ref max1), &Range(ref min2, ref max2)) => {
-                Range(min_opt(min1, min2).clone(), max_opt(max1, max2).clone())
+                match (min_opt(min1, min2), max_opt(max1, max2)) {
+                    (&Some(ref from), &Some(ref to)) if from >= to => Empty,
+                    (min, max) => Range(min.clone(), max.clone())
+                }
             }
         }
-    }
-
-    // Return a list of matching versions,
-    pub fn all_matching(&self, versions: &Vec<Version>) -> Vec<Version> {
-        let mut matching_versions: Vec<Version> = versions.iter()
-            .filter(|v| self.contains(v))
-            .map(|v| v.clone())
-            .collect();
-        matching_versions.sort_by(|a, b| a.priority_cmp(b));
-        matching_versions
     }
 }
 
@@ -169,27 +163,27 @@ named!(exact_version_constraint<VersionConstraint>, map!(version, VersionConstra
 
 named!(min_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b">=") >>
-    v: version >>
-    (Range(Some(v), None))
+        v: version >>
+        (Range(Some(v.normalise()), None))
 )));
 
 named!(max_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"<") >>
-    v: version >>
-    (Range(None, Some(v)))
+        v: version >>
+        (Range(None, Some(v.normalise())))
 )));
 
 named!(closed_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b">=") >>
-    v1: version >>
-    tag!(b"<") >>
-    v2: version >>
-    (Range(Some(v1), Some(v2)))
+        v1: version >>
+        tag!(b"<") >>
+        v2: version >>
+        (Range(Some(v1.normalise()), Some(v2.normalise())))
 )));
 
 named!(open_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"*") >>
-    (Range(None, None))
+        (Range(None, None))
 )));
 
 named!(x_constraint<VersionConstraint>, ws!(do_parse!(
@@ -198,7 +192,7 @@ named!(x_constraint<VersionConstraint>, ws!(do_parse!(
         ({
             let vmin = Version::new(v, vec![], vec![]);
             let vmax = bump_last(&vmin);
-            (Range(Some(vmin), Some(vmax)))
+            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
         })
 )));
 
@@ -207,7 +201,7 @@ named!(caret_constraint<VersionConstraint>, ws!(do_parse!(
         vmin: version >>
         ({
             let vmax = caret_bump(&vmin);
-            (Range(Some(vmin), Some(vmax)))
+            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
         })
 )));
 
@@ -216,7 +210,7 @@ named!(tilde_constraint<VersionConstraint>, ws!(do_parse!(
         vmin: version >>
         ({
             let vmax = tilde_bump(&vmin);
-            (Range(Some(vmin), Some(vmax)))
+            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
         })
 )));
 
@@ -303,6 +297,8 @@ mod test {
                               vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
         assert_eq!(version_constraint(b"^0.0.0.0.8-rc1+wtf"),
                    Done(&b""[..], VersionConstraint::range(v1, ver!(0,0,0,0,9))));
+        assert_eq!(version_constraint(b"^2.0.0"),
+                   Done(&b""[..], VersionConstraint::range(ver!(2), ver!(3))));
     }
 
     #[test]
@@ -354,15 +350,7 @@ mod test {
         assert_eq!(range(">=1.2.3").and(&range(">=1.0")), range(">=1.2.3"));
         assert_eq!(range("<1.2.3").and(&range("<1")), range("<1"));
         assert_eq!(range("<1.2.3").and(&range("<1.5")), range("<1.2.3"));
-        assert_eq!(range(">=1.2.3 <1.8") .and(&range(">=1.5 <2")), range(">=1.5 <1.8"));
-    }
-
-    #[test]
-    fn test_all_matching() {
-        assert_eq!(range(">=1.1 <2").all_matching(&vec![
-            ver("1"), ver("1.1-rc.1"), ver("1.1"), ver("1.2-rc.1"), ver("1.2"), ver("2")
-        ]), vec![
-            ver("1.2-rc.1"), ver("1.1"), ver("1.2")
-        ]);
-    }
+        assert_eq!(range(">=1.2.3 <1.8").and(&range(">=1.5 <2")), range(">=1.5 <1.8"));
+        assert_eq!(range("^2.0.0").and(&range("^1.0.0")), Empty);
+   }
 }
