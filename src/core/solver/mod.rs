@@ -7,13 +7,13 @@ use constraint::VersionConstraint;
 
 mod path;
 mod constraints;
-mod conflict;
+mod failure;
 mod solution;
 mod adapter;
 
 use solver::path::Path;
 use solver::constraints::{Constraint, ConstraintSet};
-use solver::conflict::Failure;
+use solver::failure::Failure;
 use solver::solution::{PartialSolution, Solution};
 
 fn search(reg: Arc<Registry>, stack: Arc<ConstraintSet>, cheap: bool, solution: PartialSolution) -> Result<PartialSolution, Failure> {
