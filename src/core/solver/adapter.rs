@@ -6,6 +6,9 @@ use constraint::VersionConstraint;
 use manifest::PackageName;
 use version::Version;
 use registry::Registry;
+use solver::failure::Failure;
+use solver::constraints::Constraint;
+use solver::path::Path;
 
 struct RegistryAdapter {
     registry: Arc<Registry>,
@@ -32,5 +35,22 @@ impl RegistryAdapter {
         };
         cache.insert(key, value.clone());
         value
+    }
+
+    pub fn constraint_for(&self, package: Arc<PackageName>, constraint: Arc<VersionConstraint>, path: Path) -> Result<Constraint, Failure> {
+        match self.versions_for(package.clone(), constraint.clone()) {
+            None => Err(Failure::package_missing(package.clone(), path.clone())),
+            Some(versions) => {
+                if versions.is_empty() {
+                    Err(Failure::uninhabited_constraint(package.clone(), constraint.clone(), path.clone()))
+                } else {
+                    let mut c = Constraint::new();
+                    for version in versions {
+                        c = c.insert(version, path.clone());
+                    }
+                    Ok(c)
+                }
+            }
+        }
     }
 }
