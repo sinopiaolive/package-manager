@@ -7,7 +7,7 @@ use std::fmt;
 use nom;
 use super::error;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),

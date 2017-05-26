@@ -9,6 +9,7 @@ mod path;
 mod constraints;
 mod conflict;
 mod solution;
+mod adapter;
 
 use solver::path::Path;
 use solver::constraints::{Constraint, ConstraintSet};
