@@ -4,13 +4,7 @@ use immutable_map::map::TreeMap as Map;
 use std::sync::Arc;
 use version::Version;
 
-
-
-pub type Constraint = Map<Arc<Version>, Arc<Path>>;
-
-
-
-
+pub type Constraint = Map<Arc<Version>, Path>;
 
 // impl fmt::Debug for Constraint {
 //     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
