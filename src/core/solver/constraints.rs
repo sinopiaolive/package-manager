@@ -12,18 +12,18 @@ pub type Constraint = Map<Arc<Version>, Path>;
 //     }
 // }
 
-pub struct ConstraintSet(Map<Arc<PackageName>, Constraint>);
+pub type ConstraintSet = Map<Arc<PackageName>, Constraint>;
 
-impl ConstraintSet {
-    pub fn pop(&self) -> (Option<(Arc<PackageName>, Constraint)>, ConstraintSet) {
-        // FIXME obvs
-        (None, ConstraintSet(Map::new()))
-    }
-    pub fn add(&self, path: &Path, facts: DependencySet) -> ConstraintSet {
-        // FIXME obvs
-        ConstraintSet(Map::new())
-    }
-}
+// impl ConstraintSet {
+//     pub fn pop(&self) -> (Option<(Arc<PackageName>, Constraint)>, ConstraintSet) {
+//         // FIXME obvs
+//         (None, ConstraintSet(Map::new()))
+//     }
+//     pub fn add(&self, path: &Path, facts: DependencySet) -> ConstraintSet {
+//         // FIXME obvs
+//         ConstraintSet(Map::new())
+//     }
+// }
 
 // impl fmt::Debug for Constraints {
 //     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -38,9 +38,3 @@ impl ConstraintSet {
 //         }
 //     }
 // }
-
-impl Default for ConstraintSet {
-    fn default() -> Self {
-        ConstraintSet(Map::new())
-    }
-}

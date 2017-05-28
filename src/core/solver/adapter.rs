@@ -7,7 +7,7 @@ use manifest::PackageName;
 use version::Version;
 use registry::Registry;
 use solver::failure::Failure;
-use solver::constraints::Constraint;
+use solver::constraints::{Constraint,ConstraintSet};
 use solver::path::Path;
 
 struct RegistryAdapter {
@@ -23,6 +23,8 @@ impl RegistryAdapter {
         }
     }
 
+    /// Return a vector of all versions of `package` matching `constraint`, or
+    /// `None` if the `package` was not found in the registry.
     pub fn versions_for(&self, package: Arc<PackageName>, constraint: Arc<VersionConstraint>) -> Option<Vec<Arc<Version>>> {
         let key = (package.clone(), constraint.clone());
         let mut cache = self.cache.borrow_mut();
@@ -37,20 +39,50 @@ impl RegistryAdapter {
         value
     }
 
-    pub fn constraint_for(&self, package: Arc<PackageName>, constraint: Arc<VersionConstraint>, path: Path) -> Result<Constraint, Failure> {
-        match self.versions_for(package.clone(), constraint.clone()) {
+    /// Return a constraint containing all versions of `package` matching
+    /// `constraint`.
+    pub fn constraint_for(&self, package: Arc<PackageName>, version_constraint: Arc<VersionConstraint>, path: Path) -> Result<Constraint, Failure> {
+        match self.versions_for(package.clone(), version_constraint.clone()) {
             None => Err(Failure::package_missing(package.clone(), path.clone())),
             Some(versions) => {
                 if versions.is_empty() {
-                    Err(Failure::uninhabited_constraint(package.clone(), constraint.clone(), path.clone()))
+                    Err(Failure::uninhabited_constraint(package.clone(), version_constraint.clone(), path.clone()))
                 } else {
-                    let mut c = Constraint::new();
+                    let mut constraint = Constraint::new();
                     for version in versions {
-                        c = c.insert(version, path.clone());
+                        constraint = constraint.insert(version, path.clone());
                     }
-                    Ok(c)
+                    Ok(constraint)
                 }
             }
         }
+    }
+
+    /// Return a constraint set representing all the dependencies of the release
+    /// identified by `package` and `version`.
+    ///
+    /// `path` must not include `(package, version)`. It will be added by this
+    /// function instead.
+    pub fn constraint_set_for(&self, package: Arc<PackageName>, version: Arc<Version>, path: Path) -> Result<ConstraintSet, Failure>
+    {
+        let new_path = path.cons((package.clone(), version.clone()));
+        let release = self.registry
+            .packages.get(&package).unwrap()
+            .releases.get(&version).unwrap();
+        let dependency_set = &release.manifest.dependencies;
+        let mut constraint_set = ConstraintSet::new();
+        for (dep_package, version_constraint) in dependency_set {
+            let dep_package_arc = Arc::new(dep_package.clone());
+            let version_constraint_arc = Arc::new(version_constraint.clone());
+            match self.constraint_for(dep_package_arc.clone(), version_constraint_arc.clone(), new_path.clone()) {
+                Err(failure) => {
+                    return Err(failure);
+                }
+                Ok(constraint) => {
+                    constraint_set = constraint_set.insert(dep_package_arc, constraint);
+                }
+            }
+        }
+        Ok(constraint_set)
     }
 }
