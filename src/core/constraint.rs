@@ -99,24 +99,6 @@ fn max_match(v: &Version, maybe_min: Option<&Version>, max: &Version) -> bool {
     }
 }
 
-fn min_opt<'a, A: Ord>(a: &'a Option<A>, b: &'a Option<A>) -> &'a Option<A> {
-    match (a, b) {
-        (&Some(ref a_val), &Some(ref b_val)) => if a_val > b_val { a } else { b },
-        (&Some(_), &None) => a,
-        (&None, &Some(_)) => b,
-        (&None, &None) => a,
-    }
-}
-
-fn max_opt<'a, A: Ord>(a: &'a Option<A>, b: &'a Option<A>) -> &'a Option<A> {
-    match (a, b) {
-        (&Some(ref a_val), &Some(ref b_val)) => if a_val < b_val { a } else { b },
-        (&Some(_), &None) => a,
-        (&None, &Some(_)) => b,
-        (&None, &None) => a,
-    }
-}
-
 impl fmt::Display for VersionConstraint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_string())
