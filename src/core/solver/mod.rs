@@ -52,11 +52,9 @@ fn dependency_set_to_constraint_set(ra: Arc<RegistryAdapter>, deps: Arc<Dependen
 
 // Strip all paths from a PartialSolution to obtain a Solution
 fn partial_solution_to_solution(partial_solution: PartialSolution) -> Solution {
-    let mut solution = Solution::new();
-    for (package_name, justified_version) in &partial_solution {
-        solution = solution.insert(package_name.clone(), justified_version.version.clone());
-    }
-    solution
+    partial_solution.iter().map(|(package_name, justified_version)|
+        (package_name.clone(), justified_version.version.clone())
+    ).collect()
 }
 
 
