@@ -18,8 +18,32 @@ use solver::solution::{PartialSolution, Solution};
 use solver::adapter::RegistryAdapter;
 
 fn search(ra: Arc<RegistryAdapter>, stack: ConstraintSet, cheap: bool, solution: PartialSolution) -> Result<PartialSolution, Failure> {
-    // FIXME obvs
-    Ok(PartialSolution::new())
+    // TODO replace .delete_min with a smarter strategy
+    match stack.delete_min() {
+        None => Ok(solution),
+        Some((stack_tail, (package, constraint))) => {
+            let mut first_failure: Option<Failure> = None;
+            for (version, path) in constraint {
+                let search_try_version = || -> Result<PartialSolution, Failure> {
+                    // TODONEXT
+                    //ra.constraint_set_for(package.clone(), version.clone(), path.clone())
+                    Ok(solution.clone())
+                };
+                match search_try_version() {
+                    Err(failure) => {
+                        if first_failure.is_none() {
+                            first_failure = Some(failure);
+                        }
+                        continue
+                    }
+                    Ok(new_solution) => {
+                        return Ok(new_solution)
+                    }
+                }
+            }
+            Err(first_failure.expect("unreachable: constraint should never be empty"))
+        }
+    }
 }
 
 pub fn solve(reg: Arc<Registry>,

@@ -7,7 +7,7 @@ use solver::path::Path;
 use immutable_map::map::TreeMap as Map;
 
 
-
+#[derive(Clone)]
 pub struct JustifiedVersion {
     pub version: Arc<Version>,
     pub path: Path
