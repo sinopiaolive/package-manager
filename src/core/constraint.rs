@@ -73,14 +73,13 @@ impl VersionConstraint {
     }
 
     pub fn contains(&self, v: &Version) -> bool {
-        // TODO implement questionable beta ranges: ^1.0.0 < 2.0.0 should not match 2.0.0-beta.1
         match self {
             &Empty => false,
-            &Range(None, None) => true,
             &Exact(ref o) => v == o,
+            &Range(None, None) => true,
             &Range(Some(ref min), None) => v >= min,
-            &Range(None, Some(ref max)) => max_match(v, max),
-            &Range(Some(ref min), Some(ref max)) => v >= min && max_match(v, max),
+            &Range(None, Some(ref max)) => max_match(v, None, max),
+            &Range(Some(ref min), Some(ref max)) => v >= min && max_match(v, Some(&min), max),
         }
     }
 
@@ -119,11 +118,11 @@ impl VersionConstraint {
 /// strip any pre tag off the version we're testing before matching.
 /// This means that `2-pre.1` will be in bounds for `< 2-pre.2` but not
 /// for `< 2`. `1.9-pre` would be in bounds for both.
-fn max_match(v: &Version, max: &Version) -> bool {
-    if max.has_pre() {
-        v < max
-    } else {
-        &v.strip() < max
+fn max_match(v: &Version, maybe_min: Option<&Version>, max: &Version) -> bool {
+    match maybe_min {
+        None => &v.strip() < max,
+        Some(min) if min.strip() < max.strip() && !max.has_pre() => &v.strip() < max,
+        _ => v < max,
     }
 }
 
@@ -336,6 +335,8 @@ mod test {
         assert!(!range(">=1 <2-pre").contains(&ver("2")));
         assert!(!range(">=1 <2").contains(&ver("2-beta")));
         assert!(range(">=1 <2-pre").contains(&ver("2-beta")));
+        assert!(range(">=2-pre <2").contains(&ver("2-pre")));
+        assert!(!range(">=2-pre <2").contains(&ver("2")));
     }
 
     #[test]
