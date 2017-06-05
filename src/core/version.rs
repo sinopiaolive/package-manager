@@ -88,9 +88,20 @@ impl Version {
         }
     }
 
-    // Compare while sorting pre-releases before stable releases
-    pub fn priority_cmp(&self, other: &Version) -> Ordering {
-        return (self.prerelease.is_empty(), self).cmp(&(other.prerelease.is_empty(), other));
+    pub fn semver_cmp(&self, other: &Version) -> Ordering {
+        let left = self.normalise();
+        let right = other.normalise();
+        match cmp_vec(&left.fields, &right.fields) {
+            Ordering::Equal => {
+                match (left.prerelease.is_empty(), right.prerelease.is_empty()) {
+                    (true, false) => Ordering::Greater,
+                    (false, true) => Ordering::Less,
+                    (true, true) => Ordering::Equal,
+                    (false, false) => cmp_vec(&left.prerelease, &right.prerelease),
+                }
+            }
+            a => a,
+        }
     }
 }
 
@@ -167,19 +178,16 @@ impl Ord for Version {
     fn cmp(&self, other: &Version) -> Ordering {
         let left = self.normalise();
         let right = other.normalise();
-        match cmp_vec(&left.fields, &right.fields) {
-            Ordering::Equal => {
-                match (left.prerelease.is_empty(), right.prerelease.is_empty()) {
-                    (true, false) => Ordering::Greater,
-                    (false, true) => Ordering::Less,
-                    (true, true) => Ordering::Equal,
-                    (false, false) => cmp_vec(&left.prerelease, &right.prerelease),
-                }
-            }
-            a => a,
+
+        match (left.has_pre(), right.has_pre()) {
+            (true, false) => Ordering::Greater,
+            (false, true) => Ordering::Less,
+            _ => right.semver_cmp(&left),
         }
     }
 }
+
+
 
 
 
@@ -354,28 +362,30 @@ mod test {
     }
 
     #[test]
-    fn version_ordering() {
-        assert_eq!(ver("1.2.3").cmp(&ver("1.2.3")), Ordering::Equal);
-        assert_eq!(ver("1.2").cmp(&ver("1.2.3")), Ordering::Less);
-        assert_eq!(ver("1.2.3").cmp(&ver("1.2")), Ordering::Greater);
-        assert_eq!(ver("1.2.3").cmp(&ver("1.2.4")), Ordering::Less);
-        assert_eq!(ver("1.3.2").cmp(&ver("1.2.3")), Ordering::Greater);
-        assert_eq!(ver("1.3.2-rc1").cmp(&ver("1.2.3")), Ordering::Greater);
-        assert_eq!(ver("1.2.3-rc1").cmp(&ver("1.2.3")), Ordering::Less);
-        assert_eq!(ver("1.3.2").cmp(&ver("1.2.3-rc1")), Ordering::Greater);
-        assert_eq!(ver("1.2.3").cmp(&ver("1.2.3-rc1")), Ordering::Greater);
-        assert_eq!(ver("1.2.3-rc1").cmp(&ver("1.2.3-rc2")), Ordering::Less);
-        assert_eq!(ver("1.2.3-rc1").cmp(&ver("1.2.3-beta1")), Ordering::Greater);
+    fn semver_ordering() {
+        assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2.3")), Ordering::Equal);
+        assert_eq!(ver("1.2").semver_cmp(&ver("1.2.3")), Ordering::Less);
+        assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2")), Ordering::Greater);
+        assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2.4")), Ordering::Less);
+        assert_eq!(ver("1.3.2").semver_cmp(&ver("1.2.3")), Ordering::Greater);
+        assert_eq!(ver("1.3.2-rc1").semver_cmp(&ver("1.2.3")), Ordering::Greater);
+        assert_eq!(ver("1.2.3-rc1").semver_cmp(&ver("1.2.3")), Ordering::Less);
+        assert_eq!(ver("1.3.2").semver_cmp(&ver("1.2.3-rc1")), Ordering::Greater);
+        assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2.3-rc1")), Ordering::Greater);
+        assert_eq!(ver("1.2.3-rc1").semver_cmp(&ver("1.2.3-rc2")), Ordering::Less);
+        assert_eq!(ver("1.2.3-rc1").semver_cmp(&ver("1.2.3-beta1")), Ordering::Greater);
     }
 
     #[test]
-    fn priority_version_ordering() {
-        assert_eq!(ver("1.2.3").priority_cmp(&ver("1.2.3")), Ordering::Equal);
-        assert_eq!(ver("1.2").priority_cmp(&ver("1.2.3")), Ordering::Less);
-        assert_eq!(ver("1.2.3").priority_cmp(&ver("1.2")), Ordering::Greater);
-        assert_eq!(ver("1.3-rc").priority_cmp(&ver("1.2.3")), Ordering::Less);
-        assert_eq!(ver("1.2.3").priority_cmp(&ver("1.3-rc")), Ordering::Greater);
-        assert_eq!(ver("1.3-rc").priority_cmp(&ver("1.3-rc.2")), Ordering::Less);
+    fn priority_ordering() {
+        assert_eq!(ver("1.2.3").cmp(&ver("1.2.3")), Ordering::Equal);
+        assert_eq!(ver("1.2").cmp(&ver("1.2.3")), Ordering::Greater);
+        assert_eq!(ver("1.2.3").cmp(&ver("1.2")), Ordering::Less);
+        assert_eq!(ver("1.3-rc").cmp(&ver("1.2.3")), Ordering::Greater);
+        assert_eq!(ver("1.2.3").cmp(&ver("1.3-rc")), Ordering::Less);
+        assert_eq!(ver("1.2.3-rc").cmp(&ver("1.2.3")), Ordering::Greater);
+        assert_eq!(ver("1.2.3").cmp(&ver("1.2.3-rc")), Ordering::Less);
+        assert_eq!(ver("1.3-rc").cmp(&ver("1.3-rc.2")), Ordering::Greater);
     }
 
     #[test]
@@ -435,8 +445,10 @@ mod test {
         assert_eq!(version(b"1.2.3"), Done(&b""[..], Version::new(vec![1, 2, 3], vec![], vec![])));
         assert_eq!(version(b"1-2+3"),
                    Done(&b""[..], Version::new(vec![1], vec![Numeric(2)], vec![Numeric(3)])));
-        assert_eq!(version(b"1+3"), Done(&b""[..], Version::new(vec![1], vec![], vec![Numeric(3)])));
-        assert_eq!(version(b"1-2"), Done(&b""[..], Version::new(vec![1], vec![Numeric(2)], vec![])));
+        assert_eq!(version(b"1+3"),
+                   Done(&b""[..], Version::new(vec![1], vec![], vec![Numeric(3)])));
+        assert_eq!(version(b"1-2"),
+                   Done(&b""[..], Version::new(vec![1], vec![Numeric(2)], vec![])));
         assert_eq!(version(b"1.2-2.foo+bar.3"),
                    Done(&b""[..], Version::new(vec![1, 2],
                                                vec![Numeric(2), Alphanumeric("foo".to_string())],

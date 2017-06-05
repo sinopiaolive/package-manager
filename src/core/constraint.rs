@@ -1,8 +1,9 @@
 use nom::IResult::Done;
-use self::VersionConstraint::{Exact, Range, Empty};
+use self::VersionConstraint::{Exact, Range};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump};
+use std::cmp::{Ord, Ordering};
 use std::fmt;
 use nom;
 use super::error;
@@ -11,7 +12,6 @@ use super::error;
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),
-    Empty, // TODO is the serialization of this part of our format?
 }
 
 impl Serialize for VersionConstraint {
@@ -57,7 +57,7 @@ impl VersionConstraint {
     pub fn from_str(s: &str) -> Result<VersionConstraint, error::Error> {
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Custom(format!("invalid version constraint {:?}", s)))
+            _ => Err(error::Error::Custom(format!("invalid version constraint {:?}", s))),
         }
     }
 
@@ -68,46 +68,17 @@ impl VersionConstraint {
             &Range(Some(ref v), None) => format!(">= {}", v),
             &Range(None, Some(ref v)) => format!("< {}", v),
             &Range(Some(ref v1), Some(ref v2)) => format!(">= {} < {}", v1, v2),
-            &Empty => "∅".to_string(),
         }
     }
 
     pub fn contains(&self, v: &Version) -> bool {
         match self {
-            &Empty => false,
-            &Exact(ref o) => v == o,
             &Range(None, None) => true,
-            &Range(Some(ref min), None) => v >= min,
+            &Exact(ref o) => v == o,
+            &Range(Some(ref min), None) => v.semver_cmp(min) != Ordering::Less,
             &Range(None, Some(ref max)) => max_match(v, None, max),
-            &Range(Some(ref min), Some(ref max)) => v >= min && max_match(v, Some(&min), max),
-        }
-    }
-
-    pub fn and(&self, other: &VersionConstraint) -> VersionConstraint {
-        match (self, other) {
-            (&Empty, _) => Empty,
-            (_, &Empty) => Empty,
-            (&Exact(ref a), &Exact(ref b)) if a == b => Exact(a.clone()),
-            (&Exact(_), &Exact(_)) => Empty,
-            (&Range(_, _), &Exact(ref v)) => {
-                if self.contains(v) {
-                    Exact(v.clone())
-                } else {
-                    Empty
-                }
-            }
-            (&Exact(ref v), &Range(_, _)) => {
-                if other.contains(v) {
-                    Exact(v.clone())
-                } else {
-                    Empty
-                }
-            }
-            (&Range(ref min1, ref max1), &Range(ref min2, ref max2)) => {
-                match (min_opt(min1, min2), max_opt(max1, max2)) {
-                    (&Some(ref from), &Some(ref to)) if from >= to => Empty,
-                    (min, max) => Range(min.clone(), max.clone())
-                }
+            &Range(Some(ref min), Some(ref max)) => {
+                v.semver_cmp(min) != Ordering::Less && max_match(v, Some(min), max)
             }
         }
     }
@@ -120,9 +91,11 @@ impl VersionConstraint {
 /// for `< 2`. `1.9-pre` would be in bounds for both.
 fn max_match(v: &Version, maybe_min: Option<&Version>, max: &Version) -> bool {
     match maybe_min {
-        None => &v.strip() < max,
-        Some(min) if min.strip() < max.strip() && !max.has_pre() => &v.strip() < max,
-        _ => v < max,
+        None => v.strip().semver_cmp(max) == Ordering::Less,
+        Some(min) if min.strip().semver_cmp(&max.strip()) == Ordering::Less && !max.has_pre() => {
+            v.strip().semver_cmp(max) == Ordering::Less
+        }
+        _ => v.semver_cmp(max) == Ordering::Less,
     }
 }
 
@@ -226,7 +199,7 @@ named!(pub version_constraint_unchecked<VersionConstraint>,
 fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
     match version_constraint_unchecked(input) {
         Done(i, _) if i.len() > 0 => nom::IResult::Error(nom::ErrorKind::Eof),
-        Done(_, Range(Some(ref v1), Some(ref v2))) if v1 >= v2 => {
+        Done(_, Range(Some(ref v1), Some(ref v2))) if v1.semver_cmp(v2) != Ordering::Less => {
             nom::IResult::Error(nom::ErrorKind::Custom(1))
         }
         r @ _ => r,
@@ -268,7 +241,8 @@ mod test {
         assert_eq!(version_constraint(b">=1.0<2.0"),
                    Done(&b""[..], Range(Some(Version::new(vec![1,0], vec![], vec![])),
                                         Some(Version::new(vec![2,0], vec![], vec![])))));
-        assert_eq!(version_constraint(b">=2.0<1.0"), nom::IResult::Error(nom::ErrorKind::Custom(1)));
+        assert_eq!(version_constraint(b">=2.0<1.0"),
+                   nom::IResult::Error(nom::ErrorKind::Custom(1)));
     }
 
     #[test]
@@ -338,20 +312,4 @@ mod test {
         assert!(range(">=2-pre <2").contains(&ver("2-pre")));
         assert!(!range(">=2-pre <2").contains(&ver("2")));
     }
-
-    #[test]
-    fn constraint_and() {
-        assert_eq!(range("*").and(&range("*")), range("*"));
-        assert_eq!(range("*").and(&range("1.2.3")), range("1.2.3"));
-        assert_eq!(range("1.2.3").and(&range("1.3.5")), Empty);
-        assert_eq!(range("1.2.3").and(&range("^1")), range("1.2.3"));
-        assert_eq!(range("1.2.3").and(&range("^2")), Empty);
-        assert_eq!(range(">=1.2.3").and(&range("*")), range(">=1.2.3"));
-        assert_eq!(range(">=1.2.3").and(&range(">=1.5")), range(">=1.5"));
-        assert_eq!(range(">=1.2.3").and(&range(">=1.0")), range(">=1.2.3"));
-        assert_eq!(range("<1.2.3").and(&range("<1")), range("<1"));
-        assert_eq!(range("<1.2.3").and(&range("<1.5")), range("<1.2.3"));
-        assert_eq!(range(">=1.2.3 <1.8").and(&range(">=1.5 <2")), range(">=1.5 <1.8"));
-        assert_eq!(range("^2.0.0").and(&range("^1.0.0")), Empty);
-   }
 }
