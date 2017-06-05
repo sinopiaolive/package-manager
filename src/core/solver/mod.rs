@@ -15,19 +15,49 @@ use solver::path::Path;
 use solver::constraints::{Constraint, ConstraintSet};
 use solver::failure::Failure;
 use solver::solution::{PartialSolution, Solution};
+use solver::adapter::RegistryAdapter;
 
-fn search(reg: Arc<Registry>, stack: Arc<ConstraintSet>, cheap: bool, solution: PartialSolution) -> Result<PartialSolution, Failure> {
+fn search(ra: Arc<RegistryAdapter>, stack: ConstraintSet, cheap: bool, solution: PartialSolution) -> Result<PartialSolution, Failure> {
     // FIXME obvs
     Ok(PartialSolution::new())
 }
 
 pub fn solve(reg: Arc<Registry>,
-             deps: Arc<Manifest>)
+             deps: Arc<DependencySet>)
              -> Result<Solution, Failure> {
-    // FIXME obvs
-    Ok(Solution::new())
+    let ra = Arc::new(RegistryAdapter::new(reg.clone()));
+    let constraint_set = dependency_set_to_constraint_set(ra.clone(), deps.clone())?;
+    match search(ra.clone(), constraint_set, false, PartialSolution::new()) {
+        Err(failure) => {
+            // TODO need to handle failure here
+            Err(failure)
+        }
+        Ok(partial_solution) => {
+            Ok(partial_solution_to_solution(partial_solution))
+        }
+    }
 }
 
+fn dependency_set_to_constraint_set(ra: Arc<RegistryAdapter>, deps: Arc<DependencySet>) -> Result<ConstraintSet, Failure> {
+    let mut constraint_set = ConstraintSet::new();
+    for (package, version_constraint) in &*deps {
+        let package_arc = Arc::new(package.clone());
+        let version_constraint_arc = Arc::new(version_constraint.clone());
+        let constraint = ra.constraint_for(package_arc.clone(), version_constraint_arc.clone(), Path::default())?;
+        constraint_set = constraint_set.insert(package_arc.clone(), constraint);
+    }
+
+    Ok(constraint_set)
+}
+
+// Strip all paths from a PartialSolution to obtain a Solution
+fn partial_solution_to_solution(partial_solution: PartialSolution) -> Solution {
+    let mut solution = Solution::new();
+    for (package_name, justified_version) in &partial_solution {
+        solution = solution.insert(package_name.clone(), justified_version.version.clone());
+    }
+    solution
+}
 
 
 // #[cfg(test)]
