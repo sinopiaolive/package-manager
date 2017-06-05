@@ -10,7 +10,7 @@ use solver::failure::Failure;
 use solver::constraints::{Constraint,ConstraintSet};
 use solver::path::Path;
 
-struct RegistryAdapter {
+pub struct RegistryAdapter {
     registry: Arc<Registry>,
     cache: RefCell<HashMap<(Arc<PackageName>, Arc<VersionConstraint>), Option<Vec<Arc<Version>>>>>
 }
@@ -24,7 +24,8 @@ impl RegistryAdapter {
     }
 
     /// Return a vector of all versions of `package` matching `constraint`, or
-    /// `None` if the `package` was not found in the registry.
+    /// `None` if the `package` was not found in the registry. The vector can be
+    /// empty if no versions match.
     pub fn versions_for(&self, package: Arc<PackageName>, constraint: Arc<VersionConstraint>) -> Option<Vec<Arc<Version>>> {
         let key = (package.clone(), constraint.clone());
         let mut cache = self.cache.borrow_mut();
@@ -40,7 +41,7 @@ impl RegistryAdapter {
     }
 
     /// Return a constraint containing all versions of `package` matching
-    /// `constraint`.
+    /// `constraint`. Can fail with PackageMissing or UninhabitedConstraint.
     pub fn constraint_for(&self, package: Arc<PackageName>, version_constraint: Arc<VersionConstraint>, path: Path) -> Result<Constraint, Failure> {
         match self.versions_for(package.clone(), version_constraint.clone()) {
             None => Err(Failure::package_missing(package.clone(), path.clone())),
@@ -74,14 +75,8 @@ impl RegistryAdapter {
         for (dep_package, version_constraint) in dependency_set {
             let dep_package_arc = Arc::new(dep_package.clone());
             let version_constraint_arc = Arc::new(version_constraint.clone());
-            match self.constraint_for(dep_package_arc.clone(), version_constraint_arc.clone(), new_path.clone()) {
-                Err(failure) => {
-                    return Err(failure);
-                }
-                Ok(constraint) => {
-                    constraint_set = constraint_set.insert(dep_package_arc, constraint);
-                }
-            }
+            let constraint = self.constraint_for(dep_package_arc.clone(), version_constraint_arc.clone(), new_path.clone())?;
+            constraint_set = constraint_set.insert(dep_package_arc, constraint);
         }
         Ok(constraint_set)
     }

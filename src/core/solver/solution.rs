@@ -9,8 +9,8 @@ use immutable_map::map::TreeMap as Map;
 
 
 pub struct JustifiedVersion {
-    version: Arc<Version>,
-    path: Path
+    pub version: Arc<Version>,
+    pub path: Path
 }
 
 pub type PartialSolution = Map<Arc<PackageName>, JustifiedVersion>;
