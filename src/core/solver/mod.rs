@@ -14,19 +14,24 @@ mod adapter;
 use solver::path::Path;
 use solver::constraints::{Constraint, ConstraintSet};
 use solver::failure::Failure;
-use solver::solution::{PartialSolution, Solution};
+use solver::solution::{PartialSolution, Solution, JustifiedVersion};
 use solver::adapter::RegistryAdapter;
 
-fn search(ra: Arc<RegistryAdapter>, stack: ConstraintSet, cheap: bool, solution: PartialSolution) -> Result<PartialSolution, Failure> {
+fn search(ra: Arc<RegistryAdapter>,
+          stack: &ConstraintSet,
+          cheap: bool,
+          solution: &PartialSolution)
+          -> Result<PartialSolution, Failure> {
     // TODO replace .delete_min with a smarter strategy
     match stack.delete_min() {
-        None => Ok(solution),
+        None => Ok(solution.clone()),
         Some((stack_tail, (package, constraint))) => {
             let mut first_failure: Option<Failure> = None;
             for (version, path) in constraint {
-                let search_try_version = || -> Result<PartialSolution, Failure> {
+                let search_try_version = || /* -> Result<PartialSolution, Failure> */ {
                     // TODONEXT
-                    //ra.constraint_set_for(package.clone(), version.clone(), path.clone())
+                    let constraint_set = ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
+                    // let new_deps = merge(stack_tail, )
                     Ok(solution.clone())
                 };
                 match search_try_version() {
@@ -34,11 +39,9 @@ fn search(ra: Arc<RegistryAdapter>, stack: ConstraintSet, cheap: bool, solution:
                         if first_failure.is_none() {
                             first_failure = Some(failure);
                         }
-                        continue
+                        continue;
                     }
-                    Ok(new_solution) => {
-                        return Ok(new_solution)
-                    }
+                    Ok(new_solution) => return Ok(new_solution),
                 }
             }
             Err(first_failure.expect("unreachable: constraint should never be empty"))
@@ -46,28 +49,58 @@ fn search(ra: Arc<RegistryAdapter>, stack: ConstraintSet, cheap: bool, solution:
     }
 }
 
-pub fn solve(reg: Arc<Registry>,
-             deps: Arc<DependencySet>)
-             -> Result<Solution, Failure> {
+fn merge(existing: &ConstraintSet,
+             new: &ConstraintSet,
+             solution: &PartialSolution)
+             -> Result<ConstraintSet, Failure> {
+    let updated = existing.clone();
+    for (package, constraint) in new {
+        if contained_in(package.clone(), constraint, solution)? { continue; }
+        // TODONEXT
+    }
+    Ok(new.clone())
+}
+
+fn contained_in(package: Arc<PackageName>,
+                constraint: &Constraint,
+                solution: &PartialSolution)
+                -> Result<bool, Failure> {
+    match solution.get(&package.clone()) {
+        None => Ok(false),
+        Some(&JustifiedVersion {
+                 ref version,
+                 ref path,
+             }) if !constraint.contains_key(&version.clone()) => {
+            let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
+            Err(Failure::conflict(package.clone(), exact_constraint, constraint.clone()))
+        }
+        _ => Ok(true),
+
+    }
+}
+
+pub fn solve(reg: Arc<Registry>, deps: Arc<DependencySet>) -> Result<Solution, Failure> {
     let ra = Arc::new(RegistryAdapter::new(reg.clone()));
     let constraint_set = dependency_set_to_constraint_set(ra.clone(), deps.clone())?;
-    match search(ra.clone(), constraint_set, false, PartialSolution::new()) {
+    match search(ra.clone(), &constraint_set, false, &PartialSolution::new()) {
         Err(failure) => {
             // TODO need to handle failure here
             Err(failure)
         }
-        Ok(partial_solution) => {
-            Ok(partial_solution_to_solution(partial_solution))
-        }
+        Ok(partial_solution) => Ok(partial_solution_to_solution(partial_solution)),
     }
 }
 
-fn dependency_set_to_constraint_set(ra: Arc<RegistryAdapter>, deps: Arc<DependencySet>) -> Result<ConstraintSet, Failure> {
+fn dependency_set_to_constraint_set(ra: Arc<RegistryAdapter>,
+                                    deps: Arc<DependencySet>)
+                                    -> Result<ConstraintSet, Failure> {
     let mut constraint_set = ConstraintSet::new();
     for (package, version_constraint) in &*deps {
         let package_arc = Arc::new(package.clone());
         let version_constraint_arc = Arc::new(version_constraint.clone());
-        let constraint = ra.constraint_for(package_arc.clone(), version_constraint_arc.clone(), Path::default())?;
+        let constraint = ra.constraint_for(package_arc.clone(),
+                                           version_constraint_arc.clone(),
+                                           Path::default())?;
         constraint_set = constraint_set.insert(package_arc.clone(), constraint);
     }
 
@@ -76,9 +109,12 @@ fn dependency_set_to_constraint_set(ra: Arc<RegistryAdapter>, deps: Arc<Dependen
 
 // Strip all paths from a PartialSolution to obtain a Solution
 fn partial_solution_to_solution(partial_solution: PartialSolution) -> Solution {
-    partial_solution.iter().map(|(package_name, justified_version)|
-        (package_name.clone(), justified_version.version.clone())
-    ).collect()
+    partial_solution
+        .iter()
+        .map(|(package_name, justified_version)| {
+                 (package_name.clone(), justified_version.version.clone())
+             })
+        .collect()
 }
 
 
