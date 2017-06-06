@@ -29,10 +29,14 @@ fn search(ra: Arc<RegistryAdapter>,
         Some((stack_tail, (package, constraint))) => {
             let mut first_failure: Option<Failure> = None;
             for (version, path) in constraint {
-                let search_try_version = || /* -> Result<PartialSolution, Failure> */ {
+                let new_solution = solution.insert(package.clone(), JustifiedVersion {
+                    version: version.clone(),
+                    path: path.clone()
+                });
+                let search_try_version = || {
                     let constraint_set = ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
-                    let new_deps = merge(&stack_tail, &constraint_set, &solution)?;
-                    Ok(search(ra.clone(), &new_deps, cheap, &solution)?)
+                    let new_deps = merge(&stack_tail, &constraint_set, &new_solution)?;
+                    Ok(search(ra.clone(), &new_deps, cheap, &new_solution)?)
                 };
                 if cheap {
                     // Only try the best version.
@@ -45,7 +49,7 @@ fn search(ra: Arc<RegistryAdapter>,
                             }
                             continue;
                         }
-                        Ok(new_solution) => return Ok(new_solution),
+                        Ok(out) => return Ok(out),
                     }
                 }
             }
