@@ -3,7 +3,7 @@ use self::VersionConstraint::{Exact, Range};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump};
-use std::cmp::{Ord, Ordering};
+use std::cmp::Ordering;
 use std::fmt;
 use nom;
 use super::error;

@@ -1,4 +1,4 @@
-use manifest::{PackageName, DependencySet};
+use manifest::PackageName;
 use solver::path::Path;
 use immutable_map::map::TreeMap as Map;
 use std::sync::Arc;

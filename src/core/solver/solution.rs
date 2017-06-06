@@ -1,6 +1,4 @@
-use std::fmt;
 use std::sync::Arc;
-use std::ops::Add;
 use manifest::PackageName;
 use version::Version;
 use solver::path::Path;
@@ -11,6 +9,15 @@ use immutable_map::map::TreeMap as Map;
 pub struct JustifiedVersion {
     pub version: Arc<Version>,
     pub path: Path
+}
+
+impl JustifiedVersion {
+    pub fn new(version: Arc<Version>, path: Path) -> JustifiedVersion {
+        JustifiedVersion {
+            version: version.clone(),
+            path: path.clone()
+        }
+    }
 }
 
 pub type PartialSolution = Map<Arc<PackageName>, JustifiedVersion>;

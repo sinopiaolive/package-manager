@@ -4,6 +4,7 @@ use solver::constraints::Constraint;
 use solver::path::Path;
 use constraint::VersionConstraint;
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Failure {
     Conflict(Conflict),
     PackageMissing(PackageMissing),
@@ -41,17 +42,20 @@ impl Failure {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Conflict {
     pub package: Arc<PackageName>,
     pub existing: Constraint,
     pub conflicting: Constraint,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct PackageMissing {
     package: Arc<PackageName>,
     path: Path,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct UninhabitedConstraint {
     package: Arc<PackageName>,
     constraint: Arc<VersionConstraint>,
