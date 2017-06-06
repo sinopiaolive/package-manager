@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use im::list::List;
 
 use registry::Registry;
 use manifest::{PackageName, DependencySet, Manifest};
@@ -29,19 +30,23 @@ fn search(ra: Arc<RegistryAdapter>,
             let mut first_failure: Option<Failure> = None;
             for (version, path) in constraint {
                 let search_try_version = || /* -> Result<PartialSolution, Failure> */ {
-                    // TODONEXT
                     let constraint_set = ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
-                    // let new_deps = merge(stack_tail, )
-                    Ok(solution.clone())
+                    let new_deps = merge(&stack_tail, &constraint_set, &solution)?;
+                    Ok(search(ra.clone(), &new_deps, cheap, &solution)?)
                 };
-                match search_try_version() {
-                    Err(failure) => {
-                        if first_failure.is_none() {
-                            first_failure = Some(failure);
+                if cheap {
+                    // Only try the best version.
+                    return search_try_version();
+                } else {
+                    match search_try_version() {
+                        Err(failure) => {
+                            if first_failure.is_none() {
+                                first_failure = Some(failure);
+                            }
+                            continue;
                         }
-                        continue;
+                        Ok(new_solution) => return Ok(new_solution),
                     }
-                    Ok(new_solution) => return Ok(new_solution),
                 }
             }
             Err(first_failure.expect("unreachable: constraint should never be empty"))
@@ -50,15 +55,25 @@ fn search(ra: Arc<RegistryAdapter>,
 }
 
 fn merge(existing: &ConstraintSet,
-             new: &ConstraintSet,
-             solution: &PartialSolution)
-             -> Result<ConstraintSet, Failure> {
-    let updated = existing.clone();
-    for (package, constraint) in new {
-        if contained_in(package.clone(), constraint, solution)? { continue; }
-        // TODONEXT
+         new: &ConstraintSet,
+         solution: &PartialSolution)
+         -> Result<ConstraintSet, Failure> {
+    let mut out = existing.clone();
+    for (package, new_constraint) in new {
+        if contained_in(package.clone(), new_constraint, solution)? {
+            continue;
+        }
+        out = match out.get(package) {
+            None => out.insert(package.clone(), new_constraint.clone()),
+            Some(ref existing_constraint) => {
+                out.insert(package.clone(),
+                           merge_constraints(package.clone(),
+                                             &existing_constraint,
+                                             &new_constraint)?)
+            }
+        }
     }
-    Ok(new.clone())
+    Ok(out)
 }
 
 fn contained_in(package: Arc<PackageName>,
@@ -75,7 +90,29 @@ fn contained_in(package: Arc<PackageName>,
             Err(Failure::conflict(package.clone(), exact_constraint, constraint.clone()))
         }
         _ => Ok(true),
+    }
+}
 
+fn merge_constraints(package: Arc<PackageName>,
+                     a: &Constraint,
+                     b: &Constraint)
+                     -> Result<Constraint, Failure> {
+    let mut out = Constraint::new();
+    for (version, a_path) in a {
+        if let Some(ref b_path) = b.get(version) {
+            let shortest_path = if a_path.length() <= b_path.length() {
+                a_path
+            } else {
+                b_path
+            };
+            out = out.insert(version.clone(), shortest_path.clone());
+        }
+    }
+
+    if out.is_empty() {
+        Err(Failure::conflict(package.clone(), a.clone(), b.clone()))
+    } else {
+        Ok(out)
     }
 }
 
