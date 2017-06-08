@@ -34,6 +34,29 @@ impl Constraint {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    pub fn merge(&self,
+                 other: &Constraint,
+                 package: Arc<PackageName>)
+                 -> Result<Constraint, Failure> {
+        let mut out = Constraint::new();
+        for (version, self_path) in self {
+            if let Some(ref other_path) = other.get(version) {
+                let shortest_path = if self_path.length() <= other_path.length() {
+                    self_path
+                } else {
+                    other_path
+                };
+                out = out.insert(version.clone(), shortest_path.clone());
+            }
+        }
+
+        if out.is_empty() {
+            Err(Failure::conflict(package.clone(), self.clone(), other.clone()))
+        } else {
+            Ok(out)
+        }
+    }
 }
 
 impl<'r> IntoIterator for &'r Constraint {
@@ -62,8 +85,7 @@ impl ConstraintSet {
     pub fn pop(&self) -> Option<(ConstraintSet, (Arc<PackageName>, Constraint))> {
         match self.0.delete_min() {
             None => None,
-            Some((new_set, (k, v))) =>
-                Some((ConstraintSet(new_set), (k.clone(), v.clone())))
+            Some((new_set, (k, v))) => Some((ConstraintSet(new_set), (k.clone(), v.clone()))),
         }
     }
 
@@ -92,9 +114,7 @@ impl ConstraintSet {
                 None => out.insert(package.clone(), new_constraint.clone()),
                 Some(ref existing_constraint) => {
                     out.insert(package.clone(),
-                               merge_constraints(package.clone(),
-                                                 &existing_constraint,
-                                                 &new_constraint)?)
+                               existing_constraint.merge(&new_constraint, package.clone())?)
                 }
             }
         }
@@ -132,35 +152,12 @@ fn contained_in(package: Arc<PackageName>,
     match solution.get(&package.clone()) {
         None => Ok(false),
         Some(&JustifiedVersion {
-            ref version,
-            ref path,
-        }) if !constraint.contains_key(&version.clone()) => {
+                 ref version,
+                 ref path,
+             }) if !constraint.contains_key(&version.clone()) => {
             let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
             Err(Failure::conflict(package.clone(), exact_constraint, constraint.clone()))
         }
         _ => Ok(true),
-    }
-}
-
-fn merge_constraints(package: Arc<PackageName>,
-                     a: &Constraint,
-                     b: &Constraint)
-                     -> Result<Constraint, Failure> {
-    let mut out = Constraint::new();
-    for (version, a_path) in a {
-        if let Some(ref b_path) = b.get(version) {
-            let shortest_path = if a_path.length() <= b_path.length() {
-                a_path
-            } else {
-                b_path
-            };
-            out = out.insert(version.clone(), shortest_path.clone());
-        }
-    }
-
-    if out.is_empty() {
-        Err(Failure::conflict(package.clone(), a.clone(), b.clone()))
-    } else {
-        Ok(out)
     }
 }
