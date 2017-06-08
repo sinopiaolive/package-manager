@@ -9,6 +9,7 @@ use registry::Registry;
 use solver::failure::Failure;
 use solver::constraints::{Constraint, ConstraintSet};
 use solver::path::Path;
+use solver::mappable::Mappable;
 
 pub struct RegistryAdapter<'r> {
     registry: &'r Registry,

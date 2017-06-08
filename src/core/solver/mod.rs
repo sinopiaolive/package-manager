@@ -9,12 +9,14 @@ mod constraints;
 mod failure;
 mod solution;
 mod adapter;
+mod mappable;
 
 use solver::constraints::ConstraintSet;
 #[cfg(test)] use solver::constraints::Constraint;
 use solver::failure::Failure;
 use solver::solution::{PartialSolution, Solution, JustifiedVersion};
 use solver::adapter::RegistryAdapter;
+use solver::mappable::Mappable;
 
 fn search(ra: &RegistryAdapter,
           stack: &ConstraintSet,
@@ -26,7 +28,7 @@ fn search(ra: &RegistryAdapter,
         None => Ok(solution.clone()),
         Some((stack_tail, (package, constraint))) => {
             let mut first_failure: Option<Failure> = None;
-            for (version, path) in &constraint {
+            for (version, path) in constraint.iter() {
                 let new_solution = solution.insert(package.clone(), JustifiedVersion {
                     version: version.clone(),
                     path: path.clone()

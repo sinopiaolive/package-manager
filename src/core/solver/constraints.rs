@@ -1,11 +1,11 @@
 use manifest::PackageName;
 use solver::path::Path;
-use immutable_map::map::{TreeMap as Map, TreeMapIter};
+use immutable_map::map::TreeMap as Map;
 use std::sync::Arc;
 use version::Version;
 use solver::solution::{PartialSolution, JustifiedVersion};
 use solver::failure::Failure;
-use std::iter::IntoIterator;
+use solver::mappable::Mappable;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Constraint(Map<Arc<Version>, Path>);
@@ -15,32 +15,12 @@ impl Constraint {
         Constraint(Map::new())
     }
 
-    pub fn iter<'r>(&'r self) -> TreeMapIter<'r, Arc<Version>, Path> {
-        self.0.iter()
-    }
-
-    pub fn insert(&self, key: Arc<Version>, value: Path) -> Constraint {
-        Constraint(self.0.insert(key, value))
-    }
-
-    pub fn get(&self, key: &Version) -> Option<&Path> {
-        self.0.get(key)
-    }
-
-    pub fn contains_key(&self, key: &Version) -> bool {
-        self.0.contains_key(key)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     pub fn merge(&self,
                  other: &Constraint,
                  package: Arc<PackageName>)
                  -> Result<Constraint, Failure> {
         let mut out = Constraint::new();
-        for (version, self_path) in self {
+        for (version, self_path) in self.iter() {
             if let Some(ref other_path) = other.get(version) {
                 let shortest_path = if self_path.length() <= other_path.length() {
                     self_path
@@ -59,12 +39,16 @@ impl Constraint {
     }
 }
 
-impl<'r> IntoIterator for &'r Constraint {
-    type Item = (&'r Arc<Version>, &'r Path);
-    type IntoIter = TreeMapIter<'r, Arc<Version>, Path>;
+impl Mappable for Constraint {
+    type K = Arc<Version>;
+    type V = Path;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+    fn as_map(&self) -> &Map<Self::K, Self::V> {
+        &self.0
+    }
+
+    fn wrap(m: Map<Self::K, Self::V>) -> Self {
+        Constraint(m)
     }
 }
 
@@ -89,24 +73,12 @@ impl ConstraintSet {
         }
     }
 
-    pub fn insert(&self, key: Arc<PackageName>, value: Constraint) -> ConstraintSet {
-        ConstraintSet(self.0.insert(key, value))
-    }
-
-    pub fn get(&self, key: &PackageName) -> Option<&Constraint> {
-        self.0.get(key)
-    }
-
-    pub fn contains_key(&self, key: &PackageName) -> bool {
-        self.0.contains_key(key)
-    }
-
     pub fn merge(&self,
                  new: &ConstraintSet,
                  solution: &PartialSolution)
                  -> Result<ConstraintSet, Failure> {
         let mut out = self.clone();
-        for (package, new_constraint) in new {
+        for (package, new_constraint) in new.iter() {
             if contained_in(package.clone(), new_constraint, solution)? {
                 continue;
             }
@@ -122,12 +94,16 @@ impl ConstraintSet {
     }
 }
 
-impl<'r> IntoIterator for &'r ConstraintSet {
-    type Item = (&'r Arc<PackageName>, &'r Constraint);
-    type IntoIter = TreeMapIter<'r, Arc<PackageName>, Constraint>;
+impl Mappable for ConstraintSet {
+    type K = Arc<PackageName>;
+    type V = Constraint;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+    fn as_map(&self) -> &Map<Self::K, Self::V> {
+        &self.0
+    }
+
+    fn wrap(m: Map<Self::K, Self::V>) -> Self {
+        ConstraintSet(m)
     }
 }
 
