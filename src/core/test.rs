@@ -52,7 +52,7 @@ macro_rules! solution(
                 let version = ::Version::from_str($version).unwrap();
                 m = m.insert(::std::sync::Arc::new(pkg), ::std::sync::Arc::new(version));
             )+
-            m
+            ::solver::Solution::wrap(m)
         }
      };
 );

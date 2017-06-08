@@ -1,4 +1,5 @@
 #[cfg(test)] use std::sync::Arc;
+use std::convert::From;
 
 use registry::Registry;
 use manifest::DependencySet;
@@ -66,18 +67,8 @@ pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> 
             // TODO need to handle failure here
             Err(failure)
         }
-        Ok(partial_solution) => Ok(partial_solution_to_solution(partial_solution)),
+        Ok(partial_solution) => Ok(Solution::from(partial_solution)),
     }
-}
-
-// Strip all paths from a PartialSolution to obtain a Solution
-fn partial_solution_to_solution(partial_solution: PartialSolution) -> Solution {
-    partial_solution
-        .iter()
-        .map(|(package_name, justified_version)| {
-                 (package_name.clone(), justified_version.version.clone())
-             })
-        .collect()
 }
 
 
