@@ -1,4 +1,4 @@
-use std::sync::Arc;
+#[cfg(test)] use std::sync::Arc;
 
 use registry::Registry;
 use manifest::DependencySet;
@@ -58,7 +58,7 @@ fn search(ra: &RegistryAdapter,
 
 pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> {
     let ra = RegistryAdapter::new(reg);
-    let constraint_set = dependency_set_to_constraint_set(&ra, deps)?;
+    let constraint_set = ra.constraint_set_from(deps)?;
     match search(&ra, &constraint_set, false, &PartialSolution::new()) {
         Err(failure) => {
             // TODO need to handle failure here
@@ -66,22 +66,6 @@ pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> 
         }
         Ok(partial_solution) => Ok(partial_solution_to_solution(partial_solution)),
     }
-}
-
-fn dependency_set_to_constraint_set(ra: &RegistryAdapter,
-                                    deps: &DependencySet)
-                                    -> Result<ConstraintSet, Failure> {
-    let mut constraint_set = ConstraintSet::new();
-    for (package, version_constraint) in deps {
-        let package_arc = Arc::new(package.clone());
-        let version_constraint_arc = Arc::new(version_constraint.clone());
-        let constraint = ra.constraint_for(package_arc.clone(),
-                                           version_constraint_arc.clone(),
-                                           list![])?;
-        constraint_set = constraint_set.insert(package_arc.clone(), constraint);
-    }
-
-    Ok(constraint_set)
 }
 
 // Strip all paths from a PartialSolution to obtain a Solution
