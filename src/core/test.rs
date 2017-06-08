@@ -1,11 +1,14 @@
 #![allow(unused_macros)]
 
-use version::Version;
-use manifest::PackageName;
-use constraint::VersionConstraint;
 use std::collections::HashMap;
 use linked_hash_map::LinkedHashMap;
 use std::hash::Hash;
+
+use version::Version;
+use manifest::PackageName;
+use constraint::VersionConstraint;
+use registry::Registry;
+
 
 pub fn unlink<A, B>(linked: &LinkedHashMap<A, B>) -> HashMap<A, B>
     where A: Eq + Hash + Clone, B: Clone
@@ -122,4 +125,54 @@ macro_rules! gen_registry {
         })*;
         ::Registry { packages: packs }
     }}
+}
+
+pub fn sample_registry() -> Registry {
+    gen_registry!(
+        left_pad => (
+            "1.0.0" => deps!(
+                right_pad => "^1.0.0"
+            ),
+            "2.0.0" => deps!(
+                right_pad => "^2.0.0"
+            )
+        ),
+        lol_pad => (
+            "1.0.0" => deps!(
+                right_pad => "^2.0.0"
+            )
+        ),
+        right_pad => (
+            "1.0.0" => deps!(
+                up_pad => "^1.0.0"
+            ),
+            "1.0.1" => deps!(
+                up_pad => "^1.0.0"
+            ),
+            "2.0.0" => deps!(
+                up_pad => "^2.0.0"
+            ),
+            "2.0.1" => deps!(
+                up_pad => "^2.0.0",
+                coleft_copad => "^2.0.0"
+            )
+        ),
+        up_pad => (
+            "1.0.0" => deps!(),
+            "2.0.0" => deps!(),
+            "2.1.0" => deps!(
+                coleft_copad => "^1.0.0"
+            )
+        ),
+        coleft_copad => (
+            "1.0.0" => deps!(),
+            "1.0.1" => deps!(),
+            "1.1.0" => deps!(),
+            "2.0.0" => deps!()
+        ),
+        down_pad => (
+            "1.0.0" => deps!(),
+            "1.2.0" => deps!()
+        )
+    )
 }

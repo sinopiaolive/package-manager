@@ -72,56 +72,6 @@ pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> 
 }
 
 
-#[cfg(test)]
-fn sample_registry() -> Registry {
-    gen_registry!(
-        left_pad => (
-            "1.0.0" => deps!(
-                right_pad => "^1.0.0"
-            ),
-            "2.0.0" => deps!(
-                right_pad => "^2.0.0"
-            )
-        ),
-        lol_pad => (
-            "1.0.0" => deps!(
-                right_pad => "^2.0.0"
-            )
-        ),
-        right_pad => (
-            "1.0.0" => deps!(
-                up_pad => "^1.0.0"
-            ),
-            "1.0.1" => deps!(
-                up_pad => "^1.0.0"
-            ),
-            "2.0.0" => deps!(
-                up_pad => "^2.0.0"
-            ),
-            "2.0.1" => deps!(
-                up_pad => "^2.0.0",
-                coleft_copad => "^2.0.0"
-            )
-        ),
-        up_pad => (
-            "1.0.0" => deps!(),
-            "2.0.0" => deps!(),
-            "2.1.0" => deps!(
-                coleft_copad => "^1.0.0"
-            )
-        ),
-        coleft_copad => (
-            "1.0.0" => deps!(),
-            "1.0.1" => deps!(),
-            "1.1.0" => deps!(),
-            "2.0.0" => deps!()
-        ),
-        down_pad => (
-            "1.0.0" => deps!(),
-            "1.2.0" => deps!()
-        )
-    )
-}
 
 #[test]
 fn find_best_solution_set() {
@@ -130,7 +80,7 @@ fn find_best_solution_set() {
         left_pad => "^2.0.0"
     );
 
-    assert_eq!(solve(&sample_registry(), &problem), Ok(solution!(
+    assert_eq!(solve(&test::sample_registry(), &problem), Ok(solution!(
         left_pad => "2.0.0",
         down_pad => "1.2.0",
         right_pad => "2.0.1",
@@ -148,7 +98,7 @@ fn conflicting_subdependencies() {
         lol_pad => "^1.0.0"
     );
 
-    assert_eq!(solve(&sample_registry(), &problem), Err(
+    assert_eq!(solve(&test::sample_registry(), &problem), Err(
         Failure::conflict(
             Arc::new(test::pkg("leftpad/right_pad")),
             Constraint::new()
