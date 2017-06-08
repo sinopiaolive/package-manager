@@ -16,7 +16,7 @@ use solver::failure::Failure;
 use solver::solution::{PartialSolution, Solution, JustifiedVersion};
 use solver::adapter::RegistryAdapter;
 
-fn search(ra: Arc<RegistryAdapter>,
+fn search(ra: &RegistryAdapter,
           stack: &ConstraintSet,
           cheap: bool,
           solution: &PartialSolution)
@@ -56,10 +56,10 @@ fn search(ra: Arc<RegistryAdapter>,
     }
 }
 
-pub fn solve(reg: Arc<Registry>, deps: Arc<DependencySet>) -> Result<Solution, Failure> {
-    let ra = Arc::new(RegistryAdapter::new(reg.clone()));
-    let constraint_set = dependency_set_to_constraint_set(ra.clone(), deps.clone())?;
-    match search(ra.clone(), &constraint_set, false, &PartialSolution::new()) {
+pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> {
+    let ra = RegistryAdapter::new(reg);
+    let constraint_set = dependency_set_to_constraint_set(&ra, deps)?;
+    match search(&ra, &constraint_set, false, &PartialSolution::new()) {
         Err(failure) => {
             // TODO need to handle failure here
             Err(failure)
@@ -68,11 +68,11 @@ pub fn solve(reg: Arc<Registry>, deps: Arc<DependencySet>) -> Result<Solution, F
     }
 }
 
-fn dependency_set_to_constraint_set(ra: Arc<RegistryAdapter>,
-                                    deps: Arc<DependencySet>)
+fn dependency_set_to_constraint_set(ra: &RegistryAdapter,
+                                    deps: &DependencySet)
                                     -> Result<ConstraintSet, Failure> {
     let mut constraint_set = ConstraintSet::new();
-    for (package, version_constraint) in &*deps {
+    for (package, version_constraint) in deps {
         let package_arc = Arc::new(package.clone());
         let version_constraint_arc = Arc::new(version_constraint.clone());
         let constraint = ra.constraint_for(package_arc.clone(),
@@ -96,8 +96,8 @@ fn partial_solution_to_solution(partial_solution: PartialSolution) -> Solution {
 
 
 #[cfg(test)]
-fn sample_registry() -> Arc<Registry> {
-    let reg = gen_registry!(
+fn sample_registry() -> Registry {
+    gen_registry!(
         left_pad => (
             "1.0.0" => deps!(
                 right_pad => "^1.0.0"
@@ -143,8 +143,7 @@ fn sample_registry() -> Arc<Registry> {
             "1.0.0" => deps!(),
             "1.2.0" => deps!()
         )
-    );
-    Arc::new(reg)
+    )
 }
 
 #[test]
@@ -154,7 +153,7 @@ fn find_best_solution_set() {
         left_pad => "^2.0.0"
     );
 
-    assert_eq!(solve(sample_registry(), Arc::new(problem)), Ok(solution!(
+    assert_eq!(solve(&sample_registry(), &problem), Ok(solution!(
         left_pad => "2.0.0",
         down_pad => "1.2.0",
         right_pad => "2.0.1",
@@ -172,7 +171,7 @@ fn conflicting_subdependencies() {
         lol_pad => "^1.0.0"
     );
 
-    assert_eq!(solve(sample_registry(), Arc::new(problem)), Err(
+    assert_eq!(solve(&sample_registry(), &problem), Err(
         Failure::conflict(
             Arc::new(test::pkg("leftpad/right_pad")),
             Constraint::new()

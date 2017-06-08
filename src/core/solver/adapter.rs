@@ -10,15 +10,15 @@ use solver::failure::Failure;
 use solver::constraints::{Constraint,ConstraintSet};
 use solver::path::Path;
 
-pub struct RegistryAdapter {
-    registry: Arc<Registry>,
+pub struct RegistryAdapter<'r> {
+    registry: &'r Registry,
     cache: RefCell<HashMap<(Arc<PackageName>, Arc<VersionConstraint>), Option<Vec<Arc<Version>>>>>
 }
 
-impl RegistryAdapter {
-    pub fn new(registry: Arc<Registry>) -> RegistryAdapter {
+impl<'r> RegistryAdapter<'r> {
+    pub fn new(registry: &Registry) -> RegistryAdapter {
         RegistryAdapter {
-            registry: registry.clone(),
+            registry: registry,
             cache: RefCell::new(HashMap::new())
         }
     }
