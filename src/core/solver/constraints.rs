@@ -137,3 +137,39 @@ fn contained_in(package: Arc<PackageName>,
         _ => Ok(true),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use test::*;
+
+    fn path(l: &[(&str, &str)]) -> Path {
+        l.iter()
+            .map(|&(p, v)| (Arc::new(pkg(p)), Arc::new(ver(v))))
+            .collect()
+    }
+
+    fn constraint(l: &[(&str, &[(&str, &str)])]) -> Constraint {
+        Constraint(l.iter()
+                       .map(|&(v, pa)| (Arc::new(ver(v)), path(pa)))
+                       .collect())
+    }
+
+    fn constraint_set(l: &[(&str, &[(&str, &[(&str, &str)])])]) -> ConstraintSet {
+        ConstraintSet(l.iter()
+                          .map(|&(p, c)| (Arc::new(pkg(p)), constraint(c)))
+                          .collect())
+    }
+
+    #[test]
+    fn constraint_merge() {
+        let c1 = constraint(&[("1.0.0", &[("A", "1.0.0")]),
+                              ("1.0.1", &[("A", "2.0.0"), ("B", "2.0.0")])]);
+        let c2 = constraint(&[("1.0.1", &[("C", "1.0.0")]), ("1.0.2", &[("C", "2.0.0")])]);
+        let expected = constraint(&[("1.0.1", &[("C", "1.0.0")])]);
+        let merged = c1.merge(&c2, Arc::new(pkg("X")));
+        assert_eq!(merged, Ok(expected));
+
+        // TODONEXT test failure case
+    }
+}
