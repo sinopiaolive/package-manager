@@ -169,7 +169,16 @@ mod test {
         let expected = constraint(&[("1.0.1", &[("C", "1.0.0")])]);
         let merged = c1.merge(&c2, Arc::new(pkg("X")));
         assert_eq!(merged, Ok(expected));
+    }
 
-        // TODONEXT test failure case
+    #[test]
+    fn constraint_merge_conflict() {
+        let c1 = constraint(&[("1.0.0", &[("A", "1.0.0")])]);
+        let c2 = constraint(&[("2.0.0", &[("B", "1.0.0")])]);
+        let expected_failure = Failure::conflict(
+            Arc::new(pkg("X")), c1.clone(), c2.clone());
+        let merged = c1.merge(&c2, Arc::new(pkg("X")));
+        assert_eq!(merged, Err(expected_failure));
+
     }
 }
