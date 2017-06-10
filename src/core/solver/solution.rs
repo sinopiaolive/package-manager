@@ -24,7 +24,7 @@ impl JustifiedVersion {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PartialSolution(Map<Arc<PackageName>, JustifiedVersion>);
+pub struct PartialSolution(pub Map<Arc<PackageName>, JustifiedVersion>);
 
 impl PartialSolution {
     pub fn new() -> PartialSolution {
@@ -47,7 +47,7 @@ impl Mappable for PartialSolution {
 
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Solution(Map<Arc<PackageName>, Arc<Version>>);
+pub struct Solution(pub Map<Arc<PackageName>, Arc<Version>>);
 
 impl Mappable for Solution {
     type K = Arc<PackageName>;

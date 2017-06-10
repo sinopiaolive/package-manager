@@ -8,7 +8,7 @@ use solver::failure::Failure;
 use solver::mappable::Mappable;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Constraint(Map<Arc<Version>, Path>);
+pub struct Constraint(pub Map<Arc<Version>, Path>);
 
 impl Constraint {
     pub fn new() -> Constraint {
@@ -58,8 +58,8 @@ impl Mappable for Constraint {
 //     }
 // }
 
-#[derive(Clone, PartialEq, Eq)]
-pub struct ConstraintSet(Map<Arc<PackageName>, Constraint>);
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ConstraintSet(pub Map<Arc<PackageName>, Constraint>);
 
 impl ConstraintSet {
     pub fn new() -> ConstraintSet {
@@ -127,10 +127,8 @@ fn contained_in(package: Arc<PackageName>,
                 -> Result<bool, Failure> {
     match solution.get(&package.clone()) {
         None => Ok(false),
-        Some(&JustifiedVersion {
-                 ref version,
-                 ref path,
-             }) if !constraint.contains_key(&version.clone()) => {
+        Some(&JustifiedVersion { ref version, ref path })
+            if !constraint.contains_key(&version.clone()) => {
             let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
             Err(Failure::conflict(package.clone(), exact_constraint, constraint.clone()))
         }
@@ -144,21 +142,27 @@ mod test {
     use test::*;
 
     fn path(l: &[(&str, &str)]) -> Path {
-        l.iter()
-            .map(|&(p, v)| (Arc::new(pkg(p)), Arc::new(ver(v))))
-            .collect()
+        l.iter().map(|&(p, v)| (Arc::new(pkg(p)), Arc::new(ver(v)))).collect()
     }
 
     fn constraint(l: &[(&str, &[(&str, &str)])]) -> Constraint {
-        Constraint(l.iter()
-                       .map(|&(v, pa)| (Arc::new(ver(v)), path(pa)))
-                       .collect())
+        Constraint(l.iter().map(|&(v, pa)| (Arc::new(ver(v)), path(pa))).collect())
     }
 
     fn constraint_set(l: &[(&str, &[(&str, &[(&str, &str)])])]) -> ConstraintSet {
-        ConstraintSet(l.iter()
-                          .map(|&(p, c)| (Arc::new(pkg(p)), constraint(c)))
-                          .collect())
+        ConstraintSet(l.iter().map(|&(p, c)| (Arc::new(pkg(p)), constraint(c))).collect())
+    }
+
+    fn jver(l: (&str, &[(&str, &str)])) -> JustifiedVersion {
+        let (v, pa) = l;
+        JustifiedVersion {
+            version: Arc::new(ver(v)),
+            path: path(pa),
+        }
+    }
+
+    fn partial_sln(l: &[(&str, (&str, &[(&str, &str)]))]) -> PartialSolution {
+        PartialSolution(l.iter().map(|&(p, jv)| (Arc::new(pkg(p)), jver(jv))).collect())
     }
 
     #[test]
@@ -175,10 +179,24 @@ mod test {
     fn constraint_merge_conflict() {
         let c1 = constraint(&[("1.0.0", &[("A", "1.0.0")])]);
         let c2 = constraint(&[("2.0.0", &[("B", "1.0.0")])]);
-        let expected_failure = Failure::conflict(
-            Arc::new(pkg("X")), c1.clone(), c2.clone());
+        let expected_failure = Failure::conflict(Arc::new(pkg("X")), c1.clone(), c2.clone());
         let merged = c1.merge(&c2, Arc::new(pkg("X")));
         assert_eq!(merged, Err(expected_failure));
 
+    }
+
+    #[test]
+    fn constraint_set_merge() {
+        let existing = constraint_set(&[("A", &[("1.0.0", &[])]),
+                                        ("B", &[("1.0.0", &[]), ("2.0.0", &[])])]);
+        let new = constraint_set(&[("B", &[("2.0.0", &[]), ("3.0.0", &[])]),
+                                   ("C", &[("1.0.0", &[])]),
+                                   ("P", &[("1.0.0", &[])])]);
+        let ps = partial_sln(&[("P", ("1.0.0", &[]))]);
+        let expected = constraint_set(&[("A", &[("1.0.0", &[])]),
+                                        ("B", &[("2.0.0", &[])]),
+                                        ("C", &[("1.0.0", &[])])]);
+        let merged = existing.merge(&new, &ps);
+        assert_eq!(merged, Ok(expected));
     }
 }
