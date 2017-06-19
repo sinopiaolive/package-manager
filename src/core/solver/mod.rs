@@ -192,20 +192,66 @@ mod unit_test {
         );
 
         assert_eq!(solve(&sample_registry(), &problem),
-                Err(Failure::conflict(Arc::new(pkg("right_pad")),
-                                        Constraint::new()
-                                            .insert(Arc::new(ver("1.0.0")),
-                                                    list![(Arc::new(pkg("left_pad",),),
+                   Err(Failure::conflict(Arc::new(pkg("right_pad")),
+                                         Constraint::new()
+                                             .insert(Arc::new(ver("1.0.0")),
+                                                     list![(Arc::new(pkg("left_pad")),
                                                             Arc::new(ver("1.0.0")))])
-                                            .insert(Arc::new(ver("1.0.1")),
-                                                    list![(Arc::new(pkg("left_pad",),),
+                                             .insert(Arc::new(ver("1.0.1")),
+                                                     list![(Arc::new(pkg("left_pad")),
                                                             Arc::new(ver("1.0.0")))]),
-                                        Constraint::new()
-                                            .insert(Arc::new(ver("2.0.0")),
-                                                    list![(Arc::new(pkg("lol_pad",),),
+                                         Constraint::new()
+                                             .insert(Arc::new(ver("2.0.0")),
+                                                     list![(Arc::new(pkg("lol_pad")),
                                                             Arc::new(ver("1.0.0")))])
-                                            .insert(Arc::new(ver("2.0.1")),
-                                                    list![(Arc::new(pkg("lol_pad",),),
+                                             .insert(Arc::new(ver("2.0.1")),
+                                                     list![(Arc::new(pkg("lol_pad")),
                                                             Arc::new(ver("1.0.0")))]))));
+    }
+
+    #[test]
+    fn algo1_test() {
+        let reg = gen_registry!(
+            X => (
+                "1" => deps!(
+                    A => "1",
+                    B => ">= 1 < 3",
+                    S => "1"
+                ),
+                "2" => deps!(
+                    B => ">= 2 < 4",
+                    C => "1",
+                    S => "1"
+                ),
+                "3" => deps!(
+                    Z => "1" // impossible
+                )
+            ),
+            A => (
+                "1" => deps!()
+            ),
+            B => (
+                "1" => deps!(),
+                "2" => deps!(),
+                "3" => deps!()
+            ),
+            C => (
+                "1" => deps!()
+            ),
+            S => (
+                "1" => deps!()
+            )
+        );
+        let ra = RegistryAdapter::new(&reg);
+        let stack = constraint_set(&[("X", &[("1", &[]), ("2", &[]), ("3", &[])])]);
+        let ps = partial_sln(&[("S", ("1", &[]))]);
+        let expected = constraint_set(&[("X", &[("1", &[]), ("2", &[])]),
+                                        ("B",
+                                         &[("1", &[("X", "1")]),
+                                           ("2", &[("X", "1")]),
+                                           ("3", &[("X", "2")])])]);
+        let (new_stack, modified) = algo1(&ra, stack.clone(), &ps).unwrap();
+        assert!(modified);
+        assert_eq!(new_stack, expected);
     }
 }
