@@ -123,7 +123,7 @@ fn algo1(ra: &RegistryAdapter,
                 // indirect_constraint_set.
                 indirect_constraint_set = match indirect_constraint_set {
                     None => Some(cset),
-                    Some(icset) => Some(icset), //.or(cset) TODONEXT
+                    Some(icset) => Some(icset.or(&cset))
                 }
             }
         }

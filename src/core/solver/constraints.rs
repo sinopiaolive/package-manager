@@ -41,6 +41,17 @@ impl Constraint {
             Ok((out, modified))
         }
     }
+
+    pub fn or(&self, other: &Constraint) -> Constraint {
+        let mut out = self.clone();
+        for (version, other_path) in other.iter() {
+            out = match self.get(&version) {
+                Some(self_path) if other_path.length() < self_path.length() => out,
+                _ => out.insert(version.clone(), other_path.clone()),
+            }
+        }
+        out
+    }
 }
 
 impl Mappable for Constraint {
@@ -101,6 +112,16 @@ impl ConstraintSet {
             }
         }
         Ok((out, modified))
+    }
+
+    pub fn or(&self, other: &ConstraintSet) -> ConstraintSet {
+        let mut out = ConstraintSet::new();
+        for (package, self_constraint) in self.iter() {
+            if let Some(other_constraint) = other.get(&package) {
+                out = out.insert(package.clone(), self_constraint.or(other_constraint))
+            }
+        }
+        out
     }
 }
 
