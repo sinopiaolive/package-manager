@@ -1,6 +1,7 @@
 use manifest::PackageName;
 use solver::path::Path;
 use immutable_map::map::TreeMap as Map;
+use std::fmt;
 use std::sync::Arc;
 use version::Version;
 use solver::solution::{PartialSolution, JustifiedVersion};
@@ -73,7 +74,7 @@ impl Mappable for Constraint {
 //     }
 // }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ConstraintSet(pub Map<Arc<PackageName>, Constraint>);
 
 impl ConstraintSet {
@@ -138,19 +139,15 @@ impl Mappable for ConstraintSet {
     }
 }
 
-// impl fmt::Debug for Constraints {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-//         match self {
-//             &Constraints::Constraints(ref m) => {
-//                 write!(f, "Constraints[")?;
-//                 for (pkg, constraint) in m.iter() {
-//                     write!(f, ":: {} {:?} ", pkg, constraint)?;
-//                 }
-//                 write!(f, "::]")
-//             }
-//         }
-//     }
-// }
+impl fmt::Debug for ConstraintSet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "ConstraintSet(\n")?;
+        for (package, constraint) in self.iter() {
+            write!(f, "    {:?}: {:?}\n", package, constraint)?;
+        }
+        write!(f, ")")
+    }
+}
 
 fn contained_in(package: Arc<PackageName>,
                 constraint: &Constraint,

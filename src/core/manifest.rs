@@ -3,6 +3,7 @@ use serde::de::Error;
 use std::path::{Path, PathBuf};
 use constraint::VersionConstraint;
 use version::Version;
+use std::fmt;
 use std::fmt::Display;
 use std::env;
 use std::fs::File;
@@ -54,10 +55,16 @@ pub type DependencySet = LinkedHashMap<PackageName, VersionConstraint>;
 
 pub type VersionSet = BTreeMap<PackageName, Version>;
 
-#[derive(Debug, PartialEq, Eq, Hash, Default, Clone, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Hash, Default, Clone, PartialOrd, Ord)]
 pub struct PackageName {
     pub namespace: Option<String>,
     pub name: String,
+}
+
+impl fmt::Debug for PackageName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}/{}", self.namespace.clone().unwrap_or("<missing>".to_string()), self.name)
+    }
 }
 
 impl PackageName {
