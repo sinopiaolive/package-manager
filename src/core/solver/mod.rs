@@ -1,9 +1,11 @@
-#[cfg(test)] use std::sync::Arc;
+#[cfg(test)]
+use std::sync::Arc;
 use std::convert::From;
 
 use registry::Registry;
 use manifest::DependencySet;
-#[cfg(test)] use test;
+#[cfg(test)]
+use test;
 
 mod path;
 mod constraints;
@@ -13,7 +15,8 @@ mod adapter;
 mod mappable;
 
 use solver::constraints::ConstraintSet;
-#[cfg(test)] use solver::constraints::Constraint;
+#[cfg(test)]
+use solver::constraints::Constraint;
 use solver::failure::Failure;
 use solver::solution::{PartialSolution, Solution, JustifiedVersion};
 use solver::adapter::RegistryAdapter;
@@ -49,13 +52,15 @@ fn search(ra: &RegistryAdapter,
         Some((stack_tail, (package, constraint))) => {
             let mut first_failure = None;
             for (version, path) in constraint.iter() {
-                let new_solution = solution.insert(package.clone(), JustifiedVersion {
-                    version: version.clone(),
-                    path: path.clone()
-                });
+                let new_solution = solution.insert(package.clone(),
+                                                   JustifiedVersion {
+                                                       version: version.clone(),
+                                                       path: path.clone(),
+                                                   });
                 let search_try_version = || {
-                    let constraint_set = ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
-                    let (new_deps, _) = stack_tail.merge(&constraint_set, &new_solution)?;
+                    let constraint_set =
+                        ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
+                    let (new_deps, _) = stack_tail.and(&constraint_set, &new_solution)?;
                     Ok(search(ra.clone(), new_deps, cheap, &new_solution)?)
                 };
                 if cheap {
@@ -90,7 +95,10 @@ pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> 
     }
 }
 
-fn algo1(ra: &RegistryAdapter, stack: ConstraintSet, solution: &PartialSolution) -> Result<(ConstraintSet, bool), Failure> {
+fn algo1(ra: &RegistryAdapter,
+         stack: ConstraintSet,
+         solution: &PartialSolution)
+         -> Result<(ConstraintSet, bool), Failure> {
     let mut modified = false;
     let mut new_stack = stack.clone();
 
@@ -101,7 +109,7 @@ fn algo1(ra: &RegistryAdapter, stack: ConstraintSet, solution: &PartialSolution)
         assert!(!constraint.is_empty());
         for (version, path) in constraint.iter() {
             let cset = ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
-            if let Err(failure) = new_stack.merge(&cset, &solution) {
+            if let Err(failure) = new_stack.and(&cset, &solution) {
                 // This version is not compatible with our stack and solution,
                 // so exclude it.
                 if first_failure.is_none() {
@@ -115,7 +123,7 @@ fn algo1(ra: &RegistryAdapter, stack: ConstraintSet, solution: &PartialSolution)
                 // indirect_constraint_set.
                 indirect_constraint_set = match indirect_constraint_set {
                     None => Some(cset),
-                    Some(icset) => Some(icset) //.or(cset) TODONEXT
+                    Some(icset) => Some(icset), //.or(cset) TODONEXT
                 }
             }
         }
@@ -132,7 +140,7 @@ fn algo1(ra: &RegistryAdapter, stack: ConstraintSet, solution: &PartialSolution)
                     modified = true;
                     new_stack = new_stack.insert(package.clone(), new_constraint);
                 }
-                let (merged_stack, merged_stack_modified) = new_stack.merge(&icset, &solution)?;
+                let (merged_stack, merged_stack_modified) = new_stack.and(&icset, &solution)?;
                 modified = modified || merged_stack_modified;
                 new_stack = merged_stack;
             }
@@ -150,7 +158,8 @@ fn find_best_solution_set() {
         left_pad => "^2.0.0"
     );
 
-    assert_eq!(solve(&test::sample_registry(), &problem), Ok(solution!(
+    assert_eq!(solve(&test::sample_registry(), &problem),
+               Ok(solution!(
         left_pad => "2.0.0",
         down_pad => "1.2.0",
         right_pad => "2.0.1",
@@ -168,15 +177,20 @@ fn conflicting_subdependencies() {
         lol_pad => "^1.0.0"
     );
 
-    assert_eq!(solve(&test::sample_registry(), &problem), Err(
-        Failure::conflict(
-            Arc::new(test::pkg("leftpad/right_pad")),
-            Constraint::new()
-                .insert(Arc::new(test::ver("1.0.0")), list![(Arc::new(test::pkg("leftpad/left_pad")), Arc::new(test::ver("1.0.0")))])
-                .insert(Arc::new(test::ver("1.0.1")), list![(Arc::new(test::pkg("leftpad/left_pad")), Arc::new(test::ver("1.0.0")))]),
-            Constraint::new()
-                .insert(Arc::new(test::ver("2.0.0")), list![(Arc::new(test::pkg("leftpad/lol_pad")), Arc::new(test::ver("1.0.0")))])
-                .insert(Arc::new(test::ver("2.0.1")), list![(Arc::new(test::pkg("leftpad/lol_pad")), Arc::new(test::ver("1.0.0")))]),
-        ))
-    );
+    assert_eq!(solve(&test::sample_registry(), &problem),
+               Err(Failure::conflict(Arc::new(test::pkg("leftpad/right_pad")),
+                                     Constraint::new()
+                                         .insert(Arc::new(test::ver("1.0.0")),
+                                                 list![(Arc::new(test::pkg("leftpad/left_pad",),),
+                                                        Arc::new(test::ver("1.0.0")))])
+                                         .insert(Arc::new(test::ver("1.0.1")),
+                                                 list![(Arc::new(test::pkg("leftpad/left_pad",),),
+                                                        Arc::new(test::ver("1.0.0")))]),
+                                     Constraint::new()
+                                         .insert(Arc::new(test::ver("2.0.0")),
+                                                 list![(Arc::new(test::pkg("leftpad/lol_pad",),),
+                                                        Arc::new(test::ver("1.0.0")))])
+                                         .insert(Arc::new(test::ver("2.0.1")),
+                                                 list![(Arc::new(test::pkg("leftpad/lol_pad",),),
+                                                        Arc::new(test::ver("1.0.0")))]))));
 }
