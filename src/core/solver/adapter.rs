@@ -89,10 +89,10 @@ impl<'r> RegistryAdapter<'r> {
         let release = self.registry
             .packages
             .get(&package)
-            .unwrap()
+            .expect(&format!("package not found: {}", package))
             .releases
             .get(&version)
-            .unwrap();
+            .expect(&format!("release not found: {} {}", package, version));
         let dependency_set = &release.manifest.dependencies;
         let mut constraint_set = ConstraintSet::new();
         for (dep_package, version_constraint) in dependency_set {

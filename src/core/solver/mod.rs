@@ -105,22 +105,30 @@ fn algo1(ra: &RegistryAdapter,
         let mut first_failure = None;
         assert!(!constraint.is_empty());
         for (version, path) in constraint.iter() {
-            let cset = ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
-            if let Err(failure) = new_stack.and(&cset, &solution) {
-                // This version is not compatible with our stack and solution,
-                // so exclude it.
-                if first_failure.is_none() {
-                    first_failure = Some(failure);
+            let cset_result = ra.constraint_set_for(package.clone(), version.clone(), path.clone());
+            match cset_result.and_then(|cset| {
+                                           new_stack.and(&cset, &solution)?;
+                                           Ok(cset)
+                                       }) {
+                Err(failure) => {
+                    // This version is not compatible with our stack and solution,
+                    // so exclude it.
+                    if first_failure.is_none() {
+                        first_failure = Some(failure);
+                    }
+                    // We're not justifying the absence of `version` with some path.
+                    // Do we need to be able to record this type of thing?
+                    new_constraint = new_constraint.remove(&version).unwrap().0;
+
                 }
-                // We're not justifying the absence of `version` with some path.
-                // Do we need to be able to record this type of thing?
-                new_constraint = new_constraint.remove(&version).unwrap().0;
-            } else {
-                // This version is compatible, so `or` its dependencies into
-                // indirect_constraint_set.
-                indirect_constraint_set = match indirect_constraint_set {
-                    None => Some(cset),
-                    Some(icset) => Some(icset.or(&cset)),
+                Ok(cset) => {
+                    // This version is compatible, so `or` its dependencies into
+                    // indirect_constraint_set.
+                    indirect_constraint_set = match indirect_constraint_set {
+                        None => Some(cset),
+                        Some(icset) => Some(icset.or(&cset)),
+                    }
+
                 }
             }
         }
