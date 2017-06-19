@@ -11,6 +11,13 @@ pub trait Mappable where Self: Sized {
         Self::wrap(self.as_map().insert(key, value))
     }
 
+    fn remove(&self, key: &Self::K) -> Option<(Self, &Self::V)> {
+        match self.as_map().remove(key) {
+            None => None,
+            Some((map, v)) => Some((Self::wrap(map), v))
+        }
+    }
+
     fn get<'a>(&'a self, key: &'a Self::K) -> Option<&'a Self::V> {
         self.as_map().get(key)
     }
@@ -25,5 +32,9 @@ pub trait Mappable where Self: Sized {
 
     fn is_empty(&self) -> bool {
         self.as_map().is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.as_map().len()
     }
 }
