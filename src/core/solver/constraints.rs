@@ -76,7 +76,7 @@ impl Mappable for Constraint {
 
 pub struct BreadthFirstIter {
     paths: Vec<Path>,
-    vec_pos: usize
+    vec_pos: usize,
 }
 
 impl BreadthFirstIter {
@@ -86,7 +86,7 @@ impl BreadthFirstIter {
         vec.extend(right.0.values().cloned());
         BreadthFirstIter {
             vec_pos: vec.len() - 1,
-            paths: vec
+            paths: vec,
         }
     }
 }
@@ -99,14 +99,14 @@ impl Iterator for BreadthFirstIter {
         loop {
             self.vec_pos = (self.vec_pos + 1) % self.paths.len();
             if self.vec_pos == started {
-                return None
+                return None;
             }
             let l = self.paths[self.vec_pos].clone();
             match l.uncons() {
                 None => continue,
                 Some((car, cdr)) => {
                     self.paths[self.vec_pos] = cdr;
-                    return Some(car.clone())
+                    return Some(car.clone());
                 }
             }
         }
@@ -121,12 +121,35 @@ impl ConstraintSet {
         ConstraintSet(Map::new())
     }
 
-    pub fn pop(&self) -> Option<(ConstraintSet, (Arc<PackageName>, Constraint))> {
+    pub fn pop_most_interesting_package
+        (&self,
+         cheap_conflict: &Option<Failure>)
+         -> Option<(ConstraintSet, (Arc<PackageName>, Constraint))> {
+        let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> =
+            match cheap_conflict {
+                &Some(Failure::Conflict(ref conflict)) => {
+                    Box::new(BreadthFirstIter::new(&conflict.existing, &conflict.conflicting))
+                }
+                &Some(Failure::PackageMissing(ref pkg_missing)) => {
+                    Box::new(pkg_missing.path.iter())
+                }
+                &Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
+                    Box::new(pkg_missing.path.iter())
+                }
+                &None => Box::new(::std::iter::empty()),
+            };
+        for (package, _version) in path_iter {
+            if let Some((cdr, constraint)) = self.remove(&package) {
+                return Some((cdr, (package.clone(), constraint.clone())));
+            }
+        }
+        // Fall back to popping alphabetically.
         match self.0.delete_min() {
             None => None,
-            Some((new_set, (k, v))) => Some((ConstraintSet(new_set), (k.clone(), v.clone()))),
+            Some((cdr, (k, v))) => Some((ConstraintSet(cdr), (k.clone(), v.clone()))),
         }
     }
+    // TODONEXT test this
 
     pub fn and(&self,
                new: &ConstraintSet,

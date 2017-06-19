@@ -636,3 +636,44 @@ Sass
     Rails 3
   4
     Rails 4
+
+
+
+
+### What can we learn from cheap_failure to find an interesting package to recurse into?
+
+manifest:
+Sass *
+Rails 3
+
+Rails
+  3
+  4
+Sass
+  3
+    Rails 3
+  4
+    Rails 4
+
+cheap_failure Conflict:
+Sass 4 -> Rails 4
+Rails 3
+
+unclear where to start
+but end of path might be not in stack, and middle might be uninteresting (just part of a long chain)
+so perhaps start of path
+
+
+
+X
+  1
+  2
+    Z
+Y
+  1
+  2
+  3
+
+package missing:
+package: Z
+path: X 2

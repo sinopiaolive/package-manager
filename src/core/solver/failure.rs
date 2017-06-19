@@ -51,13 +51,13 @@ pub struct Conflict {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PackageMissing {
-    package: Arc<PackageName>,
-    path: Path,
+    pub package: Arc<PackageName>,
+    pub path: Path,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct UninhabitedConstraint {
-    package: Arc<PackageName>,
-    constraint: Arc<VersionConstraint>,
-    path: Path,
+    pub package: Arc<PackageName>,
+    pub constraint: Arc<VersionConstraint>,
+    pub path: Path,
 }
