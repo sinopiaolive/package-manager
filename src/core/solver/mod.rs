@@ -100,7 +100,6 @@ fn algo1(ra: &RegistryAdapter,
     let mut new_stack = stack.clone();
 
     for (package, constraint) in stack.iter() {
-        let mut new_constraint = constraint.clone();
         let mut indirect_constraint_set = None;
         let mut first_failure = None;
         assert!(!constraint.is_empty());
@@ -116,10 +115,11 @@ fn algo1(ra: &RegistryAdapter,
                     if first_failure.is_none() {
                         first_failure = Some(failure);
                     }
-                    // We're not justifying the absence of `version` with some path.
-                    // Do we need to be able to record this type of thing?
-                    new_constraint = new_constraint.remove(&version).unwrap().0;
-
+                    // It is tempting to remove the version from the constraint
+                    // in stack. However, this makes it difficult to always
+                    // report good conflicts, at least without additional
+                    // bookkeeping. So we keep the version around, and it only
+                    // doesn't participate in this algorithm.
                 }
                 Ok(cset) => {
                     // This version is compatible, so `or` its dependencies into
@@ -139,12 +139,6 @@ fn algo1(ra: &RegistryAdapter,
                 return Err(first_failure.unwrap());
             }
             Some(icset) => {
-                if new_constraint.len() != constraint.len() {
-                    // We excluded some versions.
-                    assert!(!new_constraint.is_empty());
-                    modified = true;
-                    new_stack = new_stack.insert(package.clone(), new_constraint);
-                }
                 let (merged_stack, merged_stack_modified) = new_stack.and(&icset, &solution)?;
                 modified = modified || merged_stack_modified;
                 new_stack = merged_stack;
