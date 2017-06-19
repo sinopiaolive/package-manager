@@ -74,6 +74,45 @@ impl Mappable for Constraint {
 //     }
 // }
 
+pub struct BreadthFirstIter {
+    paths: Vec<Path>,
+    vec_pos: usize
+}
+
+impl BreadthFirstIter {
+    pub fn new(left: &Constraint, right: &Constraint) -> BreadthFirstIter {
+        let mut vec = Vec::new();
+        vec.extend(left.0.values().cloned());
+        vec.extend(right.0.values().cloned());
+        BreadthFirstIter {
+            vec_pos: vec.len() - 1,
+            paths: vec
+        }
+    }
+}
+
+impl Iterator for BreadthFirstIter {
+    type Item = (Arc<PackageName>, Arc<Version>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let started = self.vec_pos;
+        loop {
+            self.vec_pos = (self.vec_pos + 1) % self.paths.len();
+            if self.vec_pos == started {
+                return None
+            }
+            let l = self.paths[self.vec_pos].clone();
+            match l.uncons() {
+                None => continue,
+                Some((car, cdr)) => {
+                    self.paths[self.vec_pos] = cdr;
+                    return Some(car.clone())
+                }
+            }
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct ConstraintSet(pub Map<Arc<PackageName>, Constraint>);
 
