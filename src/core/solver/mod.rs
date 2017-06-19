@@ -151,7 +151,8 @@ fn algo1(ra: &RegistryAdapter,
 #[cfg(test)]
 mod unit_test {
     use super::*;
-    use test;
+    use test::{pkg, ver, sample_registry};
+    use solver::test::{constraint_set, partial_sln};
 
     use std::sync::Arc;
     use solver::constraints::Constraint;
@@ -163,7 +164,7 @@ mod unit_test {
             left_pad => "^2.0.0"
         );
 
-        assert_eq!(solve(&test::sample_registry(), &problem),
+        assert_eq!(solve(&sample_registry(), &problem),
                    Ok(solution!(
             left_pad => "2.0.0",
             down_pad => "1.2.0",
@@ -182,21 +183,21 @@ mod unit_test {
             lol_pad => "^1.0.0"
         );
 
-        assert_eq!(solve(&test::sample_registry(), &problem),
-                Err(Failure::conflict(Arc::new(test::pkg("leftpad/right_pad")),
+        assert_eq!(solve(&sample_registry(), &problem),
+                Err(Failure::conflict(Arc::new(pkg("right_pad")),
                                         Constraint::new()
-                                            .insert(Arc::new(test::ver("1.0.0")),
-                                                    list![(Arc::new(test::pkg("leftpad/left_pad",),),
-                                                            Arc::new(test::ver("1.0.0")))])
-                                            .insert(Arc::new(test::ver("1.0.1")),
-                                                    list![(Arc::new(test::pkg("leftpad/left_pad",),),
-                                                            Arc::new(test::ver("1.0.0")))]),
+                                            .insert(Arc::new(ver("1.0.0")),
+                                                    list![(Arc::new(pkg("left_pad",),),
+                                                            Arc::new(ver("1.0.0")))])
+                                            .insert(Arc::new(ver("1.0.1")),
+                                                    list![(Arc::new(pkg("left_pad",),),
+                                                            Arc::new(ver("1.0.0")))]),
                                         Constraint::new()
-                                            .insert(Arc::new(test::ver("2.0.0")),
-                                                    list![(Arc::new(test::pkg("leftpad/lol_pad",),),
-                                                            Arc::new(test::ver("1.0.0")))])
-                                            .insert(Arc::new(test::ver("2.0.1")),
-                                                    list![(Arc::new(test::pkg("leftpad/lol_pad",),),
-                                                            Arc::new(test::ver("1.0.0")))]))));
+                                            .insert(Arc::new(ver("2.0.0")),
+                                                    list![(Arc::new(pkg("lol_pad",),),
+                                                            Arc::new(ver("1.0.0")))])
+                                            .insert(Arc::new(ver("2.0.1")),
+                                                    list![(Arc::new(pkg("lol_pad",),),
+                                                            Arc::new(ver("1.0.0")))]))));
     }
 }

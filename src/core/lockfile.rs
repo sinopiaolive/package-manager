@@ -23,8 +23,8 @@ mod test {
         let json = r#"[
   "0.0.0",
   {
-    "x": "2.0.0",
-    "y": "1.0.0"
+    "test/x": "2.0.0",
+    "test/y": "1.0.0"
   }
 ]"#;
         assert_eq!(::serde_json::to_string_pretty(lockfile).unwrap(), json);

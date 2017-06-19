@@ -11,7 +11,8 @@ use registry::Registry;
 
 
 pub fn unlink<A, B>(linked: &LinkedHashMap<A, B>) -> HashMap<A, B>
-    where A: Eq + Hash + Clone, B: Clone
+    where A: Eq + Hash + Clone,
+          B: Clone
 {
     let mut map = HashMap::new();
     for (key, value) in linked.iter() {
@@ -29,31 +30,20 @@ pub fn range(s: &str) -> VersionConstraint {
 }
 
 pub fn pkg(s: &str) -> PackageName {
-    PackageName::from_str(s).unwrap()
+    let pkg = PackageName::from_str(s).unwrap();
+    PackageName {
+        namespace: Some(pkg.namespace.unwrap_or("test".to_string())),
+        name: pkg.name,
+    }
 }
-
-// macro_rules! dict {
-//     () => { ::hamt_rs::HamtMap::new() };
-
-//     ( $( $key:expr => $value:expr ),* ) => {{
-//         let mut map = ::hamt_rs::HamtMap::new();
-//         $({
-//             map = map.plus($key, $value);
-//         })*;
-//         map
-//     }};
-// }
 
 macro_rules! solution(
     { $($dep:ident => $version:expr),+ } => {
         {
             let mut m = ::immutable_map::map::TreeMap::new();
             $(
-                let pkg = ::PackageName {
-                    namespace: Some("leftpad".to_string()), name: stringify!($dep).to_string()
-                };
                 let version = ::Version::from_str($version).unwrap();
-                m = m.insert(::std::sync::Arc::new(pkg), ::std::sync::Arc::new(version));
+                m = m.insert(::std::sync::Arc::new(::test::pkg(stringify!($dep))), ::std::sync::Arc::new(version));
             )+
             ::solver::Solution::wrap(m)
         }
@@ -76,11 +66,8 @@ macro_rules! deps {
     ( $( $dep:ident => $constraint:expr ),* ) => {{
         let mut deps = ::linked_hash_map::LinkedHashMap::new();
         $({
-            let pkg = ::PackageName {
-                namespace: Some("leftpad".to_string()), name: stringify!($dep).to_string()
-            };
             let constraint = ::VersionConstraint::from_str($constraint).unwrap();
-            deps.insert(pkg, constraint);
+            deps.insert(::test::pkg(stringify!($dep)), constraint);
         })*;
         deps
     }};
@@ -90,9 +77,7 @@ macro_rules! gen_registry {
     ( $( $name:ident => ( $( $release:expr => $deps:expr ),+ ) ),+ ) => {{
         let mut packs = ::std::collections::HashMap::new();
         $({
-            let name = ::PackageName {
-                namespace: Some("leftpad".to_string()), name: stringify!($name).to_string()
-            };
+            let name = ::test::pkg(stringify!($name));
             let mut releases = ::std::collections::HashMap::new();
             $({
                 let ver = ::Version::from_str($release).unwrap();
