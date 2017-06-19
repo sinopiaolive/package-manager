@@ -18,23 +18,27 @@ impl Constraint {
     pub fn merge(&self,
                  other: &Constraint,
                  package: Arc<PackageName>)
-                 -> Result<Constraint, Failure> {
+                 -> Result<(Constraint, bool), Failure> {
         let mut out = Constraint::new();
+        let mut modified = false;
         for (version, self_path) in self.iter() {
             if let Some(ref other_path) = other.get(version) {
                 let shortest_path = if self_path.length() <= other_path.length() {
                     self_path
                 } else {
+                    modified = true; // we changed a path
                     other_path
                 };
                 out = out.insert(version.clone(), shortest_path.clone());
+            } else {
+                modified = true; // we dropped a version from the set
             }
         }
 
         if out.is_empty() {
             Err(Failure::conflict(package.clone(), self.clone(), other.clone()))
         } else {
-            Ok(out)
+            Ok((out, modified))
         }
     }
 }
@@ -76,21 +80,26 @@ impl ConstraintSet {
     pub fn merge(&self,
                  new: &ConstraintSet,
                  solution: &PartialSolution)
-                 -> Result<ConstraintSet, Failure> {
+                 -> Result<(ConstraintSet, bool), Failure> {
         let mut out = self.clone();
+        let mut modified = false;
         for (package, new_constraint) in new.iter() {
             if contained_in(package.clone(), new_constraint, solution)? {
                 continue;
             }
             out = match out.get(package) {
-                None => out.insert(package.clone(), new_constraint.clone()),
+                None => {
+                    modified = true;
+                    out.insert(package.clone(), new_constraint.clone())
+                }
                 Some(ref existing_constraint) => {
-                    out.insert(package.clone(),
-                               existing_constraint.merge(&new_constraint, package.clone())?)
+                    let (updated_constraint, constraint_modified) = existing_constraint.merge(&new_constraint, package.clone())?;
+                    modified = modified || constraint_modified;
+                    out.insert(package.clone(), updated_constraint)
                 }
             }
         }
-        Ok(out)
+        Ok((out, modified))
     }
 }
 
@@ -172,7 +181,35 @@ mod test {
         let c2 = constraint(&[("1.0.1", &[("C", "1.0.0")]), ("1.0.2", &[("C", "2.0.0")])]);
         let expected = constraint(&[("1.0.1", &[("C", "1.0.0")])]);
         let merged = c1.merge(&c2, Arc::new(pkg("X")));
-        assert_eq!(merged, Ok(expected));
+        assert_eq!(merged, Ok((expected, true)));
+    }
+
+    #[test]
+    fn constraint_merge_unmodified() {
+        // c2 can have additional versions, and different paths (that are not
+        // shorter)
+        let c1 = constraint(&[("1.0.0", &[("A", "1.0.0")])]);
+        let c2 = constraint(&[("1.0.0", &[("C", "1.0.0")]), ("2.0.0", &[])]);
+        let merged = c1.merge(&c2, Arc::new(pkg("X")));
+        assert_eq!(merged, Ok((c1, false)));
+    }
+
+    #[test]
+    fn constraint_merge_modified_due_to_shorter_path() {
+        let c1 = constraint(&[("1.0.0", &[("A", "1.0.0")])]);
+        let c2 = constraint(&[("1.0.0", &[])]);
+        let expected = constraint(&[("1.0.0", &[])]);
+        let merged = c1.merge(&c2, Arc::new(pkg("X")));
+        assert_eq!(merged, Ok((expected, true)));
+    }
+
+    #[test]
+    fn constraint_merge_modified_due_to_version() {
+        let c1 = constraint(&[("1.0.0", &[]), ("2.0.0", &[])]);
+        let c2 = constraint(&[("1.0.0", &[])]);
+        let expected = constraint(&[("1.0.0", &[])]);
+        let merged = c1.merge(&c2, Arc::new(pkg("X")));
+        assert_eq!(merged, Ok((expected, true)));
     }
 
     #[test]
@@ -197,7 +234,38 @@ mod test {
                                         ("B", &[("2.0.0", &[])]),
                                         ("C", &[("1.0.0", &[])])]);
         let merged = existing.merge(&new, &ps);
-        assert_eq!(merged, Ok(expected));
+        assert_eq!(merged, Ok((expected, true)));
+    }
+
+    #[test]
+    fn constraint_set_merge_unmodified() {
+        let existing = constraint_set(&[("A", &[("1.0.0", &[])]),
+                                        ("B", &[("1.0.0", &[])])]);
+        let new = constraint_set(&[("B", &[("1.0.0", &[]), ("2.0.0", &[])]),
+                                   ("S", &[("1.0.0", &[])])]);
+        let ps = partial_sln(&[("S", ("1.0.0", &[]))]);
+        let merged = existing.merge(&new, &ps);
+        assert_eq!(merged, Ok((existing, false)));
+    }
+
+    #[test]
+    fn constraint_set_merge_modified_due_to_changed_constraint() {
+        let existing = constraint_set(&[("A", &[("1.0.0", &[]), ("2.0.0", &[])])]);
+        let new = constraint_set(&[("A", &[("1.0.0", &[])])]);
+        let ps = partial_sln(&[]);
+        let merged = existing.merge(&new, &ps);
+        assert_eq!(merged, Ok((new, true)));
+    }
+
+    #[test]
+    fn constraint_set_merge_modified_due_to_added_package() {
+        let existing = constraint_set(&[("A", &[("1.0.0", &[])])]);
+        let new = constraint_set(&[("B", &[("1.0.0", &[])])]);
+        let ps = partial_sln(&[]);
+        let expected = constraint_set(&[("A", &[("1.0.0", &[])]),
+                                        ("B", &[("1.0.0", &[])])]);
+        let merged = existing.merge(&new, &ps);
+        assert_eq!(merged, Ok((expected, true)));
     }
 
     #[test]

@@ -36,7 +36,7 @@ fn search(ra: &RegistryAdapter,
                 });
                 let search_try_version = || {
                     let constraint_set = ra.constraint_set_for(package.clone(), version.clone(), path.clone())?;
-                    let new_deps = stack_tail.merge(&constraint_set, &new_solution)?;
+                    let (new_deps, _) = stack_tail.merge(&constraint_set, &new_solution)?;
                     Ok(search(ra.clone(), &new_deps, cheap, &new_solution)?)
                 };
                 if cheap {
