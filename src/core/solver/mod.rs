@@ -218,7 +218,10 @@ mod unit_test {
                     S => "1"
                 ),
                 "3" => deps!(
-                    Z => "1" // impossible
+                    Z => "1" // missing package
+                ),
+                "4" => deps!(
+                    S => "2" // conflicts with existing stack and solution
                 )
             ),
             A => (
@@ -237,15 +240,15 @@ mod unit_test {
             )
         );
         let ra = RegistryAdapter::new(&reg);
-        let stack = constraint_set(&[("X", &[("1", &[]), ("2", &[]), ("3", &[])])]);
+        let stack = constraint_set(&[("X", &[("1", &[]), ("2", &[]), ("3", &[]), ("4", &[])])]);
         let ps = partial_sln(&[("S", ("1", &[]))]);
-        let expected = constraint_set(&[("X", &[("1", &[]), ("2", &[])]),
+        let expected = constraint_set(&[("X", &[("1", &[]), ("2", &[]), ("3", &[]), ("4", &[])]),
                                         ("B",
                                          &[("1", &[("X", "1")]),
                                            ("2", &[("X", "1")]),
                                            ("3", &[("X", "2")])])]);
         let (new_stack, modified) = algo1(&ra, stack.clone(), &ps).unwrap();
-        assert!(modified);
         assert_eq!(new_stack, expected);
+        assert!(modified);
     }
 }
