@@ -1,11 +1,7 @@
-#[cfg(test)]
-use std::sync::Arc;
 use std::convert::From;
 
 use registry::Registry;
 use manifest::DependencySet;
-#[cfg(test)]
-use test;
 
 mod path;
 mod constraints;
@@ -13,13 +9,14 @@ mod failure;
 mod solution;
 mod adapter;
 mod mappable;
-
-use solver::constraints::ConstraintSet;
 #[cfg(test)]
-use solver::constraints::Constraint;
-use solver::failure::Failure;
-use solver::solution::{PartialSolution, Solution, JustifiedVersion};
-use solver::adapter::RegistryAdapter;
+mod test;
+
+pub use solver::constraints::{Constraint, ConstraintSet};
+pub use solver::failure::Failure;
+pub use solver::solution::{PartialSolution, Solution, JustifiedVersion};
+pub use solver::adapter::RegistryAdapter;
+pub use solver::path::Path;
 use solver::mappable::Mappable;
 
 fn search(ra: &RegistryAdapter,
@@ -123,7 +120,7 @@ fn algo1(ra: &RegistryAdapter,
                 // indirect_constraint_set.
                 indirect_constraint_set = match indirect_constraint_set {
                     None => Some(cset),
-                    Some(icset) => Some(icset.or(&cset))
+                    Some(icset) => Some(icset.or(&cset)),
                 }
             }
         }
@@ -151,46 +148,55 @@ fn algo1(ra: &RegistryAdapter,
 
 
 
-#[test]
-fn find_best_solution_set() {
-    let problem = deps!(
-        down_pad => "^1.0.0",
-        left_pad => "^2.0.0"
-    );
+#[cfg(test)]
+mod unit_test {
+    use super::*;
+    use test;
 
-    assert_eq!(solve(&test::sample_registry(), &problem),
-               Ok(solution!(
-        left_pad => "2.0.0",
-        down_pad => "1.2.0",
-        right_pad => "2.0.1",
-        up_pad => "2.0.0",
-        coleft_copad => "2.0.0"
-    )));
-}
+    use std::sync::Arc;
+    use solver::constraints::Constraint;
 
-#[test]
-fn conflicting_subdependencies() {
-    // left_pad and lol_pad have conflicting constraints for right_pad,
-    // thus no solution is possible.
-    let problem = deps!(
-        left_pad => "^1.0.0",
-        lol_pad => "^1.0.0"
-    );
+    #[test]
+    fn find_best_solution_set() {
+        let problem = deps!(
+            down_pad => "^1.0.0",
+            left_pad => "^2.0.0"
+        );
 
-    assert_eq!(solve(&test::sample_registry(), &problem),
-               Err(Failure::conflict(Arc::new(test::pkg("leftpad/right_pad")),
-                                     Constraint::new()
-                                         .insert(Arc::new(test::ver("1.0.0")),
-                                                 list![(Arc::new(test::pkg("leftpad/left_pad",),),
-                                                        Arc::new(test::ver("1.0.0")))])
-                                         .insert(Arc::new(test::ver("1.0.1")),
-                                                 list![(Arc::new(test::pkg("leftpad/left_pad",),),
-                                                        Arc::new(test::ver("1.0.0")))]),
-                                     Constraint::new()
-                                         .insert(Arc::new(test::ver("2.0.0")),
-                                                 list![(Arc::new(test::pkg("leftpad/lol_pad",),),
-                                                        Arc::new(test::ver("1.0.0")))])
-                                         .insert(Arc::new(test::ver("2.0.1")),
-                                                 list![(Arc::new(test::pkg("leftpad/lol_pad",),),
-                                                        Arc::new(test::ver("1.0.0")))]))));
+        assert_eq!(solve(&test::sample_registry(), &problem),
+                   Ok(solution!(
+            left_pad => "2.0.0",
+            down_pad => "1.2.0",
+            right_pad => "2.0.1",
+            up_pad => "2.0.0",
+            coleft_copad => "2.0.0"
+        )));
+    }
+
+    #[test]
+    fn conflicting_subdependencies() {
+        // left_pad and lol_pad have conflicting constraints for right_pad,
+        // thus no solution is possible.
+        let problem = deps!(
+            left_pad => "^1.0.0",
+            lol_pad => "^1.0.0"
+        );
+
+        assert_eq!(solve(&test::sample_registry(), &problem),
+                Err(Failure::conflict(Arc::new(test::pkg("leftpad/right_pad")),
+                                        Constraint::new()
+                                            .insert(Arc::new(test::ver("1.0.0")),
+                                                    list![(Arc::new(test::pkg("leftpad/left_pad",),),
+                                                            Arc::new(test::ver("1.0.0")))])
+                                            .insert(Arc::new(test::ver("1.0.1")),
+                                                    list![(Arc::new(test::pkg("leftpad/left_pad",),),
+                                                            Arc::new(test::ver("1.0.0")))]),
+                                        Constraint::new()
+                                            .insert(Arc::new(test::ver("2.0.0")),
+                                                    list![(Arc::new(test::pkg("leftpad/lol_pad",),),
+                                                            Arc::new(test::ver("1.0.0")))])
+                                            .insert(Arc::new(test::ver("2.0.1")),
+                                                    list![(Arc::new(test::pkg("leftpad/lol_pad",),),
+                                                            Arc::new(test::ver("1.0.0")))]))));
+    }
 }

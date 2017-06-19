@@ -172,39 +172,8 @@ fn contained_in(package: Arc<PackageName>,
 #[cfg(test)]
 mod test {
     use super::*;
-    use test::*;
-
-    fn path(l: &[(&str, &str)]) -> Path {
-        l.iter()
-            .map(|&(p, v)| (Arc::new(pkg(p)), Arc::new(ver(v))))
-            .collect()
-    }
-
-    fn constraint(l: &[(&str, &[(&str, &str)])]) -> Constraint {
-        Constraint(l.iter()
-                       .map(|&(v, pa)| (Arc::new(ver(v)), path(pa)))
-                       .collect())
-    }
-
-    fn constraint_set(l: &[(&str, &[(&str, &[(&str, &str)])])]) -> ConstraintSet {
-        ConstraintSet(l.iter()
-                          .map(|&(p, c)| (Arc::new(pkg(p)), constraint(c)))
-                          .collect())
-    }
-
-    fn jver(l: (&str, &[(&str, &str)])) -> JustifiedVersion {
-        let (v, pa) = l;
-        JustifiedVersion {
-            version: Arc::new(ver(v)),
-            path: path(pa),
-        }
-    }
-
-    fn partial_sln(l: &[(&str, (&str, &[(&str, &str)]))]) -> PartialSolution {
-        PartialSolution(l.iter()
-                            .map(|&(p, jv)| (Arc::new(pkg(p)), jver(jv)))
-                            .collect())
-    }
+    use test::pkg;
+    use solver::test::{constraint, constraint_set, partial_sln};
 
     #[test]
     fn constraint_merge() {
