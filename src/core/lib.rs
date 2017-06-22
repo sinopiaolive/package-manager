@@ -1,19 +1,24 @@
 #![allow(dead_code)]
 
-#[macro_use] extern crate nom;
+#[macro_use]
+extern crate nom;
 extern crate semver_parser;
 extern crate serde;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 extern crate toml;
 extern crate regex;
-#[macro_use] extern crate quick_error;
+#[macro_use]
+extern crate quick_error;
 extern crate linked_hash_map;
 extern crate license_exprs;
 extern crate immutable_map;
-#[macro_use] extern crate im;
+#[macro_use]
+extern crate im;
 
-#[macro_use] mod test;
+#[macro_use]
+mod test;
 mod registry;
 pub use registry::*;
 mod version;
@@ -53,5 +58,8 @@ owners = ["jo"]
 artifact_url = "https://.../baz.tar"
     "#;
     let test_registry: registry::Registry = toml::from_str(test_registry_toml).unwrap();
-    println!("test_registry as JSON: {}", serde_json::to_string(&test_registry).unwrap());
+    println!(
+        "test_registry as JSON: {}",
+        serde_json::to_string(&test_registry).unwrap()
+    );
 }

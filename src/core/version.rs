@@ -33,14 +33,20 @@ impl Version {
     pub fn from_str(s: &str) -> Result<Version, error::Error> {
         match version(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Custom(format!("invalid version string {:?}", s))),
+            _ => Err(error::Error::Custom(
+                format!("invalid version string {:?}", s),
+            )),
         }
     }
 
     pub fn pre(&self, pre: &[&str]) -> Version {
-        Version::new(self.fields.clone(),
-                     pre.iter().map(|s| convert_version_identifier(s).unwrap()).collect(),
-                     self.build.clone())
+        Version::new(
+            self.fields.clone(),
+            pre.iter()
+                .map(|s| convert_version_identifier(s).unwrap())
+                .collect(),
+            self.build.clone(),
+        )
     }
 
     pub fn strip(&self) -> Version {
@@ -53,7 +59,11 @@ impl Version {
 
     pub fn as_string(&self) -> String {
         let mut s = String::new();
-        s.push_str(&*self.fields.iter().map(|f| f.to_string()).collect::<Vec<_>>().join("."));
+        s.push_str(&*self.fields
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join("."));
         if self.prerelease.len() > 0 {
             s.push_str("-");
             s.push_str(&*self.prerelease
@@ -64,7 +74,11 @@ impl Version {
         }
         if self.build.len() > 0 {
             s.push_str("+");
-            s.push_str(&*self.build.iter().map(|f| f.to_string()).collect::<Vec<_>>().join("."));
+            s.push_str(&*self.build
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>()
+                .join("."));
         }
         s
     }
@@ -136,7 +150,8 @@ impl fmt::Debug for Version {
 
 impl Serialize for Version {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.as_string().as_str())
     }
@@ -144,12 +159,15 @@ impl Serialize for Version {
 
 impl Deserialize for Version {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+    where
+        D: Deserializer,
     {
         let s = String::deserialize(deserializer)?;
         match version(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(D::Error::custom(format!("{:?} is not a valid version descriptor", s))),
+            _ => Err(D::Error::custom(
+                format!("{:?} is not a valid version descriptor", s),
+            )),
         }
     }
 }
@@ -274,9 +292,11 @@ pub fn caret_bump(v: &Version) -> Version {
 ///
 /// This drops all tags from the version.
 pub fn tilde_bump(v: &Version) -> Version {
-    bump_last(&Version::new(v.fields.iter().map(|i| *i).take(2).collect(),
-                            vec![],
-                            vec![]))
+    bump_last(&Version::new(
+        v.fields.iter().map(|i| *i).take(2).collect(),
+        vec![],
+        vec![],
+    ))
 }
 
 

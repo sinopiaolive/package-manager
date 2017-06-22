@@ -230,9 +230,9 @@ fn contained_in(
     match solution.get(&package.clone()) {
         None => Ok(false),
         Some(&JustifiedVersion {
-            ref version,
-            ref path,
-        }) if !constraint.contains_key(&version.clone()) => {
+                 ref version,
+                 ref path,
+             }) if !constraint.contains_key(&version.clone()) => {
             let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
             Err(Failure::conflict(
                 package.clone(),
@@ -450,12 +450,8 @@ mod test {
         assert_eq!(
             cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
-                constraint(
-                    &[("1", &[("null", "1"), ("A", "1")])],
-                ),
-                constraint(
-                    &[("1", &[("C", "1"), ("null", "1")])],
-                ),
+                constraint(&[("1", &[("null", "1"), ("A", "1")])]),
+                constraint(&[("1", &[("C", "1"), ("null", "1")])]),
             ))).unwrap()
                 .1,
             Arc::new(pkg("C"))

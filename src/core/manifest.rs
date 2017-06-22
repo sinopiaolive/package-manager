@@ -63,7 +63,12 @@ pub struct PackageName {
 
 impl fmt::Debug for PackageName {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}/{}", self.namespace.clone().unwrap_or("<missing>".to_string()), self.name)
+        write!(
+            f,
+            "{}/{}",
+            self.namespace.clone().unwrap_or("<missing>".to_string()),
+            self.name
+        )
     }
 }
 
@@ -71,7 +76,9 @@ impl PackageName {
     pub fn from_str(s: &str) -> Result<PackageName, error::Error> {
         match package_name(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Custom(format!("invalid package name {:?}", s))),
+            _ => Err(error::Error::Custom(
+                format!("invalid package name {:?}", s),
+            )),
         }
     }
 }
@@ -87,7 +94,8 @@ impl Display for PackageName {
 
 impl Serialize for PackageName {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(&*self.to_string())
     }
@@ -95,12 +103,13 @@ impl Serialize for PackageName {
 
 impl Deserialize for PackageName {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+    where
+        D: Deserializer,
     {
         let s = String::deserialize(deserializer)?;
         match PackageName::from_str(&s) {
             Ok(package_name) => Ok(package_name),
-            _ => Err(D::Error::custom("Invalid package name"))
+            _ => Err(D::Error::custom("Invalid package name")),
         }
     }
 }
@@ -129,12 +138,15 @@ fn denormalise_dep(path: &String, dep: &PackageName) -> PackageName {
 }
 
 fn normalise_deps(path: &String, deps: &DependencySet) -> DependencySet {
-    DependencySet::from_iter(deps.into_iter().map(|(k, v)| (normalise_dep(path, k), (*v).clone())))
+    DependencySet::from_iter(deps.into_iter().map(|(k, v)| {
+        (normalise_dep(path, k), (*v).clone())
+    }))
 }
 
 fn denormalise_deps(path: &String, deps: &DependencySet) -> DependencySet {
-    DependencySet::from_iter(deps.into_iter()
-        .map(|(k, v)| (denormalise_dep(path, k), (*v).clone())))
+    DependencySet::from_iter(deps.into_iter().map(|(k, v)| {
+        (denormalise_dep(path, k), (*v).clone())
+    }))
 }
 
 pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error> {
@@ -163,7 +175,11 @@ pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Erro
 // make the deserialiser call this function instead of calling it manually.
 pub fn validate_manifest(manifest: &Manifest) -> Result<(), error::Error> {
     match manifest.name.namespace {
-        None => return Err(error::Error::Message("Package name must contain a namespace!")),
+        None => {
+            return Err(error::Error::Message(
+                "Package name must contain a namespace!",
+            ))
+        }
         _ => (),
     }
     match &manifest.license {
@@ -209,9 +225,9 @@ pub fn find_project_dir() -> Result<PathBuf, error::Error> {
 pub fn read_manifest() -> Result<Manifest, error::Error> {
     let manifest_path = find_manifest_path()?;
     let data = File::open(manifest_path).and_then(|mut f| {
-            let mut s = String::new();
-            f.read_to_string(&mut s).map(|_| s)
-        })?;
+        let mut s = String::new();
+        f.read_to_string(&mut s).map(|_| s)
+    })?;
     deserialise_manifest(&data)
 }
 
@@ -244,11 +260,13 @@ right-pad = \"^8.23\"
         let m = deserialise_manifest(&left_pad.to_string()).unwrap();
 
         let mut my_deps = LinkedHashMap::new();
-        my_deps.insert(PackageName {
-                           namespace: Some("javascript".to_string()),
-                           name: "right-pad".to_string(),
-                       },
-                       VersionConstraint::range(ver!(8, 23), ver!(9)));
+        my_deps.insert(
+            PackageName {
+                namespace: Some("javascript".to_string()),
+                name: "right-pad".to_string(),
+            },
+            VersionConstraint::range(ver!(8, 23), ver!(9)),
+        );
         assert_eq!(m,
                    Manifest {
                        name: PackageName {
@@ -281,11 +299,13 @@ right-pad = \">= 8.23 < 9\"
 ";
 
         let mut my_deps = LinkedHashMap::new();
-        my_deps.insert(PackageName {
-                           namespace: Some("javascript".to_string()),
-                           name: "right-pad".to_string(),
-                       },
-                       VersionConstraint::range(ver!(8, 23), ver!(9)));
+        my_deps.insert(
+            PackageName {
+                namespace: Some("javascript".to_string()),
+                name: "right-pad".to_string(),
+            },
+            VersionConstraint::range(ver!(8, 23), ver!(9)),
+        );
         let manifest = Manifest {
             name: PackageName {
                 namespace: Some("javascript".to_string()),

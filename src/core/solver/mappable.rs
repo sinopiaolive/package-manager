@@ -1,6 +1,9 @@
 use immutable_map::map::{TreeMap, TreeMapIter};
 
-pub trait Mappable where Self: Sized {
+pub trait Mappable
+where
+    Self: Sized,
+{
     type K: Clone + Ord;
     type V: Clone;
 
@@ -14,7 +17,7 @@ pub trait Mappable where Self: Sized {
     fn remove(&self, key: &Self::K) -> Option<(Self, &Self::V)> {
         match self.as_map().remove(key) {
             None => None,
-            Some((map, v)) => Some((Self::wrap(map), v))
+            Some((map, v)) => Some((Self::wrap(map), v)),
         }
     }
 

@@ -16,7 +16,8 @@ pub enum VersionConstraint {
 
 impl Serialize for VersionConstraint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.as_string().as_str())
     }
@@ -24,14 +25,17 @@ impl Serialize for VersionConstraint {
 
 impl Deserialize for VersionConstraint {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+    where
+        D: Deserializer,
     {
         let s = String::deserialize(deserializer)?;
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Ok(v),
             _ => {
-                Err(D::Error::custom(format!("{:?} is not a valid version constraints descriptor",
-                                             s)))
+                Err(D::Error::custom(format!(
+                    "{:?} is not a valid version constraints descriptor",
+                    s
+                )))
             }
         }
     }
@@ -57,7 +61,9 @@ impl VersionConstraint {
     pub fn from_str(s: &str) -> Result<VersionConstraint, error::Error> {
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Custom(format!("invalid version constraint {:?}", s))),
+            _ => Err(error::Error::Custom(
+                format!("invalid version constraint {:?}", s),
+            )),
         }
     }
 
@@ -247,9 +253,11 @@ mod test {
                    Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(2))));
         assert_eq!(version_constraint(b"^0.5.2"),
                    Done(&b""[..], VersionConstraint::range(ver!(0,5,2), ver!(0,6))));
-        let v1 = Version::new(vec![0,0,0,0,8],
-                              vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
-                              vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
+        let v1 = Version::new(
+            vec![0,0,0,0,8],
+            vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
+            vec![VersionIdentifier::Alphanumeric("wtf".to_string())],
+        );
         assert_eq!(version_constraint(b"^0.0.0.0.8-rc1+wtf"),
                    Done(&b""[..], VersionConstraint::range(v1, ver!(0,0,0,0,9))));
         assert_eq!(version_constraint(b"^2.0.0"),
@@ -262,9 +270,11 @@ mod test {
                    Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(1,3))));
         assert_eq!(version_constraint(b"~1.2"),
                    Done(&b""[..], VersionConstraint::range(ver!(1,2), ver!(1,3))));
-        let v1 = Version::new(vec![1,2,3,4],
-                              vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
-                              vec![VersionIdentifier::Alphanumeric("wtf".to_string())]);
+        let v1 = Version::new(
+            vec![1,2,3,4],
+            vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
+            vec![VersionIdentifier::Alphanumeric("wtf".to_string())],
+        );
         assert_eq!(version_constraint(b"~1.2.3.4-rc1+wtf"),
                    Done(&b""[..], VersionConstraint::range(v1, ver!(1,3))));
     }

@@ -5,7 +5,7 @@ pub enum LogLevel {
     Error,
     Warning,
     Info,
-    Debug
+    Debug,
 }
 
 impl Display for LogLevel {
@@ -40,12 +40,12 @@ pub trait Log {
 }
 
 pub struct StdLogger {
-    log_level: LogLevel
+    log_level: LogLevel,
 }
 
 impl StdLogger {
     pub fn new(level: LogLevel) -> StdLogger {
-        StdLogger {log_level: level}
+        StdLogger { log_level: level }
     }
 }
 

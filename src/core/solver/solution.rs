@@ -64,7 +64,8 @@ impl Mappable for Solution {
 
 impl FromIterator<(Arc<PackageName>, Arc<Version>)> for Solution {
     fn from_iter<T>(iter: T) -> Solution
-        where T: IntoIterator<Item = (Arc<PackageName>, Arc<Version>)>
+    where
+        T: IntoIterator<Item = (Arc<PackageName>, Arc<Version>)>,
     {
         Solution(Map::<Arc<PackageName>, Arc<Version>>::from_iter(iter))
     }
@@ -76,8 +77,8 @@ impl From<PartialSolution> for Solution {
         partial_solution
             .iter()
             .map(|(package_name, justified_version)| {
-                     (package_name.clone(), justified_version.version.clone())
-                 })
+                (package_name.clone(), justified_version.version.clone())
+            })
             .collect()
     }
 }

@@ -11,8 +11,9 @@ use registry::Registry;
 
 
 pub fn unlink<A, B>(linked: &LinkedHashMap<A, B>) -> HashMap<A, B>
-    where A: Eq + Hash + Clone,
-          B: Clone
+where
+    A: Eq + Hash + Clone,
+    B: Clone,
 {
     let mut map = HashMap::new();
     for (key, value) in linked.iter() {
@@ -43,7 +44,8 @@ macro_rules! solution(
             let mut m = ::immutable_map::map::TreeMap::new();
             $(
                 let version = ::Version::from_str($version).unwrap();
-                m = m.insert(::std::sync::Arc::new(::test::pkg(stringify!($dep))), ::std::sync::Arc::new(version));
+                m = m.insert(::std::sync::Arc::new(::test::pkg(stringify!($dep))),
+                             ::std::sync::Arc::new(version));
             )+
             ::solver::Solution::wrap(m)
         }

@@ -30,7 +30,10 @@ pub fn execute(args: Args) -> result::Result<(), Error> {
     } else {
         println!("This is the test command.")
     }
-    println!("Also, my working directory is {:?}\n", env::current_dir().unwrap().display());
+    println!(
+        "Also, my working directory is {:?}\n",
+        env::current_dir().unwrap().display()
+    );
 
     println!("Here is the manifest file I found there:\n");
     let manifest = read_manifest()?;

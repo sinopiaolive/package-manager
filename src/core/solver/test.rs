@@ -9,15 +9,19 @@ pub fn path(l: &[(&str, &str)]) -> Path {
 }
 
 pub fn constraint(l: &[(&str, &[(&str, &str)])]) -> Constraint {
-    Constraint(l.iter()
-                   .map(|&(v, pa)| (Arc::new(ver(v)), path(pa)))
-                   .collect())
+    Constraint(
+        l.iter()
+            .map(|&(v, pa)| (Arc::new(ver(v)), path(pa)))
+            .collect(),
+    )
 }
 
 pub fn constraint_set(l: &[(&str, &[(&str, &[(&str, &str)])])]) -> ConstraintSet {
-    ConstraintSet(l.iter()
-                      .map(|&(p, c)| (Arc::new(pkg(p)), constraint(c)))
-                      .collect())
+    ConstraintSet(
+        l.iter()
+            .map(|&(p, c)| (Arc::new(pkg(p)), constraint(c)))
+            .collect(),
+    )
 }
 
 pub fn jver(l: (&str, &[(&str, &str)])) -> JustifiedVersion {
@@ -29,7 +33,9 @@ pub fn jver(l: (&str, &[(&str, &str)])) -> JustifiedVersion {
 }
 
 pub fn partial_sln(l: &[(&str, (&str, &[(&str, &str)]))]) -> PartialSolution {
-    PartialSolution(l.iter()
-                        .map(|&(p, jv)| (Arc::new(pkg(p)), jver(jv)))
-                        .collect())
+    PartialSolution(
+        l.iter()
+            .map(|&(p, jv)| (Arc::new(pkg(p)), jver(jv)))
+            .collect(),
+    )
 }

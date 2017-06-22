@@ -16,10 +16,12 @@ mod test {
 
     #[test]
     fn serialize() {
-        let lockfile = &Lockfile(LockfileVersion::Zero,
-                                 vec![(pkg("y"), ver("1.0.0")), (pkg("x"), ver("2.0.0"))]
-                                     .into_iter()
-                                     .collect());
+        let lockfile = &Lockfile(
+            LockfileVersion::Zero,
+            vec![(pkg("y"), ver("1.0.0")), (pkg("x"), ver("2.0.0"))]
+                .into_iter()
+                .collect(),
+        );
         let json = r#"[
   "0.0.0",
   {

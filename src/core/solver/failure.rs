@@ -12,10 +12,11 @@ pub enum Failure {
 }
 
 impl Failure {
-    pub fn conflict(package: Arc<PackageName>,
-                    existing: Constraint,
-                    conflicting: Constraint)
-                    -> Failure {
+    pub fn conflict(
+        package: Arc<PackageName>,
+        existing: Constraint,
+        conflicting: Constraint,
+    ) -> Failure {
         Failure::Conflict(Conflict {
             package: package.clone(),
             existing: existing.clone(),
@@ -30,10 +31,11 @@ impl Failure {
         })
     }
 
-    pub fn uninhabited_constraint(package: Arc<PackageName>,
-                                  constraint: Arc<VersionConstraint>,
-                                  path: Path)
-                                  -> Failure {
+    pub fn uninhabited_constraint(
+        package: Arc<PackageName>,
+        constraint: Arc<VersionConstraint>,
+        path: Path,
+    ) -> Failure {
         Failure::UninhabitedConstraint(UninhabitedConstraint {
             package: package.clone(),
             constraint: constraint.clone(),
