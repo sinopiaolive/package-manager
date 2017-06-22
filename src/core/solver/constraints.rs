@@ -124,7 +124,7 @@ impl ConstraintSet {
     pub fn pop_most_interesting_package
         (&self,
          cheap_conflict: &Option<Failure>)
-         -> Option<(ConstraintSet, (Arc<PackageName>, Constraint))> {
+         -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
         let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> =
             match cheap_conflict {
                 &Some(Failure::Conflict(ref conflict)) => {
@@ -140,13 +140,13 @@ impl ConstraintSet {
             };
         for (package, _version) in path_iter {
             if let Some((cdr, constraint)) = self.remove(&package) {
-                return Some((cdr, (package.clone(), constraint.clone())));
+                return Some((cdr, package.clone(), constraint.clone()));
             }
         }
         // Fall back to popping alphabetically.
         match self.0.delete_min() {
             None => None,
-            Some((cdr, (k, v))) => Some((ConstraintSet(cdr), (k.clone(), v.clone()))),
+            Some((cdr, (k, v))) => Some((ConstraintSet(cdr), k.clone(), v.clone())),
         }
     }
     // TODONEXT test this
@@ -279,7 +279,6 @@ mod test {
         let expected_failure = Failure::conflict(Arc::new(pkg("X")), c1.clone(), c2.clone());
         let merged = c1.and(&c2, Arc::new(pkg("X")));
         assert_eq!(merged, Err(expected_failure));
-
     }
 
     #[test]

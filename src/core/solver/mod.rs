@@ -45,7 +45,7 @@ fn search(ra: &RegistryAdapter,
     }
     match stack.pop_most_interesting_package(&cheap_failure) {
         None => Ok(solution.clone()),
-        Some((stack_tail, (package, constraint))) => {
+        Some((stack_tail, package, constraint)) => {
             let mut first_failure = None;
             for (version, path) in constraint.iter() {
                 let new_solution = solution.insert(package.clone(),
