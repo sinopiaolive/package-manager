@@ -126,7 +126,7 @@ impl ConstraintSet {
         ConstraintSet(Map::new())
     }
 
-    pub fn pop_most_interesting_package(
+    pub fn pop(
         &self,
         cheap_conflict: &Option<Failure>,
     ) -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
@@ -398,14 +398,14 @@ mod test {
         let cdr1 = constraint_set(&[("B", &[("1", &[])])]);
         let constraint1 = constraint(&[("1", &[])]);
         assert_eq!(
-            cset.pop_most_interesting_package(&None),
+            cset.pop(&None),
             Some((cdr1, Arc::new(pkg("A")), constraint1))
         );
 
         let cdr2 = constraint_set(&[("A", &[("1", &[])])]);
         let constraint2 = constraint(&[("1", &[])]);
         assert_eq!(
-            cset.pop_most_interesting_package(&Some(Failure::uninhabited_constraint(
+            cset.pop(&Some(Failure::uninhabited_constraint(
                 Arc::new(pkg("null")),
                 Arc::new(range("^5")),
                 path(&[("B", "1")]),
@@ -426,7 +426,7 @@ mod test {
 
         let null_constraint = constraint(&[("1", &[("null", "1")])]);
         assert_eq!(
-            cset.pop_most_interesting_package(&Some(Failure::conflict(
+            cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
                 null_constraint.clone(),
                 null_constraint.clone(),
@@ -436,7 +436,7 @@ mod test {
         );
 
         assert_eq!(
-            cset.pop_most_interesting_package(&Some(Failure::conflict(
+            cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
                 constraint(
                     &[("1", &[("null", "1"), ("C", "1"), ("A", "1")])],
@@ -448,7 +448,7 @@ mod test {
         );
 
         assert_eq!(
-            cset.pop_most_interesting_package(&Some(Failure::conflict(
+            cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
                 constraint(
                     &[("1", &[("null", "1"), ("A", "1")])],

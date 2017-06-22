@@ -43,7 +43,7 @@ fn search(ra: &RegistryAdapter,
             }
         }
     }
-    match stack.pop_most_interesting_package(&cheap_failure) {
+    match stack.pop(&cheap_failure) {
         None => Ok(solution.clone()),
         Some((stack_tail, package, constraint)) => {
             let mut first_failure = None;
