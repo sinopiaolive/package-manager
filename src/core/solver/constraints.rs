@@ -16,10 +16,11 @@ impl Constraint {
         Constraint(Map::new())
     }
 
-    pub fn and(&self,
-               other: &Constraint,
-               package: Arc<PackageName>)
-               -> Result<(Constraint, bool), Failure> {
+    pub fn and(
+        &self,
+        other: &Constraint,
+        package: Arc<PackageName>,
+    ) -> Result<(Constraint, bool), Failure> {
         let mut out = Constraint::new();
         let mut modified = false;
         for (version, self_path) in self.iter() {
@@ -37,7 +38,11 @@ impl Constraint {
         }
 
         if out.is_empty() {
-            Err(Failure::conflict(package.clone(), self.clone(), other.clone()))
+            Err(Failure::conflict(
+                package.clone(),
+                self.clone(),
+                other.clone(),
+            ))
         } else {
             Ok((out, modified))
         }
@@ -121,14 +126,20 @@ impl ConstraintSet {
         ConstraintSet(Map::new())
     }
 
-    pub fn pop_most_interesting_package
-        (&self,
-         cheap_conflict: &Option<Failure>)
-         -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
+    pub fn pop_most_interesting_package(
+        &self,
+        cheap_conflict: &Option<Failure>,
+    ) -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
         let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> =
             match cheap_conflict {
                 &Some(Failure::Conflict(ref conflict)) => {
-                    Box::new(BreadthFirstIter::new(&conflict.existing, &conflict.conflicting))
+                    Box::new(
+                        BreadthFirstIter::new(&conflict.existing, &conflict.conflicting)
+                            .chain(::std::iter::once((
+                                conflict.package.clone(),
+                                Arc::new(Version::new(vec![], vec![], vec![])),
+                            ))),
+                    )
                 }
                 &Some(Failure::PackageMissing(ref pkg_missing)) => {
                     Box::new(pkg_missing.path.iter())
@@ -149,12 +160,12 @@ impl ConstraintSet {
             Some((cdr, (k, v))) => Some((ConstraintSet(cdr), k.clone(), v.clone())),
         }
     }
-    // TODONEXT test this
 
-    pub fn and(&self,
-               new: &ConstraintSet,
-               solution: &PartialSolution)
-               -> Result<(ConstraintSet, bool), Failure> {
+    pub fn and(
+        &self,
+        new: &ConstraintSet,
+        solution: &PartialSolution,
+    ) -> Result<(ConstraintSet, bool), Failure> {
         let mut out = self.clone();
         let mut modified = false;
         for (package, new_constraint) in new.iter() {
@@ -211,18 +222,23 @@ impl fmt::Debug for ConstraintSet {
     }
 }
 
-fn contained_in(package: Arc<PackageName>,
-                constraint: &Constraint,
-                solution: &PartialSolution)
-                -> Result<bool, Failure> {
+fn contained_in(
+    package: Arc<PackageName>,
+    constraint: &Constraint,
+    solution: &PartialSolution,
+) -> Result<bool, Failure> {
     match solution.get(&package.clone()) {
         None => Ok(false),
         Some(&JustifiedVersion {
-                 ref version,
-                 ref path,
-             }) if !constraint.contains_key(&version.clone()) => {
+            ref version,
+            ref path,
+        }) if !constraint.contains_key(&version.clone()) => {
             let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
-            Err(Failure::conflict(package.clone(), exact_constraint, constraint.clone()))
+            Err(Failure::conflict(
+                package.clone(),
+                exact_constraint,
+                constraint.clone(),
+            ))
         }
         _ => Ok(true),
     }
@@ -231,14 +247,20 @@ fn contained_in(package: Arc<PackageName>,
 #[cfg(test)]
 mod test {
     use super::*;
-    use test::pkg;
-    use solver::test::{constraint, constraint_set, partial_sln};
+    use test::{pkg, range};
+    use solver::test::{constraint, constraint_set, partial_sln, path};
 
     #[test]
     fn constraint_merge() {
-        let c1 = constraint(&[("1.0.0", &[("A", "1.0.0")]),
-                              ("1.0.1", &[("A", "2.0.0"), ("B", "2.0.0")])]);
-        let c2 = constraint(&[("1.0.1", &[("C", "1.0.0")]), ("1.0.2", &[("C", "2.0.0")])]);
+        let c1 = constraint(
+            &[
+                ("1.0.0", &[("A", "1.0.0")]),
+                ("1.0.1", &[("A", "2.0.0"), ("B", "2.0.0")]),
+            ],
+        );
+        let c2 = constraint(
+            &[("1.0.1", &[("C", "1.0.0")]), ("1.0.2", &[("C", "2.0.0")])],
+        );
         let expected = constraint(&[("1.0.1", &[("C", "1.0.0")])]);
         let merged = c1.and(&c2, Arc::new(pkg("X")));
         assert_eq!(merged, Ok((expected, true)));
@@ -283,15 +305,27 @@ mod test {
 
     #[test]
     fn constraint_set_merge() {
-        let existing = constraint_set(&[("A", &[("1.0.0", &[])]),
-                                        ("B", &[("1.0.0", &[]), ("2.0.0", &[])])]);
-        let new = constraint_set(&[("B", &[("2.0.0", &[]), ("3.0.0", &[])]),
-                                   ("C", &[("1.0.0", &[])]),
-                                   ("S", &[("1.0.0", &[])])]);
+        let existing = constraint_set(
+            &[
+                ("A", &[("1.0.0", &[])]),
+                ("B", &[("1.0.0", &[]), ("2.0.0", &[])]),
+            ],
+        );
+        let new = constraint_set(
+            &[
+                ("B", &[("2.0.0", &[]), ("3.0.0", &[])]),
+                ("C", &[("1.0.0", &[])]),
+                ("S", &[("1.0.0", &[])]),
+            ],
+        );
         let ps = partial_sln(&[("S", ("1.0.0", &[]))]);
-        let expected = constraint_set(&[("A", &[("1.0.0", &[])]),
-                                        ("B", &[("2.0.0", &[])]),
-                                        ("C", &[("1.0.0", &[])])]);
+        let expected = constraint_set(
+            &[
+                ("A", &[("1.0.0", &[])]),
+                ("B", &[("2.0.0", &[])]),
+                ("C", &[("1.0.0", &[])]),
+            ],
+        );
         let merged = existing.and(&new, &ps);
         assert_eq!(merged, Ok((expected, true)));
     }
@@ -299,8 +333,12 @@ mod test {
     #[test]
     fn constraint_set_merge_unmodified() {
         let existing = constraint_set(&[("A", &[("1.0.0", &[])]), ("B", &[("1.0.0", &[])])]);
-        let new = constraint_set(&[("B", &[("1.0.0", &[]), ("2.0.0", &[])]),
-                                   ("S", &[("1.0.0", &[])])]);
+        let new = constraint_set(
+            &[
+                ("B", &[("1.0.0", &[]), ("2.0.0", &[])]),
+                ("S", &[("1.0.0", &[])]),
+            ],
+        );
         let ps = partial_sln(&[("S", ("1.0.0", &[]))]);
         let merged = existing.and(&new, &ps);
         assert_eq!(merged, Ok((existing, false)));
@@ -330,9 +368,11 @@ mod test {
         let existing = constraint_set(&[]);
         let ps = partial_sln(&[("S", ("1.0.0", &[("P1", "1.0.0")]))]);
         let new = constraint_set(&[("S", &[("2.0.0", &[("P2", "1.0.0")])])]);
-        let expected_failure = Failure::conflict(Arc::new(pkg("S")),
-                                                 constraint(&[("1.0.0", &[("P1", "1.0.0")])]),
-                                                 constraint(&[("2.0.0", &[("P2", "1.0.0")])]));
+        let expected_failure = Failure::conflict(
+            Arc::new(pkg("S")),
+            constraint(&[("1.0.0", &[("P1", "1.0.0")])]),
+            constraint(&[("2.0.0", &[("P2", "1.0.0")])]),
+        );
         let merged = existing.and(&new, &ps);
         assert_eq!(merged, Err(expected_failure));
     }
@@ -342,10 +382,83 @@ mod test {
         let existing = constraint_set(&[("A", &[("1.0.0", &[("P1", "1.0.0")])])]);
         let new = constraint_set(&[("A", &[("2.0.0", &[("P2", "1.0.0")])])]);
         let ps = partial_sln(&[]);
-        let expected_failure = Failure::conflict(Arc::new(pkg("A")),
-                                                 constraint(&[("1.0.0", &[("P1", "1.0.0")])]),
-                                                 constraint(&[("2.0.0", &[("P2", "1.0.0")])]));
+        let expected_failure = Failure::conflict(
+            Arc::new(pkg("A")),
+            constraint(&[("1.0.0", &[("P1", "1.0.0")])]),
+            constraint(&[("2.0.0", &[("P2", "1.0.0")])]),
+        );
         let merged = existing.and(&new, &ps);
         assert_eq!(merged, Err(expected_failure));
+    }
+
+    #[test]
+    fn pop_basic_interesting() {
+        let cset = constraint_set(&[("B", &[("1", &[])]), ("A", &[("1", &[])])]);
+
+        let cdr1 = constraint_set(&[("B", &[("1", &[])])]);
+        let constraint1 = constraint(&[("1", &[])]);
+        assert_eq!(
+            cset.pop_most_interesting_package(&None),
+            Some((cdr1, Arc::new(pkg("A")), constraint1))
+        );
+
+        let cdr2 = constraint_set(&[("A", &[("1", &[])])]);
+        let constraint2 = constraint(&[("1", &[])]);
+        assert_eq!(
+            cset.pop_most_interesting_package(&Some(Failure::uninhabited_constraint(
+                Arc::new(pkg("null")),
+                Arc::new(range("^5")),
+                path(&[("B", "1")]),
+            ))),
+            Some((cdr2, Arc::new(pkg("B")), constraint2))
+        );
+    }
+
+    #[test]
+    fn pop_interesting() {
+        let cset = constraint_set(
+            &[
+                ("C", &[("1", &[])]),
+                ("B", &[("1", &[])]),
+                ("A", &[("1", &[])]),
+            ],
+        );
+
+        let null_constraint = constraint(&[("1", &[("null", "1")])]);
+        assert_eq!(
+            cset.pop_most_interesting_package(&Some(Failure::conflict(
+                Arc::new(pkg("B")),
+                null_constraint.clone(),
+                null_constraint.clone(),
+            ))).unwrap()
+                .1,
+            Arc::new(pkg("B"))
+        );
+
+        assert_eq!(
+            cset.pop_most_interesting_package(&Some(Failure::conflict(
+                Arc::new(pkg("B")),
+                constraint(
+                    &[("1", &[("null", "1"), ("C", "1"), ("A", "1")])],
+                ),
+                null_constraint.clone(),
+            ))).unwrap()
+                .1,
+            Arc::new(pkg("C"))
+        );
+
+        assert_eq!(
+            cset.pop_most_interesting_package(&Some(Failure::conflict(
+                Arc::new(pkg("B")),
+                constraint(
+                    &[("1", &[("null", "1"), ("A", "1")])],
+                ),
+                constraint(
+                    &[("1", &[("C", "1"), ("null", "1")])],
+                ),
+            ))).unwrap()
+                .1,
+            Arc::new(pkg("C"))
+        );
     }
 }
