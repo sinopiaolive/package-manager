@@ -6,6 +6,7 @@ use manifest::DependencySet;
 mod path;
 mod constraints;
 mod failure;
+mod error;
 mod solution;
 mod adapter;
 mod mappable;
@@ -17,6 +18,7 @@ pub use solver::failure::Failure;
 pub use solver::solution::{PartialSolution, Solution, JustifiedVersion};
 pub use solver::adapter::RegistryAdapter;
 pub use solver::path::Path;
+pub use solver::error::Error;
 use solver::mappable::Mappable;
 
 fn search(
@@ -34,7 +36,8 @@ fn search(
                 }
                 Err(failure) => {
                     cheap_failure = Some(failure);
-                    let (new_stack, modified) = infer_indirect_dependencies(ra, stack.clone(), solution)?;
+                    let (new_stack, modified) =
+                        infer_indirect_dependencies(ra, stack.clone(), solution)?;
                     if !modified {
                         break;
                     } else {
@@ -87,16 +90,16 @@ fn search(
     }
 }
 
-pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> {
+pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Error> {
     let ra = RegistryAdapter::new(reg);
+    solve_inner(&ra, &deps).map_err(|failure| Error::from_failure(&reg, &deps, &ra, failure))
+}
+
+
+fn solve_inner(ra: &RegistryAdapter, deps: &DependencySet) -> Result<Solution, Failure> {
     let constraint_set = ra.constraint_set_from(deps)?;
-    match search(&ra, constraint_set.clone(), false, &PartialSolution::new()) {
-        Err(failure) => {
-            // TODO need to handle failure here
-            Err(failure)
-        }
-        Ok(partial_solution) => Ok(Solution::from(partial_solution)),
-    }
+    let partial_solution = search(&ra, constraint_set.clone(), false, &PartialSolution::new())?;
+    Ok(Solution::from(partial_solution))
 }
 
 fn infer_indirect_dependencies(
@@ -169,6 +172,9 @@ mod unit_test {
 
     #[test]
     fn find_best_solution_set() {
+        let sample_reg = sample_registry();
+        let sample_ra = RegistryAdapter::new(&sample_reg);
+
         let problem =
             deps!(
             down_pad => "^1.0.0",
@@ -176,7 +182,7 @@ mod unit_test {
         );
 
         assert_eq!(
-            solve(&sample_registry(), &problem),
+            solve_inner(&sample_ra, &problem),
             Ok(solution!(
             left_pad => "2.0.0",
             down_pad => "1.2.0",
@@ -189,6 +195,9 @@ mod unit_test {
 
     #[test]
     fn conflicting_subdependencies() {
+        let sample_reg = sample_registry();
+        let sample_ra = RegistryAdapter::new(&sample_reg);
+
         // left_pad and lol_pad have conflicting constraints for right_pad,
         // thus no solution is possible.
         let problem =
@@ -198,7 +207,7 @@ mod unit_test {
         );
 
         assert_eq!(
-            solve(&sample_registry(), &problem),
+            solve_inner(&sample_ra, &problem),
             Err(Failure::conflict(
                 Arc::new(pkg("right_pad")),
                 Constraint::new()
