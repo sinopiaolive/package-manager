@@ -34,7 +34,7 @@ fn search(
                 }
                 Err(failure) => {
                     cheap_failure = Some(failure);
-                    let (new_stack, modified) = algo1(ra, stack.clone(), solution)?;
+                    let (new_stack, modified) = infer_indirect_dependencies(ra, stack.clone(), solution)?;
                     if !modified {
                         break;
                     } else {
@@ -99,7 +99,7 @@ pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Failure> 
     }
 }
 
-fn algo1(
+fn infer_indirect_dependencies(
     ra: &RegistryAdapter,
     stack: ConstraintSet,
     solution: &PartialSolution,
@@ -224,7 +224,7 @@ mod unit_test {
     }
 
     #[test]
-    fn algo1_test() {
+    fn infer_indirect_dependencies_test() {
         let reg =
             gen_registry!(
             X => (
@@ -276,7 +276,7 @@ mod unit_test {
                 ),
             ],
         );
-        let (new_stack, modified) = algo1(&ra, stack.clone(), &ps).unwrap();
+        let (new_stack, modified) = infer_indirect_dependencies(&ra, stack.clone(), &ps).unwrap();
         assert_eq!(new_stack, expected);
         assert!(modified);
     }
