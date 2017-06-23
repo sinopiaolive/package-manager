@@ -25,13 +25,22 @@ impl Constraint {
         let mut modified = false;
         for (version, self_path) in self.iter() {
             if let Some(ref other_path) = other.get(version) {
-                let shortest_path = if self_path.length() <= other_path.length() {
+                // The version is included in both constraints, so we include it
+                // in the intersection. It is correct to pick either self_path
+                // or other_path to justify this version. To help us get good
+                // error messages, we pick the shortest path, or if they're
+                // equal in length, the path from the narrower constraint. (This
+                // is the best we can do without looking up the original
+                // VersionConstraints on the registry.)
+                let path = if self_path.length() < other_path.length() ||
+                    (self_path.length() == other_path.length() && self.len() <= other.len())
+                {
                     self_path
                 } else {
                     modified = true; // we changed a path
                     other_path
                 };
-                out = out.insert(version.clone(), shortest_path.clone());
+                out = out.insert(version.clone(), path.clone());
             } else {
                 modified = true; // we dropped a version from the set
             }
