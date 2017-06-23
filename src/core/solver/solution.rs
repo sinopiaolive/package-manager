@@ -82,17 +82,3 @@ impl From<PartialSolution> for Solution {
             .collect()
     }
 }
-
-// impl fmt::Debug for Solution {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-//         write!(f, "Solution( ")?;
-//         match self {
-//             &Solution::Solution(ref m) => {
-//                 for (k, v) in m.into_iter() {
-//                     write!(f, "{}: {}", k, v)?;
-//                 }
-//             }
-//         }
-//         write!(f, ")")
-//     }
-// }

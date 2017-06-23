@@ -82,12 +82,6 @@ impl Mappable for Constraint {
     }
 }
 
-// impl fmt::Debug for Constraint {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-//         write!(f, "{} [{:?}]", self.sum, self.paths)
-//     }
-// }
-
 pub struct BreadthFirstIter {
     paths: Vec<Path>,
     vec_pos: usize,
