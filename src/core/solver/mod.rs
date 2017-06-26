@@ -56,14 +56,14 @@ fn search(
                     package.clone(),
                     JustifiedVersion {
                         version: version.clone(),
-                        path: path.clone(),
+                        path: (*path).clone(),
                     },
                 );
                 let search_try_version = || {
                     let constraint_set = ra.constraint_set_for(
                         package.clone(),
                         version.clone(),
-                        path.clone(),
+                        (*path).clone(),
                     )?;
                     let (new_deps, _) = stack_tail.and(&constraint_set, &new_solution)?;
                     Ok(search(ra.clone(), new_deps, cheap, &new_solution)?)
@@ -115,7 +115,7 @@ fn infer_indirect_dependencies(
         let mut first_failure = None;
         assert!(!constraint.is_empty());
         for (version, path) in constraint.iter() {
-            let cset_result = ra.constraint_set_for(package.clone(), version.clone(), path.clone());
+            let cset_result = ra.constraint_set_for(package.clone(), version.clone(), (*path).clone());
             match cset_result.and_then(|cset| {
                 new_stack.and(&cset, &solution)?;
                 Ok(cset)

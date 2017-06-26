@@ -127,8 +127,8 @@ impl Conflict {
         let oc = vc_from_path(&conflicting_path);
         // Make exact version constraints in case the original ones overlap
         // ("narrow existing", "narrow conflicting"):
-        let ne = VersionConstraint::Exact((**existing_ver).clone());
-        let nc = VersionConstraint::Exact((**conflicting_ver).clone());
+        let ne = VersionConstraint::Exact((*existing_ver).clone());
+        let nc = VersionConstraint::Exact((*conflicting_ver).clone());
 
         let disjoint = |vc1: &VersionConstraint, vc2: &VersionConstraint| -> bool {
             // Turn version constraints into constraints
@@ -154,9 +154,9 @@ impl Conflict {
         Conflict {
             package: conflict.package.clone(),
             existing: existing_vc,
-            existing_path: existing_path.clone(),
+            existing_path: (*existing_path).clone(),
             conflicting: conflicting_vc,
-            conflicting_path: conflicting_path.clone(),
+            conflicting_path: (*conflicting_path).clone(),
         }
     }
 }

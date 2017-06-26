@@ -4,7 +4,7 @@ use std::convert::From;
 use manifest::PackageName;
 use version::Version;
 use solver::path::Path;
-use immutable_map::map::TreeMap as Map;
+use im::map::Map;
 use solver::mappable::Mappable;
 
 
@@ -24,7 +24,7 @@ impl JustifiedVersion {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PartialSolution(pub Map<Arc<PackageName>, JustifiedVersion>);
+pub struct PartialSolution(pub Map<PackageName, JustifiedVersion>);
 
 impl PartialSolution {
     pub fn new() -> PartialSolution {
@@ -33,7 +33,7 @@ impl PartialSolution {
 }
 
 impl Mappable for PartialSolution {
-    type K = Arc<PackageName>;
+    type K = PackageName;
     type V = JustifiedVersion;
 
     fn as_map(&self) -> &Map<Self::K, Self::V> {
@@ -47,11 +47,11 @@ impl Mappable for PartialSolution {
 
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Solution(pub Map<Arc<PackageName>, Arc<Version>>);
+pub struct Solution(pub Map<PackageName, Version>);
 
 impl Mappable for Solution {
-    type K = Arc<PackageName>;
-    type V = Arc<Version>;
+    type K = PackageName;
+    type V = Version;
 
     fn as_map(&self) -> &Map<Self::K, Self::V> {
         &self.0
@@ -67,7 +67,7 @@ impl FromIterator<(Arc<PackageName>, Arc<Version>)> for Solution {
     where
         T: IntoIterator<Item = (Arc<PackageName>, Arc<Version>)>,
     {
-        Solution(Map::<Arc<PackageName>, Arc<Version>>::from_iter(iter))
+        Solution(Map::<PackageName, Version>::from_iter(iter))
     }
 }
 

@@ -41,7 +41,7 @@ pub fn pkg(s: &str) -> PackageName {
 macro_rules! solution(
     { $($dep:ident => $version:expr),+ } => {
         {
-            let mut m = ::immutable_map::map::TreeMap::new();
+            let mut m = ::im::map::Map::new();
             $(
                 let version = ::Version::from_str($version).unwrap();
                 m = m.insert(::std::sync::Arc::new(::test::pkg(stringify!($dep))),

@@ -1,4 +1,5 @@
-use immutable_map::map::{TreeMap, TreeMapIter};
+use std::sync::Arc;
+use im::map::{Map, Iter};
 
 pub trait Mappable
 where
@@ -7,21 +8,25 @@ where
     type K: Clone + Ord;
     type V: Clone;
 
-    fn as_map(&self) -> &TreeMap<Self::K, Self::V>;
-    fn wrap(m: TreeMap<Self::K, Self::V>) -> Self;
+    fn as_map(&self) -> &Map<Self::K, Self::V>;
+    fn wrap(m: Map<Self::K, Self::V>) -> Self;
 
-    fn insert(&self, key: Self::K, value: Self::V) -> Self {
+    fn insert<RK, RV>(&self, key: RK, value: RV) -> Self
+    where
+        Arc<Self::K>: From<RK>,
+        Arc<Self::V>: From<RV>,
+    {
         Self::wrap(self.as_map().insert(key, value))
     }
 
-    fn remove(&self, key: &Self::K) -> Option<(Self, &Self::V)> {
-        match self.as_map().remove(key) {
+    fn uncons(&self, key: &Self::K) -> Option<(Arc<Self::V>, Self)> {
+        match self.as_map().pop(key) {
             None => None,
-            Some((map, v)) => Some((Self::wrap(map), v)),
+            Some((v, map)) => Some((v, Self::wrap(map))),
         }
     }
 
-    fn get<'a>(&'a self, key: &'a Self::K) -> Option<&'a Self::V> {
+    fn get(&self, key: &Self::K) -> Option<Arc<Self::V>> {
         self.as_map().get(key)
     }
 
@@ -29,7 +34,7 @@ where
         self.as_map().contains_key(key)
     }
 
-    fn iter<'r>(&'r self) -> TreeMapIter<'r, Self::K, Self::V> {
+    fn iter(&self) -> Iter<Self::K, Self::V> {
         self.as_map().iter()
     }
 

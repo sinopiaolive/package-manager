@@ -3,8 +3,7 @@ name = "package-manager"
 version = "1.0.0"
 dependencies = [
  "docopt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "im 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "immutable-map 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "im 4.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "license-exprs 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "linked-hash-map 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -44,12 +43,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "im"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "immutable-map"
-version = "0.1.2"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -276,8 +270,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum aho-corasick 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "500909c4f87a9e52355b26626d890833e9e1d53ac566db76c36faa984b889699"
 "checksum docopt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ab32ea6e284d87987066f21a9e809a73c14720571ef34516f0890b3d355ccfd8"
 "checksum dtoa 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "80c8b71fd71146990a9742fc06dcbbde19161a267e0ad4e572c35162f4578c90"
-"checksum im 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "41fcf2455160c09eedb720646b048e4a9b3e7e0809a7db5211433f481f1f270d"
-"checksum immutable-map 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "869435dffa333c329b2f9a4b3ef361f1da8a5c0dc4bcdae8f0018160e75f4116"
+"checksum im 4.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a11ed61a93503d53b0682968192f7d770676598ad9d6a3e82245f38a78cd483e"
 "checksum itoa 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "eb2f404fbc66fd9aac13e998248505e7ecb2ad8e44ab6388684c5fb11c6c251c"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum lazy_static 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "2f61b8421c7a4648c391611625d56fdd5c7567da05af1be655fd8cacc643abb3"
