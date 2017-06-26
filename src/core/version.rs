@@ -83,35 +83,22 @@ impl Version {
         s
     }
 
-    pub fn normalise(&self) -> Version {
-        let mut trunc = self.fields.clone();
-        loop {
-            match trunc.pop() {
-                None => break,
-                Some(0u64) => (),
-                Some(i) => {
-                    trunc.push(i);
-                    break;
-                }
-            }
+    pub fn normalized_fields(&self) -> &[u64] {
+        let mut max = self.fields.len();
+        while max > 1 && self.fields[max - 1] == 0 {
+            max -= 1;
         }
-        if trunc.is_empty() {
-            ver!(0)
-        } else {
-            Version::new(trunc, self.prerelease.clone(), self.build.clone())
-        }
+        &self.fields[0..max]
     }
 
     pub fn semver_cmp(&self, other: &Version) -> Ordering {
-        let left = self.normalise();
-        let right = other.normalise();
-        match cmp_vec(&left.fields, &right.fields) {
+        match self.normalized_fields().cmp(&other.normalized_fields()) {
             Ordering::Equal => {
-                match (left.prerelease.is_empty(), right.prerelease.is_empty()) {
+                match (self.prerelease.is_empty(), other.prerelease.is_empty()) {
                     (true, false) => Ordering::Greater,
                     (false, true) => Ordering::Less,
                     (true, true) => Ordering::Equal,
-                    (false, false) => cmp_vec(&left.prerelease, &right.prerelease),
+                    (false, false) => self.prerelease.cmp(&other.prerelease),
                 }
             }
             a => a,
@@ -121,18 +108,16 @@ impl Version {
 
 impl PartialEq for Version {
     fn eq(&self, other: &Version) -> bool {
-        let v1 = self.normalise();
-        let v2 = other.normalise();
-        v1.fields == v2.fields && v1.prerelease == v2.prerelease && v1.build == v2.build
+        self.normalized_fields() == other.normalized_fields() &&
+            self.prerelease == other.prerelease && self.build == other.build
     }
 }
 
 impl Hash for Version {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let me = self.normalise();
-        me.fields.hash(state);
-        me.prerelease.hash(state);
-        me.build.hash(state);
+        self.normalized_fields().hash(state);
+        self.prerelease.hash(state);
+        self.build.hash(state);
     }
 }
 
@@ -172,20 +157,6 @@ impl Deserialize for Version {
     }
 }
 
-fn cmp_vec<A: Ord>(v1: &Vec<A>, v2: &Vec<A>) -> Ordering {
-    let mut i1 = v1.iter();
-    let mut i2 = v2.iter();
-    loop {
-        match (i1.next(), i2.next()) {
-            (None, None) => return Ordering::Equal,
-            (Some(_), None) => return Ordering::Greater,
-            (None, Some(_)) => return Ordering::Less,
-            (Some(a), Some(b)) if a.cmp(b) == Ordering::Equal => (),
-            (Some(a), Some(b)) => return a.cmp(b),
-        }
-    }
-}
-
 impl PartialOrd for Version {
     fn partial_cmp(&self, other: &Version) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -194,19 +165,13 @@ impl PartialOrd for Version {
 
 impl Ord for Version {
     fn cmp(&self, other: &Version) -> Ordering {
-        let left = self.normalise();
-        let right = other.normalise();
-
-        match (left.has_pre(), right.has_pre()) {
-            (true, false) => Ordering::Greater,
+        match (self.has_pre(), other.has_pre()) {
+            (true, false) => Ordering::Greater, // sort prerelease versions last
             (false, true) => Ordering::Less,
-            _ => right.semver_cmp(&left),
+            _ => other.semver_cmp(&self), // sort highest versions first
         }
     }
 }
-
-
-
 
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
@@ -279,7 +244,7 @@ pub fn caret_bump(v: &Version) -> Version {
             return Version::new(parts, vec![], vec![]);
         }
     }
-    Version::new(vec![], vec![], vec![])
+    Version::new(vec![1], vec![], vec![]) // version 0
 }
 
 /// If there are two components or less, bump the last one.
@@ -368,22 +333,30 @@ mod test {
     }
 
     #[test]
-    fn normalise_version() {
-        assert_eq!(Version::normalise(&ver("1.2.3")), ver("1.2.3"));
-        assert_eq!(Version::normalise(&ver("0.0.0.1.2.0.3.0")), ver("0.0.0.1.2.0.3"));
-        assert_eq!(Version::normalise(&ver("1.2.0.0.0")), ver("1.2"));
-        assert_eq!(Version::normalise(&ver("0.0.0.0.0")), ver("0"));
+    fn normalized_fields() {
+        assert_eq!(&ver("1.2.3").normalized_fields(), &[1, 2, 3]);
+        assert_eq!(&ver("0.0.0.1.2.0.3.0").normalized_fields(), &[0, 0, 0, 1, 2, 0, 3]);
+        assert_eq!(&ver("1.2.0.0.0-beta.1+foo").normalized_fields(), &[1, 2]);
+        assert_eq!(&ver("0.0.0.0.0").normalized_fields(), &[0]);
+        assert_eq!(&ver("0").normalized_fields(), &[0]);
     }
 
     #[test]
     fn version_equality() {
         assert!(ver("1.2.3") == ver("1.2.3"));
+        assert!(ver("1.2.3") != ver("1.2.4"));
         assert!(ver("1.2.3.0.0") == ver("1.2.3"));
+        assert!(ver("1.2.3") == ver("1.2.3.0.0"));
+        assert!(ver("1.2.3-pre.0") == ver("1.2.3-pre.0"));
+        assert!(ver("1.2.3-pre.1") != ver("1.2.3-pre.2"));
+        assert!(ver("1.2.3-pre.1+foo") == ver("1.2.3-pre.1+foo"));
+        assert!(ver("1.2.3-pre.1+foo") != ver("1.2.3-pre.1+bar"));
     }
 
     #[test]
     fn semver_ordering() {
         assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2.3")), Ordering::Equal);
+        assert_eq!(ver("1.2.3.0").semver_cmp(&ver("1.2.3.0.0")), Ordering::Equal);
         assert_eq!(ver("1.2").semver_cmp(&ver("1.2.3")), Ordering::Less);
         assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2")), Ordering::Greater);
         assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2.4")), Ordering::Less);
@@ -393,12 +366,13 @@ mod test {
         assert_eq!(ver("1.3.2").semver_cmp(&ver("1.2.3-rc1")), Ordering::Greater);
         assert_eq!(ver("1.2.3").semver_cmp(&ver("1.2.3-rc1")), Ordering::Greater);
         assert_eq!(ver("1.2.3-rc1").semver_cmp(&ver("1.2.3-rc2")), Ordering::Less);
+        assert_eq!(ver("1.2.3-rc1").semver_cmp(&ver("1.2.3-rc1.foo")), Ordering::Less);
         assert_eq!(ver("1.2.3-rc1").semver_cmp(&ver("1.2.3-beta1")), Ordering::Greater);
     }
 
     #[test]
     fn priority_ordering() {
-        assert_eq!(ver("1.2.3").cmp(&ver("1.2.3")), Ordering::Equal);
+        assert_eq!(ver("1.2.3.0").cmp(&ver("1.2.3")), Ordering::Equal);
         assert_eq!(ver("1.2").cmp(&ver("1.2.3")), Ordering::Greater);
         assert_eq!(ver("1.2.3").cmp(&ver("1.2")), Ordering::Less);
         assert_eq!(ver("1.3-rc").cmp(&ver("1.2.3")), Ordering::Greater);
@@ -410,6 +384,7 @@ mod test {
 
     #[test]
     fn test_bump_last() {
+        assert_eq!(bump_last(&ver("1.2.3.0")), ver("1.2.3.1"));
         assert_eq!(bump_last(&ver("1.2.3")), ver("1.2.4"));
         assert_eq!(bump_last(&ver("1.2")), ver("1.3"));
         assert_eq!(bump_last(&ver("3")), ver("4"));
@@ -421,15 +396,21 @@ mod test {
         assert_eq!(caret_bump(&ver("1.2.3")), ver("2"));
         assert_eq!(caret_bump(&ver("0.1.2")), ver("0.2"));
         assert_eq!(caret_bump(&ver("0.0.3")), ver("0.0.4"));
+        assert_eq!(caret_bump(&ver("0.0")), ver("1"));
+        assert_eq!(caret_bump(&ver("0")), ver("1"));
         assert_eq!(caret_bump(&ver("0.1.2.3-beta2+lol")), ver("0.2"));
+        assert_eq!(caret_bump(&ver("0-beta2+lol")), ver("1"));
     }
 
     #[test]
     fn test_tilde_bump() {
-        assert_eq!(tilde_bump(&ver("1.2.3")), ver("1.3"));
-        assert_eq!(tilde_bump(&ver("1.2")), ver("1.3"));
+        assert_eq!(tilde_bump(&ver("1.0.0")), ver("1.1"));
+        assert_eq!(tilde_bump(&ver("1.0")), ver("1.1"));
         assert_eq!(tilde_bump(&ver("1")), ver("2"));
         assert_eq!(tilde_bump(&ver("1.2.3-beta2+lol")), ver("1.3"));
+        assert_eq!(tilde_bump(&ver("0-beta2+lol")), ver("1"));
+        assert_eq!(tilde_bump(&ver("0.0-beta2+lol")), ver("0.1"));
+        assert_eq!(tilde_bump(&ver("0.0.0-beta2+lol")), ver("0.1"));
     }
 
     #[test]

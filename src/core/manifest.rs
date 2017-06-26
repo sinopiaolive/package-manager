@@ -265,7 +265,7 @@ right-pad = \"^8.23\"
                 namespace: Some("javascript".to_string()),
                 name: "right-pad".to_string(),
             },
-            VersionConstraint::range(ver!(8, 23), ver!(9)),
+            VersionConstraint::Caret(ver!(8, 23)),
         );
         assert_eq!(m,
                    Manifest {
@@ -304,7 +304,7 @@ right-pad = \">= 8.23 < 9\"
                 namespace: Some("javascript".to_string()),
                 name: "right-pad".to_string(),
             },
-            VersionConstraint::range(ver!(8, 23), ver!(9)),
+            VersionConstraint::Range(Some(ver!(8, 23)), Some(ver!(9))),
         );
         let manifest = Manifest {
             name: PackageName {

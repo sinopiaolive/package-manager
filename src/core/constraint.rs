@@ -1,5 +1,5 @@
 use nom::IResult::Done;
-use self::VersionConstraint::{Exact, Range};
+use self::VersionConstraint::{Exact, Range, Caret, Tilde};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump};
@@ -12,6 +12,8 @@ use super::error;
 pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),
+    Caret(Version),
+    Tilde(Version),
 }
 
 impl Serialize for VersionConstraint {
@@ -42,22 +44,6 @@ impl Deserialize for VersionConstraint {
 }
 
 impl VersionConstraint {
-    pub fn gteq(v: Version) -> VersionConstraint {
-        Range(Some(v.normalise()), None)
-    }
-
-    pub fn lt(v: Version) -> VersionConstraint {
-        Range(None, Some(v.normalise()))
-    }
-
-    pub fn range(v1: Version, v2: Version) -> VersionConstraint {
-        Range(Some(v1.normalise()), Some(v2.normalise()))
-    }
-
-    pub fn all() -> VersionConstraint {
-        Range(None, None)
-    }
-
     pub fn from_str(s: &str) -> Result<VersionConstraint, error::Error> {
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Ok(v),
@@ -74,18 +60,28 @@ impl VersionConstraint {
             &Range(Some(ref v), None) => format!(">= {}", v),
             &Range(None, Some(ref v)) => format!("< {}", v),
             &Range(Some(ref v1), Some(ref v2)) => format!(">= {} < {}", v1, v2),
+            &Caret(ref v) => format!("^{}", v),
+            &Tilde(ref v) => format!("~{}", v),
         }
     }
 
-    pub fn contains(&self, v: &Version) -> bool {
+    pub fn contains(&self, version: &Version) -> bool {
         match self {
-            &Range(None, None) => true,
-            &Exact(ref o) => v == o,
-            &Range(Some(ref min), None) => v.semver_cmp(min) != Ordering::Less,
-            &Range(None, Some(ref max)) => max_match(v, None, max),
-            &Range(Some(ref min), Some(ref max)) => {
-                v.semver_cmp(min) != Ordering::Less && max_match(v, Some(min), max)
-            }
+            &Exact(ref v) => version == v,
+            &Caret(ref v) => contained_in_range(&version, Some(&v), Some(&caret_bump(&v))),
+            &Tilde(ref v) => contained_in_range(&version, Some(&v), Some(&tilde_bump(&v))),
+            &Range(ref v1, ref v2) => contained_in_range(&version, v1.as_ref(), v2.as_ref()),
+        }
+    }
+}
+
+fn contained_in_range(version: &Version, min: Option<&Version>, max: Option<&Version>) -> bool {
+    match (min, max) {
+        (None, None) => true,
+        (Some(min), None) => version.semver_cmp(min) != Ordering::Less,
+        (None, Some(max)) => max_match(version, None, max),
+        (Some(min), Some(max)) => {
+            version.semver_cmp(min) != Ordering::Less && max_match(version, Some(min), max)
         }
     }
 }
@@ -118,19 +114,18 @@ impl fmt::Debug for VersionConstraint {
 }
 
 
-
 named!(exact_version_constraint<VersionConstraint>, map!(version, VersionConstraint::Exact));
 
 named!(min_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b">=") >>
         v: version >>
-        (Range(Some(v.normalise()), None))
+        (Range(Some(v), None))
 )));
 
 named!(max_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"<") >>
         v: version >>
-        (Range(None, Some(v.normalise())))
+        (Range(None, Some(v)))
 )));
 
 named!(closed_constraint<VersionConstraint>, ws!(do_parse!(
@@ -138,7 +133,7 @@ named!(closed_constraint<VersionConstraint>, ws!(do_parse!(
         v1: version >>
         tag!(b"<") >>
         v2: version >>
-        (Range(Some(v1.normalise()), Some(v2.normalise())))
+        (Range(Some(v1), Some(v2)))
 )));
 
 named!(open_constraint<VersionConstraint>, ws!(do_parse!(
@@ -148,20 +143,14 @@ named!(open_constraint<VersionConstraint>, ws!(do_parse!(
 
 named!(caret_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"^") >>
-        vmin: version >>
-        ({
-            let vmax = caret_bump(&vmin);
-            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
-        })
+        v: version >>
+        (Caret(v))
 )));
 
 named!(tilde_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"~") >>
-        vmin: version >>
-        ({
-            let vmax = tilde_bump(&vmin);
-            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
-        })
+        v: version >>
+        (Tilde(v))
 )));
 
 named!(pub version_constraint_unchecked<VersionConstraint>,
@@ -230,59 +219,77 @@ mod test {
 
     #[test]
     fn parse_caret_constraint() {
-        assert_eq!(version_constraint(b"^1.2.3"),
-                   Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(2))));
-        assert_eq!(version_constraint(b"^0.5.2"),
-                   Done(&b""[..], VersionConstraint::range(ver!(0,5,2), ver!(0,6))));
         let v1 = Version::new(
-            vec![0,0,0,0,8],
+            vec![0,0,0,0,8,0],
             vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
             vec![VersionIdentifier::Alphanumeric("wtf".to_string())],
         );
-        assert_eq!(version_constraint(b"^0.0.0.0.8-rc1+wtf"),
-                   Done(&b""[..], VersionConstraint::range(v1, ver!(0,0,0,0,9))));
-        assert_eq!(version_constraint(b"^2.0.0"),
-                   Done(&b""[..], VersionConstraint::range(ver!(2), ver!(3))));
+        assert_eq!(version_constraint(b"^0.0.0.0.8.0-rc1+wtf"),
+                   Done(&b""[..], Caret(v1)));
     }
 
     #[test]
     fn parse_tilde_constraint() {
-        assert_eq!(version_constraint(b"~1.2.3"),
-                   Done(&b""[..], VersionConstraint::range(ver!(1,2,3), ver!(1,3))));
-        assert_eq!(version_constraint(b"~1.2"),
-                   Done(&b""[..], VersionConstraint::range(ver!(1,2), ver!(1,3))));
         let v1 = Version::new(
-            vec![1,2,3,4],
+            vec![1,2,3,4,0],
             vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
             vec![VersionIdentifier::Alphanumeric("wtf".to_string())],
         );
-        assert_eq!(version_constraint(b"~1.2.3.4-rc1+wtf"),
-                   Done(&b""[..], VersionConstraint::range(v1, ver!(1,3))));
+        assert_eq!(version_constraint(b"~1.2.3.4.0-rc1+wtf"),
+                   Done(&b""[..], Tilde(v1)));
     }
 
     #[test]
-    fn constraint_to_string() {
-        assert_eq!(VersionConstraint::all().as_string(), "*".to_string());
-        assert_eq!(VersionConstraint::gteq(ver!(1,2,3)).as_string(), ">= 1.2.3".to_string());
-        assert_eq!(VersionConstraint::lt(ver!(1,2,3)).as_string(), "< 1.2.3".to_string());
-        assert_eq!(VersionConstraint::range(ver!(1,2,3), ver!(2)).as_string(),
-                   ">= 1.2.3 < 2".to_string());
+    fn constraint_as_string() {
+        assert_eq!(Exact(ver("1.2.3.0-beta.0+foo")).as_string(), "1.2.3.0-beta.0+foo");
+
+        assert_eq!(Range(None, None).as_string(), "*");
+        assert_eq!(Range(Some(ver!(1,2,3)), None).as_string(), ">= 1.2.3");
+        assert_eq!(Range(None, Some(ver!(1,2,3))).as_string(), "< 1.2.3");
+        assert_eq!(Range(Some(ver!(1,2,3)), Some(ver!(2))).as_string(),
+                   ">= 1.2.3 < 2");
+
+        assert_eq!(Caret(ver!(1,2,3,0)).as_string(), "^1.2.3.0");
+        assert_eq!(Tilde(ver!(1,2,3,0)).as_string(), "~1.2.3.0");
     }
 
     #[test]
     fn constraint_contains() {
-        let v = ver("1.2.3");
-        assert!(range("*").contains(&v));
-        assert!(range(">=1.2").contains(&v));
-        assert!(range("<3").contains(&v));
-        assert!(range(">=1.1.5 <3.0.1.2").contains(&v));
-        assert!(!range("1").contains(&v));
-        assert!(!range(">=3").contains(&v));
-        assert!(!range(">=2 <3").contains(&v));
+        assert!(range("1.2.3.0-beta").contains(&ver("1.2.3-beta")));
+        assert!(!range("1.2.4").contains(&ver("1.2.3")));
+
+        assert!(range("*").contains(&ver("1.2.3")));
+        assert!(range(">=1.2").contains(&ver("1.2.3")));
+        assert!(range("<3").contains(&ver("1.2.3")));
+        assert!(range(">=1.1.5 <3.0.1.2").contains(&ver("1.2.3")));
+        assert!(!range("1").contains(&ver("1.2.3")));
+        assert!(!range(">=3").contains(&ver("1.2.3")));
+        assert!(!range(">=2 <3").contains(&ver("1.2.3")));
         assert!(!range(">=1 <2-pre").contains(&ver("2")));
         assert!(!range(">=1 <2").contains(&ver("2-beta")));
         assert!(range(">=1 <2-pre").contains(&ver("2-beta")));
         assert!(range(">=2-pre <2").contains(&ver("2-pre")));
         assert!(!range(">=2-pre <2").contains(&ver("2")));
+
+        assert!(range("^1.2.0").contains(&ver("1.2")));
+        assert!(range("^1.2.0-pre.1").contains(&ver("1.2")));
+        assert!(!range("^1.2.0-pre.1").contains(&ver("1.2.0-pre.0")));
+        assert!(range("^1.2.0-pre.1").contains(&ver("1.3-beta")));
+        assert!(!range("^1.2.0-pre.1").contains(&ver("2-beta")));
+        assert!(range("^0-pre.1").contains(&ver("0.9")));
+        assert!(!range("^0-pre.1").contains(&ver("1")));
+        assert!(range("^0.0-pre.1").contains(&ver("0.9")));
+        assert!(range("^0.0.0.1.2.3").contains(&ver("0.0.0.1.3")));
+        assert!(!range("^0.0.0.1.2.3").contains(&ver("0.0.0.2")));
+
+        assert!(range("~0-pre.1").contains(&ver("0.2-pre.0")));
+        assert!(!range("~0-pre.1").contains(&ver("1.0")));
+        assert!(range("~0.0-pre.1").contains(&ver("0.0.1-pre.0")));
+        assert!(!range("~0.0-pre.1").contains(&ver("0.2-pre.0")));
+        assert!(range("~1.2.3").contains(&ver("1.2.4")));
+        assert!(!range("~1.2.3").contains(&ver("1.3-beta.1")));
+        assert!(range("~1.2").contains(&ver("1.2.4")));
+        assert!(!range("~1.2").contains(&ver("1.3")));
+        assert!(!range("~1.2").contains(&ver("1.3-beta")));
     }
 }

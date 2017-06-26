@@ -115,7 +115,8 @@ fn infer_indirect_dependencies(
         let mut first_failure = None;
         assert!(!constraint.is_empty());
         for (version, path) in constraint.iter() {
-            let cset_result = ra.constraint_set_for(package.clone(), version.clone(), (*path).clone());
+            let cset_result =
+                ra.constraint_set_for(package.clone(), version.clone(), (*path).clone());
             match cset_result.and_then(|cset| {
                 new_stack.and(&cset, &solution)?;
                 Ok(cset)
