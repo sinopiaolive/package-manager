@@ -146,16 +146,6 @@ named!(open_constraint<VersionConstraint>, ws!(do_parse!(
         (Range(None, None))
 )));
 
-named!(x_constraint<VersionConstraint>, ws!(do_parse!(
-    v: base_version >>
-        alt!(tag!(b".x") | tag!(b".X") | tag!(b".*")) >>
-        ({
-            let vmin = Version::new(v, vec![], vec![]);
-            let vmax = bump_last(&vmin);
-            (Range(Some(vmin.normalise()), Some(vmax.normalise())))
-        })
-)));
-
 named!(caret_constraint<VersionConstraint>, ws!(do_parse!(
     tag!(b"^") >>
         vmin: version >>
@@ -178,7 +168,6 @@ named!(pub version_constraint_unchecked<VersionConstraint>,
        alt_complete!(open_constraint
                      | caret_constraint
                      | tilde_constraint
-                     | x_constraint
                      | closed_constraint
                      | max_constraint
                      | min_constraint
@@ -237,14 +226,6 @@ mod test {
     fn parse_open_constraint() {
         assert_eq!(version_constraint(b"*"),
                    Done(&b""[..], Range(None, None)));
-    }
-
-    #[test]
-    fn parse_x_constraint() {
-        assert_eq!(version_constraint(b"1.2.x"),
-                   Done(&b""[..], VersionConstraint::range(ver!(1, 2), ver!(1, 3))));
-        assert_eq!(version_constraint(b"2.x"),
-                   Done(&b""[..], VersionConstraint::range(ver!(2), ver!(3))));
     }
 
     #[test]
