@@ -109,7 +109,7 @@ impl Version {
 impl PartialEq for Version {
     fn eq(&self, other: &Version) -> bool {
         self.normalized_fields() == other.normalized_fields() &&
-            self.prerelease == other.prerelease && self.build == other.build
+            self.prerelease == other.prerelease
     }
 }
 
@@ -117,7 +117,6 @@ impl Hash for Version {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.normalized_fields().hash(state);
         self.prerelease.hash(state);
-        self.build.hash(state);
     }
 }
 
@@ -349,8 +348,7 @@ mod test {
         assert!(ver("1.2.3") == ver("1.2.3.0.0"));
         assert!(ver("1.2.3-pre.0") == ver("1.2.3-pre.0"));
         assert!(ver("1.2.3-pre.1") != ver("1.2.3-pre.2"));
-        assert!(ver("1.2.3-pre.1+foo") == ver("1.2.3-pre.1+foo"));
-        assert!(ver("1.2.3-pre.1+foo") != ver("1.2.3-pre.1+bar"));
+        assert!(ver("1.2.3-pre.1+foo") == ver("1.2.3-pre.1+bar"));
     }
 
     #[test]
