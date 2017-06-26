@@ -213,20 +213,20 @@ mod unit_test {
                 Constraint::new()
                     .insert(
                         Arc::new(ver("1.0.0")),
-                        list![(Arc::new(pkg("left_pad")), Arc::new(ver("1.0.0")))],
+                        conslist![(Arc::new(pkg("left_pad")), Arc::new(ver("1.0.0")))],
                     )
                     .insert(
                         Arc::new(ver("1.0.1")),
-                        list![(Arc::new(pkg("left_pad")), Arc::new(ver("1.0.0")))],
+                        conslist![(Arc::new(pkg("left_pad")), Arc::new(ver("1.0.0")))],
                     ),
                 Constraint::new()
                     .insert(
                         Arc::new(ver("2.0.0")),
-                        list![(Arc::new(pkg("lol_pad")), Arc::new(ver("1.0.0")))],
+                        conslist![(Arc::new(pkg("lol_pad")), Arc::new(ver("1.0.0")))],
                     )
                     .insert(
                         Arc::new(ver("2.0.1")),
-                        list![(Arc::new(pkg("lol_pad")), Arc::new(ver("1.0.0")))],
+                        conslist![(Arc::new(pkg("lol_pad")), Arc::new(ver("1.0.0")))],
                     ),
             ))
         );

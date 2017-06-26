@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use im::list::List;
+use im::conslist::ConsList;
 use manifest::PackageName;
 use version::Version;
 
@@ -13,4 +13,4 @@ use version::Version;
 /// is stored as the following Path object:
 ///
 /// `[(C, 1), (B, 1), (A, 1)]`
-pub type Path = List<(Arc<PackageName>, Arc<Version>)>;
+pub type Path = ConsList<(Arc<PackageName>, Arc<Version>)>;

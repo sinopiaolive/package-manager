@@ -91,9 +91,9 @@ impl Conflict {
         let vc_from_path = |path: &Path| {
             // Recall that paths are stored right-to-left, in the opposite order
             // of how we print them. Thus we need the head.
-            let depset = match path.head() {
+            let depset = match path.head().map(|v| (*v).clone()) {
                 None => deps,
-                Some(&(ref pkg, ref ver)) => {
+                Some((ref pkg, ref ver)) => {
                     &registry
                         .packages
                         .get(&pkg)

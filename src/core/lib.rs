@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-#[macro_use]
-extern crate nom;
 extern crate semver_parser;
 extern crate serde;
 #[macro_use]
@@ -16,6 +14,8 @@ extern crate license_exprs;
 extern crate immutable_map;
 #[macro_use]
 extern crate im;
+#[macro_use]
+extern crate nom;
 
 #[macro_use]
 mod test;

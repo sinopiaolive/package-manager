@@ -123,7 +123,7 @@ impl<'r> RegistryAdapter<'r> {
             let constraint = self.constraint_for(
                 package_arc.clone(),
                 version_constraint_arc.clone(),
-                list![],
+                conslist![],
             )?;
             constraint_set = constraint_set.insert(package_arc.clone(), constraint);
         }

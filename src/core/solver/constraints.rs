@@ -32,8 +32,8 @@ impl Constraint {
                 // equal in length, the path from the narrower constraint. (This
                 // is the best we can do without looking up the original
                 // VersionConstraints on the registry.)
-                let path = if self_path.length() < other_path.length() ||
-                    (self_path.length() == other_path.length() && self.len() <= other.len())
+                let path = if self_path.len() < other_path.len() ||
+                    (self_path.len() == other_path.len() && self.len() <= other.len())
                 {
                     self_path
                 } else {
@@ -61,7 +61,7 @@ impl Constraint {
         let mut out = self.clone();
         for (version, other_path) in other.iter() {
             out = match self.get(&version) {
-                Some(self_path) if other_path.length() < self_path.length() => out,
+                Some(self_path) if other_path.len() < self_path.len() => out,
                 _ => out.insert(version.clone(), other_path.clone()),
             }
         }
@@ -100,7 +100,7 @@ impl BreadthFirstIter {
 }
 
 impl Iterator for BreadthFirstIter {
-    type Item = (Arc<PackageName>, Arc<Version>);
+    type Item = Arc<(Arc<PackageName>, Arc<Version>)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let started = self.vec_pos;
@@ -114,7 +114,7 @@ impl Iterator for BreadthFirstIter {
                 None => continue,
                 Some((car, cdr)) => {
                     self.paths[self.vec_pos] = cdr;
-                    return Some(car.clone());
+                    return Some(car);
                 }
             }
         }
@@ -133,15 +133,15 @@ impl ConstraintSet {
         &self,
         cheap_conflict: &Option<Failure>,
     ) -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
-        let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> =
+        let path_iter: Box<Iterator<Item = Arc<(Arc<PackageName>, Arc<Version>)>>> =
             match cheap_conflict {
                 &Some(Failure::Conflict(ref conflict)) => {
                     Box::new(
                         BreadthFirstIter::new(&conflict.existing, &conflict.conflicting)
-                            .chain(::std::iter::once((
+                            .chain(::std::iter::once(Arc::new((
                                 conflict.package.clone(),
                                 Arc::new(Version::new(vec![], vec![], vec![])),
-                            ))),
+                            )))),
                     )
                 }
                 &Some(Failure::PackageMissing(ref pkg_missing)) => {
@@ -152,7 +152,7 @@ impl ConstraintSet {
                 }
                 &None => Box::new(::std::iter::empty()),
             };
-        for (package, _version) in path_iter {
+        for (ref package, _) in path_iter.map(|v| (*v).clone()) {
             if let Some((cdr, constraint)) = self.remove(&package) {
                 return Some((cdr, package.clone(), constraint.clone()));
             }
