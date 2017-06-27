@@ -25,10 +25,10 @@ impl Serialize for VersionConstraint {
     }
 }
 
-impl Deserialize for VersionConstraint {
+impl<'de> Deserialize<'de> for VersionConstraint {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer,
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         match version_constraint(s.as_bytes()) {

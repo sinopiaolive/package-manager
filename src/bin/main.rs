@@ -1,11 +1,12 @@
 extern crate docopt;
-extern crate rustc_serialize;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
 extern crate package_manager;
 
-use docopt::Docopt;
 use std::process;
-use rustc_serialize::Decodable;
 use std::env;
+use docopt::Docopt;
+use serde::de::Deserialize;
 use package_manager::error::Error;
 use package_manager::manifest::find_project_dir;
 
@@ -20,7 +21,7 @@ Options:
     -v, --version  Print version info.
 ";
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 struct Args {
     arg_command: String,
     arg_args: Vec<String>,
@@ -44,9 +45,9 @@ each_subcommand!(declare_mod);
 
 
 
-fn run_builtin_command<Flags: Decodable>(exec: fn(Flags) -> Result, usage: &str) -> Result {
+fn run_builtin_command<'de, Flags: Deserialize<'de>>(exec: fn(Flags) -> Result, usage: &str) -> Result {
     let docopt = Docopt::new(usage).unwrap().help(true);
-    docopt.decode().map_err(|e| e.exit()).and_then(
+    docopt.deserialize().map_err(|e| e.exit()).and_then(
         |opts| exec(opts),
     )
 }
@@ -80,7 +81,7 @@ fn main() {
         .map(|d| d.options_first(true))
         .map(|d| d.help(true))
         .map(|d| d.version(Some("0.999999-rc623-beta2".to_string())))
-        .and_then(|d| d.decode())
+        .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
     if args.arg_command.is_empty() {
         println!("{:?}", args);

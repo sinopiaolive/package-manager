@@ -1,26 +1,10 @@
 #![allow(unused_macros)]
 
-use std::collections::HashMap;
-use linked_hash_map::LinkedHashMap;
-use std::hash::Hash;
-
 use version::Version;
 use manifest::PackageName;
 use constraint::VersionConstraint;
-use registry::Registry;
+use index::Index;
 
-
-pub fn unlink<A, B>(linked: &LinkedHashMap<A, B>) -> HashMap<A, B>
-where
-    A: Eq + Hash + Clone,
-    B: Clone,
-{
-    let mut map = HashMap::new();
-    for (key, value) in linked.iter() {
-        map.insert(key.clone(), value.clone());
-    }
-    map
-}
 
 pub fn ver(s: &str) -> Version {
     Version::from_str(s).unwrap()
@@ -43,11 +27,11 @@ macro_rules! solution(
         {
             let mut m = ::im::map::Map::new();
             $(
-                let version = ::Version::from_str($version).unwrap();
-                m = m.insert(::std::sync::Arc::new(::test::pkg(stringify!($dep))),
+                let version = $crate::version::Version::from_str($version).unwrap();
+                m = m.insert(::std::sync::Arc::new($crate::test::pkg(stringify!($dep))),
                              ::std::sync::Arc::new(version));
             )+
-            ::solver::Solution::wrap(m)
+            $crate::solver::Solution::wrap(m)
         }
      };
 );
@@ -58,17 +42,17 @@ macro_rules! ver {
         $(
             version_parts.push($x);
         )*;
-        ::Version::new(version_parts, vec![], vec![])
+        $crate::version::Version::new(version_parts, vec![], vec![])
     }};
 }
 
 macro_rules! deps {
-    () => { ::linked_hash_map::LinkedHashMap::new() };
+    () => { ::std::collections::HashMap::new() };
 
     ( $( $dep:ident => $constraint:expr ),* ) => {{
-        let mut deps = ::linked_hash_map::LinkedHashMap::new();
+        let mut deps = ::std::collections::HashMap::new();
         $({
-            let constraint = ::VersionConstraint::from_str($constraint).unwrap();
+            let constraint = $crate::constraint::VersionConstraint::from_str($constraint).unwrap();
             deps.insert(::test::pkg(stringify!($dep)), constraint);
         })*;
         deps
@@ -79,42 +63,23 @@ macro_rules! gen_registry {
     ( $( $name:ident => ( $( $release:expr => $deps:expr ),+ ) ),+ ) => {{
         let mut packs = ::std::collections::HashMap::new();
         $({
-            let name = ::test::pkg(stringify!($name));
+            let name = $crate::test::pkg(stringify!($name));
             let mut releases = ::std::collections::HashMap::new();
             $({
-                let ver = ::Version::from_str($release).unwrap();
+                let ver = $crate::version::Version::from_str($release).unwrap();
 
-                let manifest = ::Manifest {
-                    name: name.clone(),
-                    description: "A generalised sinister spatiomorphism.".to_string(),
-                    author: "IEEE Text Alignment Working Group".to_string(),
-                    license: None,
-                    license_file: None,
-                    homepage: None,
-                    bugs: None,
-                    repository: None,
-                    keywords: vec![],
-                    files: vec![],
-                    private: false,
-                    dev_dependencies: ::linked_hash_map::LinkedHashMap::new(),
-                    dependencies: $deps,
-                };
-                releases.insert(ver, ::Release {
-                    manifest: manifest,
-                    artifact_url: "http://left-pad.com/left-pad.tar.gz".to_string()
-                });
+                releases.insert(ver, $deps);
             })*;
-            let pack = ::Package {
-                owners: vec!["Left Pad Working Group".to_string()],
+            let pack = $crate::index::Package {
                 releases: releases
             };
             packs.insert(name, pack);
         })*;
-        ::Registry { packages: packs }
+        $crate::index::Index { packages: packs }
     }}
 }
 
-pub fn sample_registry() -> Registry {
+pub fn sample_registry() -> Index {
     gen_registry!(
         left_pad => (
             "1.0.0" => deps!(

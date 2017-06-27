@@ -1,7 +1,3 @@
-extern crate docopt;
-extern crate rustc_serialize;
-extern crate package_manager;
-
 use std::result;
 use std::env;
 use package_manager::manifest::{serialise_manifest, read_manifest};
@@ -17,7 +13,7 @@ Options:
     --bdd          Use the Official BDD Style.
 ";
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 pub struct Args {
     flag_bdd: bool,
 }

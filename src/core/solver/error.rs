@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use constraint::VersionConstraint;
-use manifest::{PackageName, DependencySet};
-use registry::Registry;
+use manifest::{PackageName};
+use index::{Index, Dependencies};
 use solver::path::Path;
 use solver::failure;
 use solver::failure::Failure;
@@ -27,8 +27,8 @@ pub struct Conflict {
 
 impl Error {
     pub fn from_failure(
-        registry: &Registry,
-        deps: &DependencySet,
+        registry: &Index,
+        deps: &Dependencies,
         ra: &RegistryAdapter,
         failure: Failure,
     ) -> Self {
@@ -83,8 +83,8 @@ impl Conflict {
     /// Technically, A 1 depends on X ^1.0 and not X 1.0, but this appears to be
     /// the least-confusing error we can produce in this case.
     fn from(
-        registry: &Registry,
-        deps: &DependencySet,
+        registry: &Index,
+        deps: &Dependencies,
         ra: &RegistryAdapter,
         conflict: failure::Conflict,
     ) -> Self {
@@ -101,8 +101,6 @@ impl Conflict {
                         .releases
                         .get(&ver)
                         .expect("path version must exist in registry")
-                        .manifest
-                        .dependencies
                 }
             };
             depset

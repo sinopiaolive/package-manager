@@ -1,7 +1,6 @@
 use std::convert::From;
 
-use registry::Registry;
-use manifest::DependencySet;
+use index::{Index, Dependencies};
 
 mod path;
 mod constraints;
@@ -90,13 +89,13 @@ fn search(
     }
 }
 
-pub fn solve(reg: &Registry, deps: &DependencySet) -> Result<Solution, Error> {
+pub fn solve(reg: &Index, deps: &Dependencies) -> Result<Solution, Error> {
     let ra = RegistryAdapter::new(reg);
     solve_inner(&ra, &deps).map_err(|failure| Error::from_failure(&reg, &deps, &ra, failure))
 }
 
 
-fn solve_inner(ra: &RegistryAdapter, deps: &DependencySet) -> Result<Solution, Failure> {
+fn solve_inner(ra: &RegistryAdapter, deps: &Dependencies) -> Result<Solution, Failure> {
     let constraint_set = ra.constraint_set_from(deps)?;
     let partial_solution = search(&ra, constraint_set.clone(), false, &PartialSolution::new())?;
     Ok(Solution::from(partial_solution))

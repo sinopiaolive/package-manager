@@ -14,7 +14,6 @@ use std::collections::BTreeMap;
 use std::str;
 use nom::IResult::Done;
 use toml;
-use linked_hash_map::LinkedHashMap;
 use license_exprs::validate_license_expr;
 use super::error;
 
@@ -39,9 +38,9 @@ pub struct Manifest {
     pub files: Vec<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub private: bool,
-    #[serde(default, skip_serializing_if = "LinkedHashMap::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dependencies: DependencySet,
-    #[serde(default, skip_serializing_if = "LinkedHashMap::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dev_dependencies: DependencySet,
 }
 
@@ -51,7 +50,7 @@ impl Manifest {
     }
 }
 
-pub type DependencySet = LinkedHashMap<PackageName, VersionConstraint>;
+pub type DependencySet = BTreeMap<PackageName, VersionConstraint>;
 
 pub type VersionSet = BTreeMap<PackageName, Version>;
 
@@ -101,10 +100,10 @@ impl Serialize for PackageName {
     }
 }
 
-impl Deserialize for PackageName {
+impl<'de> Deserialize<'de> for PackageName {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer,
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         match PackageName::from_str(&s) {
@@ -259,7 +258,7 @@ right-pad = \"^8.23\"
 
         let m = deserialise_manifest(&left_pad.to_string()).unwrap();
 
-        let mut my_deps = LinkedHashMap::new();
+        let mut my_deps = BTreeMap::new();
         my_deps.insert(
             PackageName {
                 namespace: Some("javascript".to_string()),
@@ -283,7 +282,7 @@ right-pad = \"^8.23\"
                        keywords: vec![],
                        files: vec![],
                        private: false,
-                       dev_dependencies: LinkedHashMap::new(),
+                       dev_dependencies: BTreeMap::new(),
                        dependencies: my_deps,
                    });
     }
@@ -298,7 +297,7 @@ author = \"IEEE Text Alignment Working Group\"
 right-pad = \">= 8.23 < 9\"
 ";
 
-        let mut my_deps = LinkedHashMap::new();
+        let mut my_deps = BTreeMap::new();
         my_deps.insert(
             PackageName {
                 namespace: Some("javascript".to_string()),
@@ -321,7 +320,7 @@ right-pad = \">= 8.23 < 9\"
             keywords: vec![],
             files: vec![],
             private: false,
-            dev_dependencies: LinkedHashMap::new(),
+            dev_dependencies: BTreeMap::new(),
             dependencies: my_deps,
         };
 

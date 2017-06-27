@@ -141,10 +141,10 @@ impl Serialize for Version {
     }
 }
 
-impl Deserialize for Version {
+impl<'de> Deserialize<'de> for Version {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer,
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         match version(s.as_bytes()) {

@@ -3,21 +3,21 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec::Vec;
 use constraint::VersionConstraint;
-use manifest::{DependencySet, PackageName};
+use manifest::PackageName;
 use version::Version;
-use registry::Registry;
+use index::{Index, Dependencies};
 use solver::failure::Failure;
 use solver::constraints::{Constraint, ConstraintSet};
 use solver::path::Path;
 use solver::mappable::Mappable;
 
 pub struct RegistryAdapter<'r> {
-    registry: &'r Registry,
+    registry: &'r Index,
     cache: RefCell<HashMap<(Arc<PackageName>, Arc<VersionConstraint>), Option<Vec<Arc<Version>>>>>,
 }
 
 impl<'r> RegistryAdapter<'r> {
-    pub fn new(registry: &Registry) -> RegistryAdapter {
+    pub fn new(registry: &Index) -> RegistryAdapter {
         RegistryAdapter {
             registry: registry,
             cache: RefCell::new(HashMap::new()),
@@ -100,9 +100,8 @@ impl<'r> RegistryAdapter<'r> {
             .releases
             .get(&version)
             .expect(&format!("release not found: {} {}", package, version));
-        let dependency_set = &release.manifest.dependencies;
         let mut constraint_set = ConstraintSet::new();
-        for (dep_package, version_constraint) in dependency_set {
+        for (dep_package, version_constraint) in release {
             let dep_package_arc = Arc::new(dep_package.clone());
             let version_constraint_arc = Arc::new(version_constraint.clone());
             let constraint = self.constraint_for(
@@ -115,7 +114,7 @@ impl<'r> RegistryAdapter<'r> {
         Ok(constraint_set)
     }
 
-    pub fn constraint_set_from(&self, deps: &DependencySet) -> Result<ConstraintSet, Failure> {
+    pub fn constraint_set_from(&self, deps: &Dependencies) -> Result<ConstraintSet, Failure> {
         let mut constraint_set = ConstraintSet::new();
         for (package, version_constraint) in deps {
             let package_arc = Arc::new(package.clone());
