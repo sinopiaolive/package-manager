@@ -94,11 +94,11 @@ impl Version {
     pub fn semver_cmp(&self, other: &Version) -> Ordering {
         match self.normalized_fields().cmp(&other.normalized_fields()) {
             Ordering::Equal => {
-                match (self.prerelease.is_empty(), other.prerelease.is_empty()) {
-                    (true, false) => Ordering::Greater,
-                    (false, true) => Ordering::Less,
-                    (true, true) => Ordering::Equal,
-                    (false, false) => self.prerelease.cmp(&other.prerelease),
+                match (self.has_pre(), other.has_pre()) {
+                    (false, true) => Ordering::Greater,
+                    (true, false) => Ordering::Less,
+                    (false, false) => Ordering::Equal,
+                    (true, true) => self.prerelease.cmp(&other.prerelease),
                 }
             }
             a => a,
