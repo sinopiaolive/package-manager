@@ -1,0 +1,8 @@
+## Downloading RubyGems index
+
+```
+$ curl -O https://api.rubygems.org/specs.4.8.gz
+$ gunzip specs.4.8.gz
+$ irb
+> require 'json'; require 'rubygems'; File.write('specs.json', Marshal.load(File.read('specs.4.8')).to_json)
+```
