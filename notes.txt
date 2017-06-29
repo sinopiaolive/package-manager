@@ -6,12 +6,3 @@ $ gunzip specs.4.8.gz
 $ irb
 > require 'json'; require 'rubygems'; File.write('specs.json', Marshal.load(File.read('specs.4.8')).to_json)
 ```
-
-
-## Profiling
-
-Clone this: https://github.com/brendangregg/FlameGraph (no setup necessary)
-
-```
-sudo perf record -g -- target/debug/pm && sudo chmod 644 perf.data && perf script > out.perf && rm -f perf.data && ~/src/FlameGraph/stackcollapse-perf.pl < out.perf | ~/src/FlameGraph/flamegraph.pl > flamegraph.svg && rm -f out.perf
-```

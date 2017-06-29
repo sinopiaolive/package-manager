@@ -1,1 +1,7 @@
 /target
+
+# Profiling
+/flamegraph.svg
+/perf.data*
+/out.perf
+/out.folded

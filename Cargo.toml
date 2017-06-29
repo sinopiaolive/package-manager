@@ -27,4 +27,9 @@ im = "4.0.1"
 rmp-serde = "0.13.3"
 
 [profile.bench]
-debug = true # for flamegraphs
+# For profiling
+debug = true
+
+[profile.release]
+# For profiling; https://github.com/rust-lang/cargo/issues/4240
+debug = true
