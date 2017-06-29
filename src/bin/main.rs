@@ -1,6 +1,7 @@
 extern crate docopt;
 extern crate serde;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate package_manager;
 
 use std::process;
@@ -45,7 +46,10 @@ each_subcommand!(declare_mod);
 
 
 
-fn run_builtin_command<'de, Flags: Deserialize<'de>>(exec: fn(Flags) -> Result, usage: &str) -> Result {
+fn run_builtin_command<'de, Flags: Deserialize<'de>>(
+    exec: fn(Flags) -> Result,
+    usage: &str,
+) -> Result {
     let docopt = Docopt::new(usage).unwrap().help(true);
     docopt.deserialize().map_err(|e| e.exit()).and_then(
         |opts| exec(opts),

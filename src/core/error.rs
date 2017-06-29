@@ -1,5 +1,6 @@
 use std;
 use toml;
+use rmp_serde;
 
 use manifest::PackageName;
 use version::Version;
@@ -24,6 +25,16 @@ quick_error! {
             description("version missing")
         }
         Io(err: std::io::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        FromRMP(err: rmp_serde::decode::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        ToRMP(err: rmp_serde::encode::Error) {
             cause(err)
             description(err.description())
             from()

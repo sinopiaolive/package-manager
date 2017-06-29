@@ -31,6 +31,7 @@ impl<'de> Deserialize<'de> for VersionConstraint {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
+        // return Ok(VersionConstraint::Exact(Version::new(vec![1], vec![], vec![])))
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Ok(v),
             _ => {

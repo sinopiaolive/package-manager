@@ -29,4 +29,5 @@ mod solver;
 pub use solver::*;
 mod lockfile;
 pub use lockfile::*;
-mod index;
+pub mod index;
+mod path;

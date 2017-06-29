@@ -12,7 +12,6 @@ use std::iter::FromIterator;
 use std::clone::Clone;
 use std::collections::BTreeMap;
 use std::str;
-use nom::IResult::Done;
 use toml;
 use license_exprs::validate_license_expr;
 use super::error;
@@ -71,13 +70,46 @@ impl fmt::Debug for PackageName {
     }
 }
 
+fn validate_package_name(s: &str) -> bool {
+    s.chars().all(|c| {
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' ||
+            c == '-'
+    })
+}
+
 impl PackageName {
     pub fn from_str(s: &str) -> Result<PackageName, error::Error> {
-        match package_name(s.as_bytes()) {
-            Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Custom(
-                format!("invalid package name {:?}", s),
-            )),
+        let mut it = s.split('/');
+        let err = Err(error::Error::Custom(
+            format!("invalid package name '{:?}'", s),
+        ));
+        match it.next() {
+            None => err,
+            Some(namespace) => {
+                if !validate_package_name(namespace) {
+                    err
+                } else {
+                    match it.next() {
+                        None => Ok(PackageName {
+                            namespace: None,
+                            name: namespace.to_string(),
+                        }),
+                        Some(name) => {
+                            if !validate_package_name(namespace) {
+                                err
+                            } else {
+                                match it.next() {
+                                    None => Ok(PackageName {
+                                        namespace: Some(namespace.to_string()),
+                                        name: name.to_string(),
+                                    }),
+                                    Some(_) => err,
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -106,6 +138,11 @@ impl<'de> Deserialize<'de> for PackageName {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
+        // return Ok(PackageName {
+        //     namespace: Some("lol".to_string()),
+        //     name: "lol".to_string()
+        // })
+
         match PackageName::from_str(&s) {
             Ok(package_name) => Ok(package_name),
             _ => Err(D::Error::custom("Invalid package name")),
@@ -230,17 +267,7 @@ pub fn read_manifest() -> Result<Manifest, error::Error> {
     deserialise_manifest(&data)
 }
 
-named!(package_name_component<&str>,
-       map_res!(re_bytes_find!(r"^[a-zA-Z0-9_-]+"), str::from_utf8));
-named!(package_name<PackageName>,
-       map_res!(
-           separated_list!(tag!("/"), package_name_component), |v: Vec<&str>| {
-             match v.len() {
-                 1 => Ok(PackageName { namespace: None, name: v[0].to_string() }),
-                 2 => Ok(PackageName { namespace: Some(v[0].to_string()), name: v[1].to_string() }),
-                 _ => Err("Invalid package name")
-             }
-           }));
+
 
 #[cfg(test)]
 mod test {
@@ -266,25 +293,27 @@ right-pad = \"^8.23\"
             },
             VersionConstraint::Caret(ver!(8, 23)),
         );
-        assert_eq!(m,
-                   Manifest {
-                       name: PackageName {
-                           namespace: Some("javascript".to_string()),
-                           name: "left-pad".to_string(),
-                       },
-                       description: "A generalised sinister spatiomorphism.".to_string(),
-                       author: "IEEE Text Alignment Working Group".to_string(),
-                       license: None,
-                       license_file: None,
-                       homepage: None,
-                       bugs: None,
-                       repository: None,
-                       keywords: vec![],
-                       files: vec![],
-                       private: false,
-                       dev_dependencies: BTreeMap::new(),
-                       dependencies: my_deps,
-                   });
+        assert_eq!(
+            m,
+            Manifest {
+                name: PackageName {
+                    namespace: Some("javascript".to_string()),
+                    name: "left-pad".to_string(),
+                },
+                description: "A generalised sinister spatiomorphism.".to_string(),
+                author: "IEEE Text Alignment Working Group".to_string(),
+                license: None,
+                license_file: None,
+                homepage: None,
+                bugs: None,
+                repository: None,
+                keywords: vec![],
+                files: vec![],
+                private: false,
+                dev_dependencies: BTreeMap::new(),
+                dependencies: my_deps,
+            }
+        );
     }
 
     #[test]
@@ -368,9 +397,11 @@ hippopotamus = \"A large, thick-skinned, semiaquatic African mammal.\"
         match r {
             Err(e) => {
                 let m = format!("{:?}", e);
-                assert!(m.contains("unknown field `hippopotamus`"),
-                        "error message {:?} doesn't complain about \"hippopotamus\"",
-                        m)
+                assert!(
+                    m.contains("unknown field `hippopotamus`"),
+                    "error message {:?} doesn't complain about \"hippopotamus\"",
+                    m
+                )
             }
             _ => panic!("parsing unexpected fields didn't return an error!"),
         }

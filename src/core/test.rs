@@ -70,12 +70,9 @@ macro_rules! gen_registry {
 
                 releases.insert(ver, $deps);
             })*;
-            let pack = $crate::index::Package {
-                releases: releases
-            };
-            packs.insert(name, pack);
+            packs.insert(name, releases);
         })*;
-        $crate::index::Index { packages: packs }
+        packs
     }}
 }
 

@@ -95,10 +95,8 @@ impl Conflict {
                 None => deps,
                 Some((ref pkg, ref ver)) => {
                     &registry
-                        .packages
                         .get(&pkg)
                         .expect("path package must exist in registry")
-                        .releases
                         .get(&ver)
                         .expect("path version must exist in registry")
                 }

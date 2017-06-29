@@ -37,12 +37,11 @@ impl<'r> RegistryAdapter<'r> {
         if let Some(value) = cache.get(&key) {
             return value.clone();
         }
-        let value = match self.registry.packages.get(&package) {
+        let value = match self.registry.get(&package) {
             None => None,
             Some(pkg) => {
                 Some(
-                    pkg.releases
-                        .keys()
+                    pkg.keys()
                         .filter(|v| constraint.contains(v))
                         .map(|v| Arc::new(v.clone()))
                         .collect(),
@@ -94,10 +93,8 @@ impl<'r> RegistryAdapter<'r> {
     ) -> Result<ConstraintSet, Failure> {
         let new_path = path.cons((package.clone(), version.clone()));
         let release = self.registry
-            .packages
             .get(&package)
             .expect(&format!("package not found: {}", package))
-            .releases
             .get(&version)
             .expect(&format!("release not found: {} {}", package, version));
         let mut constraint_set = ConstraintSet::new();

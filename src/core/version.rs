@@ -147,6 +147,7 @@ impl<'de> Deserialize<'de> for Version {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
+        // return Ok(Version::new(vec![1], vec![], vec![]))
         match version(s.as_bytes()) {
             Done(b"", v) => Ok(v),
             _ => Err(D::Error::custom(
