@@ -79,15 +79,18 @@ fn validate_package_name(s: &str) -> bool {
 
 impl PackageName {
     pub fn from_str(s: &str) -> Result<PackageName, error::Error> {
+        fn error(s: &str) -> Result<PackageName, error::Error> {
+            Err(error::Error::Custom(
+                format!("invalid package name '{:?}'", s),
+            ))
+        }
+
         let mut it = s.split('/');
-        let err = Err(error::Error::Custom(
-            format!("invalid package name '{:?}'", s),
-        ));
         match it.next() {
-            None => err,
+            None => error(s),
             Some(namespace) => {
                 if !validate_package_name(namespace) {
-                    err
+                    error(s)
                 } else {
                     match it.next() {
                         None => Ok(PackageName {
@@ -96,14 +99,14 @@ impl PackageName {
                         }),
                         Some(name) => {
                             if !validate_package_name(namespace) {
-                                err
+                                error(s)
                             } else {
                                 match it.next() {
                                     None => Ok(PackageName {
                                         namespace: Some(namespace.to_string()),
                                         name: name.to_string(),
                                     }),
-                                    Some(_) => err,
+                                    Some(_) => error(s),
                                 }
                             }
                         }
@@ -125,7 +128,7 @@ impl Display for PackageName {
 
 impl Serialize for PackageName {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
+        where
         S: Serializer,
     {
         serializer.serialize_str(&*self.to_string())
@@ -134,7 +137,7 @@ impl Serialize for PackageName {
 
 impl<'de> Deserialize<'de> for PackageName {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
+        where
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
