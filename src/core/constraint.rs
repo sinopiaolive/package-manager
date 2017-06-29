@@ -2,7 +2,7 @@ use nom::IResult::Done;
 use self::VersionConstraint::{Exact, Range, Caret, Tilde};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use version::{Version, base_version, version, bump_last, caret_bump, tilde_bump};
+use version::{Version, version, caret_bump, tilde_bump};
 use std::cmp::Ordering;
 use std::fmt;
 use nom;

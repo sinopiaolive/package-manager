@@ -1,10 +1,10 @@
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Write, BufReader};
+use std::io::{Read, Write};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use rmp_serde::{self, encode, decode};
+use rmp_serde::{self, encode};
 use serde_json;
 
 use error::Error;
@@ -57,12 +57,12 @@ where
         .map(|v| Arc::new(v))
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
+// #[cfg(test)]
+// mod test {
+//     use super::*;
 
-    #[test]
-    fn read_json_registry() {
-        let reg = read_json("test/cargo.json").unwrap();
-    }
-}
+//     #[test]
+//     fn read_json_registry() {
+//         let reg = read_json("test/cargo.json").unwrap();
+//     }
+// }
