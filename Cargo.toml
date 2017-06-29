@@ -25,3 +25,6 @@ quick-error = "1.2"
 license-exprs = "1.3.0"
 im = "4.0.1"
 rmp-serde = "0.13.3"
+
+[profile.bench]
+debug = true # for flamegraphs
