@@ -108,8 +108,7 @@ impl Version {
 
 impl PartialEq for Version {
     fn eq(&self, other: &Version) -> bool {
-        self.normalized_fields() == other.normalized_fields() &&
-            self.prerelease == other.prerelease
+        self.normalized_fields() == other.normalized_fields() && self.prerelease == other.prerelease
     }
 }
 
@@ -270,8 +269,13 @@ named!(nat<u64>, map_res!(map_res!(digit, str::from_utf8), to_u64));
 
 named!(pub base_version<Vec<u64>>, separated_nonempty_list!(char!('.'), nat));
 
+fn validate_id(c: u8) -> bool {
+    // 0-9, A-Z, a-z and '-'
+    (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 45
+}
+
 named!(version_id<VersionIdentifier>,
-       map_res!(map_res!(re_bytes_find!(r"^[a-zA-Z0-9-]+"),
+       map_res!(map_res!(take_while1!(validate_id),
                          str::from_utf8), convert_version_identifier));
 
 fn to_u64(s: &str) -> Result<u64, ()> {
