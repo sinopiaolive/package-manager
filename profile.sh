@@ -45,12 +45,31 @@ function rust_demangle() {
     '
 }
 
+function disable_kptr_restrict() {
+    # This is merely hardening against some forms of exploits, so it appears to
+    # be OK to disable: https://wiki.ubuntu.com/Security/Features
+    #
+    # We could also run 'perf script' as root instead of doing this.
+    if test -f /proc/sys/kernel/kptr_restrict; then
+        kptr_restrict_orig="`cat /proc/sys/kernel/kptr_restrict`"
+        sudo sh -c "echo 0 > /proc/sys/kernel/kptr_restrict"
+    fi
+}
+
+function restore_kptr_restrict() {
+    if test -f /proc/sys/kernel/kptr_restrict; then
+        sudo sh -c "echo $kptr_restrict_orig > /proc/sys/kernel/kptr_restrict"
+    fi
+}
+
 set -e
 
 cargo test --release --no-run
 sudo perf record -g -- "`ls -tr target/release/package_manager-* | grep -v \\.d$ | tail -n 1`" --test-threads 1 "$@"
 sudo chmod 644 perf.data
+disable_kptr_restrict
 perf script > out.perf
+restore_kptr_restrict
 stackcollapse-perf.pl < out.perf > out.folded
 rust_demangle < out.folded > out.folded.demangled
 flamegraph.pl < out.folded.demangled > flamegraph.svg
