@@ -28,7 +28,7 @@ macro_rules! solution(
             let mut m = ::im::map::Map::new();
             $(
                 let version = $crate::version::Version::from_str($version).unwrap();
-                m = m.insert(::std::sync::Arc::new($crate::test::pkg(stringify!($dep))),
+                m = m.insert(::std::sync::Arc::new($crate::test_helpers::pkg(stringify!($dep))),
                              ::std::sync::Arc::new(version));
             )+
             $crate::solver::Solution::wrap(m)
@@ -53,7 +53,7 @@ macro_rules! deps {
         let mut deps = ::std::collections::HashMap::new();
         $({
             let constraint = $crate::constraint::VersionConstraint::from_str($constraint).unwrap();
-            deps.insert(::test::pkg(stringify!($dep)), constraint);
+            deps.insert(::test_helpers::pkg(stringify!($dep)), constraint);
         })*;
         deps
     }};
@@ -63,7 +63,7 @@ macro_rules! gen_registry {
     ( $( $name:ident => ( $( $release:expr => $deps:expr ),+ ) ),+ ) => {{
         let mut packs = ::std::collections::HashMap::new();
         $({
-            let name = $crate::test::pkg(stringify!($name));
+            let name = $crate::test_helpers::pkg(stringify!($name));
             let mut releases = ::std::collections::HashMap::new();
             $({
                 let ver = $crate::version::Version::from_str($release).unwrap();

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use solver::{Path, Constraint, ConstraintSet, JustifiedVersion, PartialSolution};
-use test::{pkg, ver};
+use test_helpers::{pkg, ver};
 
 pub fn path(l: &[(&str, &str)]) -> Path {
     l.iter()

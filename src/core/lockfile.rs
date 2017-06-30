@@ -12,7 +12,7 @@ pub enum LockfileVersion {
 #[cfg(test)]
 mod test {
     use super::*;
-    use test::*;
+    use test_helpers::*;
 
     #[test]
     fn serialize() {

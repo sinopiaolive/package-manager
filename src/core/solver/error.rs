@@ -160,8 +160,8 @@ impl Conflict {
 #[cfg(test)]
 mod test {
     use super::*;
-    use test::{pkg, range};
-    use solver::test::{constraint, path};
+    use test_helpers::{pkg, range};
+    use solver::test_helpers::{constraint, path};
 
     #[test]
     fn test_conflict_from_solver_conflict() {

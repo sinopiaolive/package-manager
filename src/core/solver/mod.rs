@@ -10,7 +10,7 @@ mod solution;
 mod adapter;
 mod mappable;
 #[cfg(test)]
-mod test;
+mod test_helpers;
 
 pub use solver::constraints::{Constraint, ConstraintSet};
 pub use solver::failure::Failure;
@@ -164,8 +164,9 @@ fn infer_indirect_dependencies(
 #[cfg(test)]
 mod unit_test {
     use super::*;
-    use test::{pkg, ver, range, sample_registry};
-    use solver::test::{constraint_set, partial_sln};
+    use test_helpers::{pkg, ver, range, sample_registry};
+    use solver::test_helpers::{constraint_set, partial_sln};
+
     use std::sync::Arc;
     use solver::constraints::Constraint;
     use std::path;

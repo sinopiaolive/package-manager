@@ -324,9 +324,9 @@ named!(pub version<Version>, do_parse!(
 
 
 #[cfg(test)]
-mod test {
+mod unit_test {
     use super::*;
-    use test::ver;
+    use test_helpers::ver;
 
     #[test]
     fn weird_constructors() {

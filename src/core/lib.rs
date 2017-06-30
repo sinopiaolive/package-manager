@@ -16,7 +16,7 @@ extern crate nom;
 extern crate rmp_serde;
 
 #[macro_use]
-mod test;
+mod test_helpers;
 mod version;
 pub use version::*;
 mod constraint;

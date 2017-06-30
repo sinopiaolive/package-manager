@@ -258,8 +258,8 @@ fn contained_in(
 #[cfg(test)]
 mod test {
     use super::*;
-    use test::{pkg, range};
-    use solver::test::{constraint, constraint_set, partial_sln, path};
+    use test_helpers::{pkg, range};
+    use solver::test_helpers::{constraint, constraint_set, partial_sln, path};
 
     #[test]
     fn constraint_merge() {

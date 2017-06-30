@@ -177,7 +177,7 @@ fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
 mod test {
     use super::*;
     use version::VersionIdentifier;
-    use test::{ver, range};
+    use test_helpers::{ver, range};
 
     #[test]
     fn parse_exact_constraint() {
