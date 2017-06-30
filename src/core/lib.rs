@@ -6,7 +6,6 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate toml;
-extern crate regex;
 #[macro_use]
 extern crate quick_error;
 extern crate license_exprs;

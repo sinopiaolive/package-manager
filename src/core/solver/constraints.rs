@@ -181,27 +181,20 @@ impl ConstraintSet {
         let mut modified = false;
         for (package, new_constraint) in new.iter() {
             if contained_in(package.clone(), &new_constraint, solution)? {
-                println!("******* continued");
                 continue;
             }
             out = match out.get(&package) {
                 None => {
-                    println!("******* matched None");
                     modified = true;
                     out.insert(package.clone(), new_constraint.clone())
                 }
                 Some(ref existing_constraint) => {
-                    println!("******* matched Some({:?})", existing_constraint);
                     let (updated_constraint, constraint_modified) =
                         existing_constraint.and(&new_constraint, package.clone())?;
                     modified = modified || constraint_modified;
-                    println!("******* new_constraint: {:?}", new_constraint);
-                    println!("******* updated_constraint: {:?}", updated_constraint);
-                    println!("******* out: {:?}", out);
                     out.insert(package.clone(), updated_constraint)
                 }
             };
-            println!("******** new out: {:?}", out);
         }
         Ok((out, modified))
     }
