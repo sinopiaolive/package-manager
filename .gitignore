@@ -4,4 +4,4 @@
 /flamegraph.svg
 /perf.data*
 /out.perf
-/out.folded
+/out.folded*

@@ -24,6 +24,27 @@ if test "$1" = --help -o "$1" = ""; then
     exit 0
 fi
 
+# From https://gist.github.com/cstorey/f7ccbc4b3e67fccdaf85158cce6ec811
+function rust_demangle() {
+    sed -e '
+        s!\$C\$!,!g;
+        s!\$SP\$!@!g;
+        s!\$BP\$!*!g;
+        s!\$RF\$!\&!g;
+        s!\$LT\$!<!g;
+        s!\$GT\$!>!g;
+        s!\$LP\$!(!g;
+        s!\$RP\$!)!g;
+        s!\$u20\$! !g;
+        s!\$u27\$!'\''!g;
+        s!\$u2b\$!+!g;
+        s!\$u5b\$![!g;
+        s!\$u5d\$!]!g;
+        s!\$u7e\$!~!g;
+        s!\.\.!::!g;
+    '
+}
+
 set -e
 
 cargo test --release --no-run
@@ -31,7 +52,8 @@ sudo perf record -g -- "`ls -tr target/release/package_manager-* | grep -v \\.d$
 sudo chmod 644 perf.data
 perf script > out.perf
 stackcollapse-perf.pl < out.perf > out.folded
-flamegraph.pl < out.folded > flamegraph.svg
-rm -f perf.data{,.old} out.perf out.folded
+rust_demangle < out.folded > out.folded.demangled
+flamegraph.pl < out.folded.demangled > flamegraph.svg
+rm -f perf.data{,.old} out.perf out.folded{,.demangled}
 echo
 echo 'Output placed in flamegraph.svg'
