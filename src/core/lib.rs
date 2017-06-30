@@ -1,4 +1,5 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_features)]
+#![feature(test)]
 
 extern crate semver_parser;
 extern crate serde;
@@ -14,6 +15,8 @@ extern crate im;
 #[macro_use]
 extern crate nom;
 extern crate rmp_serde;
+#[cfg(test)]
+extern crate test;
 
 #[macro_use]
 mod test_helpers;

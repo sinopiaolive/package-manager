@@ -327,6 +327,14 @@ named!(pub version<Version>, do_parse!(
 mod unit_test {
     use super::*;
     use test_helpers::ver;
+    use test::Bencher;
+
+    #[bench]
+    fn convert_version_identifier_bench(b: &mut Bencher) {
+        b.iter(|| {
+            (convert_version_identifier("3"), convert_version_identifier("beta"))
+        });
+    }
 
     #[test]
     fn weird_constructors() {

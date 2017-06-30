@@ -54,3 +54,17 @@ where
         .map_err(|e| Error::Custom(format!("{}", e)))
         .map(|v| Arc::new(v))
 }
+
+#[cfg(test)]
+mod unit_test {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn read_index_bench() {
+        // There doesn't seem to be a way to run a function once and still get
+        // timings as with b.iter().
+        // https://github.com/rust-lang/rust/issues/11010#issuecomment-312270219
+        read_index(Path::new("test/cargo.rmp")).unwrap();
+    }
+}
