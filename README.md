@@ -43,14 +43,18 @@ without sacrificing usability?
   the logic that is shared between them.
 
 Our current approach is to produce a stand-alone tool and see if it is usable in
-practice. To the degree that it is not, we may then make the code more generic
-(parametrizable) so that it can be used to produce custom package managers.
+practice. To the degree that it is not, we may then generalize the code, making
+choices such as the format for version numbers parametrizable, so that it can be
+used as a framework to produce custom package managers.
 
 ### Why not use npm?
 
 It is possible to use npm to distribute code other than JavaScript. However,
 npm's main shortcoming for our purposes is that it exclusively uses *nested
-dependencies*. We want *flat dependencies* as our primary use case.
+dependencies*. We want *flat dependencies* as our primary use case. (TODO: Link
+a document that explains what the difference is, why flat dependencies matter to
+library authors, and why npm's peer dependencies and deduping don't fully solve
+the problem for us.)
 
 ### Why not use Bower?
 
@@ -78,56 +82,112 @@ or Cargo.
     * authenticate to the registry server, and
     * upload a new library release to the registry server.
 
+## Dependency resolution
+
+Given a set of dependencies, we perform *flat dependency resolution*.
+
+Formally, we obtain a solution S mapping Package Names to Version numbers, where
+each of the initial dependencies and the dependencies of each package contained
+in S are satisfied by S. S is minimal: no package can be removed from S without
+breaking a dependency.
+
+Our solver performs an exhaustive (but not brute force) search. If there exists
+a solution, it will eventually find it, and if there doesn't exist one, it will
+eventually return an error indicating a conflict. While a brute force search
+would have exponential complexity, we find that with a simple inference
+optimization, the solver handles all dependency sets we've tested so far in
+milliseconds. If we run into cases that the solver doesn't handle well, there is
+potential for more optimizations.
+
+The solver could conceivably be made generic over the Package Name, Version, and
+Version Constraint types and extracted into a separate library -- like
+[Molinillo](https://github.com/CocoaPods/Molinillo) but with a Rust interface.
+
+### Supporting npm-style dependencies
+
+It is possible to add support for packages to additionally have npm-style
+"private" dependencies that are not shared with other packages. We don't know of
+a package manager that currently allows mixing flat and nested resolution, but
+it might turn out to be quite useful in practice.
+
+One open question is *who* should specify that a dependency is private: the
+depender ("I only want a private copy of the following package") or the dependee
+("this package is always a private dependency -- you can have duplicates of
+it").
+
 ## Design
 
-Package managers differ in subtle ways. We're currently working towards a
-stand-alone tool. While doing this, we're having to make a lot of choices. This
-section documents those choices.
+Package managers differ in subtle ways. While implementing the Package Manager,
+we're having to make a lot of choices. This section documents those choices.
 
-None of these choices are set in stone just yet. If you see a problem with one
-of them, please tell us!
+The goal of this section is twofold:
 
-If we later turn the Package Manager into a framework, we might abstract over
-these questions and only provide our choices as defaults.
+1. By documenting precisely what we're (planning on) doing, we can solicit
+   feedback and check if those choices are suitable for existing languages and
+   projects. For example, in the Haskell ecosystem, many libraries use four
+   version components (like
+   [1.2.6.1](https://hackage.haskell.org/package/hashable)), so if we forced all
+   version numbers to conform to a major.minor.patch format as prescribed by
+   semver, those libraries couldn't be uploaded to the Package Manager's
+   registry.
+
+2. If we want to turn the Package Manager into a framework for writing custom
+   package managers, this section serves as a list of things that could be made
+   generic. For example, we might want to be generic over the Version type to
+   allow for custom version number formats, and merely provide our Version
+   implemention as a suggested default.
+
+<!-- Note: For ease of exposition, the terminology in this section does not
+always match our struct names precisely. -->
 
 ### Registry data
 
 The Registry stores Package Names. Each Package Name has ownership information
-and a list of Versions. Each Version has Package Metadata, a Tarball, and
-dependencies, which is a mapping from Package Names to Version Constraints.
+and a list of Versions. Each Version has Package Metadata, an Archive containing
+the package contents, and a Dependency Set.
+
+### Dependency Set
+
+A Dependency Set maps Package Names to Version Constraints.
 
 ### Package Names
 
-TODO
+Package Names are of the format `<namespace>/<name>`, where `<namespace>` and
+`<name>` are case sensitive strings matching `[a-zA-Z_-]+`, both freely chosen
+by the package author.
+
+*[To avoid issues on case insensitive file systems, should we disallow
+conflicting capitalizations in the registry, or make package names case
+insensitive, or even disallow `A-Z`? This question similarly applies to
+prerelease tags in version numbers.]*
 
 ### Version numbers
 
-We use the [semver.org](http://semver.org/) standard for our version format,
-with the following modifications:
+We use the [semver.org](http://semver.org/) standard for our Version format,
+with the following changes:
 
-* Instead of three numeric fields (major.minor.patch), a Version may have one or
-  more fields. Trailing zeros are ignored for the purpose of equality and
-  comparison, e.g. 1.2 == 1.2.0.0. This is to allow packages with existing
-  versioning schemes that differ from semver
-  ([example](https://hackage.haskell.org/package/hashable)) to be uploaded more
-  easily.
+* Instead of requiring three number fields (major.minor.patch), a Version may
+  have one or more number fields for the base version. Trailing zeros in the
+  base version are ignored for the purpose of equality and comparison, e.g.
+  1.2-beta == 1.2.0.0-beta, but 1.2-beta != 1.2-beta.0.0.
+
+* The number fields and numeric pre-release fields must fit `u64`.
 
 * We do not allow build metadata (semver section 10), e.g. 1.0.0+sha.5114f85.
-  (Alternatively, if we change our minds on this, we will ignore it like
-  trailing zeros.)
+  [The alternative is to allow it but ignore it like trailing zeros.]
 
 #### Version priority
 
 Versions are ordered as defined in semver section 11.
 
 We typically want the solver to pick the highest possible version for each
-package. However, we need to deal with pre-release versions: For example, if we
+package. However, we need to deal with pre-release versions: for example, if we
 depend on version `^1.0.0` and a package has versions 1.0.0, 1.1.0-beta, 1.1.0,
 and 1.2.0-beta, then the "best" version is 1.1.0. Even though 1.2.0-beta is a
 higher version, we only want to pick it if some other package's dependencies
-precludes us from picking 1.1.0.
+preclude us from picking 1.1.0.
 
-To achieve this, we additional define a secondary "priority" ordering by
+To achieve this, we additionally define a secondary "priority" ordering by
 comparing `(version.has_no_prerelease_tag(), version)` tuples, with `false <
 true`.
 
@@ -147,13 +207,109 @@ there are multiple solutions.
 
 ### Version Constraints
 
-TODO
+The Version Constraint type is used to implement expressions like `>= 1.2.0`. It
+serves as a predicate for Versions by implementing
+`VersionConstraint::matches(Version) -> bool`.
+
+We define the following format for Version Constraints:
+
+* `<version>`: matches only the exact Version (up to trailing zeros)
+
+* `*`: matches any Version
+
+* `>= <version>`: matches any Version great-equal `version` as per semver
+  ordering
+
+* `< <version>`: matches any Version less than `version` as per semver ordering
+
+* `>= <ver1> < <ver2>`, where `<ver2>` must be greater than `<ver1>`: matches
+  any Version that matches both `>= <ver1>` and `< <ver2>`
+
+  Observe that we do not expect `>= 1.0 < 2.0` to match `2.0-beta.1` even though
+  2.0-beta.1 orders before 2.0. To achieve this, we define the following
+  exception:
+
+  If `ver2` has no pre-release tags, then this does not match
+  `<ver2>-<any.pre.release.tag>`, unless the base version of `ver1` equals
+  `ver2` (up to trailing zeros). For example, the following constraint does not
+  match version 2.0-beta.1:
+
+    * `>= 1.0 < 2.0`
+
+  However, the following constraints do match version 2.0-beta.1:
+
+    * `>= 1.0 < 2.1`
+    * `>= 1.0 < 2.0-beta.2`
+    * `>= 2.0-beta.1 < 2.0`
+    * `< 2.0` *[Should this one really match?]*
+
+* `^<version>`: matches any version that is `>= <version>` and starts with the
+  same digit. For example, `^1.2` matches any `1.x` version that is `>= 1.2`.
+
+  If `version` has leading zeros, the first non-zero digit must match. For
+  example, `^0.0.1.2` matches any `^0.0.1.x` version that is `>= 0.0.1.2`.
+
+  If `version` is equal to `0`, it matches any version `< 1`. *[Should
+  we disallow `^0` in favor of `< 1` so that we don't need to explain this edge
+  case?]*
+
+* `~<version>`: matches any version that is `>= <version>` and starts with the
+  same two digits. For example, `~1.2.3` matches any `1.2.x` version that is `>=
+  1.2.3`.
+
+  If `<version>` has only one digit, it matches any version that is `>=
+  <version>` and starts with the same digit. For example, `~1` matches any `1.x`
+  version. *[This special case is redundant with caret syntax, and
+  makes trailing zeros significant. Should we disallow it to make the tilde
+  syntax easier to explain?]*
+
+  *[Should we get rid of the tilde syntax altogether? It's used less
+  frequently in the age of semver and confusingly differs from the caret syntax
+  in its treatment of leading zeros.]*
+
+We allow zero or more spaces after `>=`, `<`, `^`, and `~`. However, when
+printing version constraints, we use the canonical amount of whitespace as
+written above.
+
+[TODO: Discuss the possibility of allowing optional constraints and negative
+constraints (exclusions).]
 
 ### Package Metadata
 
-TODO
+This metadata is used to produce registry web pages, print errors, and
+facilitate searching.
 
-### Tarballs
+* `description: String`
+
+* `license: Option<String>`
+
+  *[Should we force this to conform to some set of license codes?]*
+
+* `license_file: Option<String>`
+
+  *[Should we require that this file exists, and that the file path is in
+  canonical form with forward slashes?]*
+
+* `homepage: Option<String>`
+
+* `bugs: Option<String>`
+
+  This is apparently useful for directing people to the appropriate bug tracker
+  if a tool needs to print an error message because something went wrong with a
+  package. *[Is it really necessary?]*
+
+* `repository: Option<String>`
+
+  *[Make this a structure along the lines of `{ type: String, url: String }`?
+  Should we optionally also automatically store the commit that produced this
+  release?]*
+
+* `keywords: Vec<String>`
+
+  *[Do we want to restrict the set of Unicode scalars that are usable in
+  these strings?]*
+
+### Archives
 
 TODO
 

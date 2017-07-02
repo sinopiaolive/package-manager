@@ -238,6 +238,7 @@ pub fn caret_bump(v: &Version) -> Version {
         if i == 0u64 {
             parts.push(i);
         } else {
+            // TODO we need to handle overflows here
             parts.push(i + 1);
             return Version::new(parts, vec![], vec![]);
         }
