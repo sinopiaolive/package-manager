@@ -158,8 +158,8 @@ by the package author.
 
 *[To avoid issues on case insensitive file systems, should we disallow
 conflicting capitalizations in the registry, or make package names case
-insensitive, or even disallow `A-Z`? This question similarly applies to
-prerelease tags in version numbers.]*
+insensitive, or even disallow capital letters? This question similarly applies
+to pre-release tags in version numbers.]*
 
 ### Version numbers
 
@@ -169,12 +169,15 @@ with the following changes:
 * Instead of requiring three number fields (major.minor.patch), a Version may
   have one or more number fields for the base version. Trailing zeros in the
   base version are ignored for the purpose of equality and comparison, e.g.
-  1.2-beta == 1.2.0.0-beta, but 1.2-beta != 1.2-beta.0.0.
+  1.2-beta == 1.2.0.0-beta, but 1.2-beta != 1.2-beta.0.0. However, we still
+  preserve them for printing.
 
 * The number fields and numeric pre-release fields must fit `u64`.
 
-* We do not allow build metadata (semver section 10), e.g. 1.0.0+sha.5114f85.
-  [The alternative is to allow it but ignore it like trailing zeros.]
+* We do not allow build metadata (semver section 10), e.g. 1.0.0+sha.5114f85,
+  because it does not appear to be used widely
+  ([thread](https://twitter.com/jo_liss/status/879671042989580288)). *[The
+  alternative is to allow it but ignore it like trailing zeros.]*
 
 #### Version priority
 
@@ -217,7 +220,7 @@ We define the following format for Version Constraints:
 
 * `*`: matches any Version
 
-* `>= <version>`: matches any Version great-equal `version` as per semver
+* `>= <version>`: matches any Version greater-equal `version` as per semver
   ordering
 
 * `< <version>`: matches any Version less than `version` as per semver ordering
@@ -225,7 +228,7 @@ We define the following format for Version Constraints:
 * `>= <ver1> < <ver2>`, where `<ver2>` must be greater than `<ver1>`: matches
   any Version that matches both `>= <ver1>` and `< <ver2>`
 
-  Observe that we do not expect `>= 1.0 < 2.0` to match `2.0-beta.1` even though
+  Observe that we do not expect `>= 1.0 < 2.0` to match 2.0-beta.1 even though
   2.0-beta.1 orders before 2.0. To achieve this, we define the following
   exception:
 
@@ -239,9 +242,14 @@ We define the following format for Version Constraints:
   However, the following constraints do match version 2.0-beta.1:
 
     * `>= 1.0 < 2.1`
+
     * `>= 1.0 < 2.0-beta.2`
-    * `>= 2.0-beta.1 < 2.0`
-    * `< 2.0` *[Should this one really match?]*
+
+    * `>= 2.0-beta.1 < 2.0` *[Should we get rid of this special case to make
+      the logic easier to explain? If so, do we make this constraint illegal
+      or uninhabited?]*
+
+    * `< 2.0` *[This one is arguably surprising.]*
 
 * `^<version>`: matches any version that is `>= <version>` and starts with the
   same digit. For example, `^1.2` matches any `1.x` version that is `>= 1.2`.
@@ -306,8 +314,8 @@ facilitate searching.
 
 * `keywords: Vec<String>`
 
-  *[Do we want to restrict the set of Unicode scalars that are usable in
-  these strings?]*
+*[Do we want to restrict the set of Unicode scalars that are allowed in these
+strings?]*
 
 ### Archives
 
