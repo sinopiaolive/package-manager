@@ -102,7 +102,7 @@ impl BreadthFirstIter {
         vec.extend(left.0.values().map(|v| (*v).clone()));
         vec.extend(right.0.values().map(|v| (*v).clone()));
         BreadthFirstIter {
-            vec_pos: vec.len() - 1,
+            vec_pos: 0,
             depth: 0,
             paths: vec,
         }
@@ -115,16 +115,18 @@ impl Iterator for BreadthFirstIter {
     fn next(&mut self) -> Option<Self::Item> {
         let started = self.vec_pos;
         loop {
+            let old_vec_pos = self.vec_pos;
+            let old_depth = self.depth;
             self.vec_pos = (self.vec_pos + 1) % self.paths.len();
             if self.vec_pos == 0 {
                 self.depth += 1;
             }
+            let path = &self.paths[old_vec_pos];
+            if old_depth < path.len() {
+                return Some(path[old_depth].clone());
+            }
             if self.vec_pos == started {
                 return None;
-            }
-            let path = &self.paths[self.vec_pos];
-            if path.len() >= self.depth {
-                return Some(path[path.len() - self.depth].clone())
             }
         }
     }
@@ -412,6 +414,21 @@ mod test {
     }
 
     #[test]
+    fn pop_finds_all_paths() {
+        let cset = constraint_set(&[("A", &[("1", &[])]), ("B", &[("1", &[])])]);
+
+        assert_eq!(
+            cset.pop(&Some(Failure::conflict(
+                Arc::new(pkg("B")),
+                constraint(&[("1", &[])]),
+                constraint(&[("2", &[("A", "1")])]),
+            ))).unwrap()
+                .1,
+            Arc::new(pkg("A"))
+        );
+    }
+
+    #[test]
     fn pop_interesting() {
         let cset = constraint_set(
             &[
@@ -436,19 +453,19 @@ mod test {
             cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
                 constraint(
-                    &[("1", &[("A", "1"), ("C", "1"), ("null", "1")])],
+                    &[("1", &[("null", "1"), ("A", "1"), ("C", "1")])],
                 ),
                 null_constraint.clone(),
             ))).unwrap()
                 .1,
-            Arc::new(pkg("C"))
+            Arc::new(pkg("A"))
         );
 
         assert_eq!(
             cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
-                constraint(&[("1", &[("A", "1"), ("null", "1")])]),
-                constraint(&[("1", &[("null", "1"), ("C", "1")])]),
+                constraint(&[("1", &[("null", "1"), ("A", "1")])]),
+                constraint(&[("1", &[("C", "1"), ("null", "1")])]),
             ))).unwrap()
                 .1,
             Arc::new(pkg("C"))
