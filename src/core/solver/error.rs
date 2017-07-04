@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use constraint::VersionConstraint;
-use manifest::{PackageName};
+use manifest::PackageName;
 use index::{Index, Dependencies};
 use solver::path::Path;
 use solver::failure;
@@ -89,11 +89,9 @@ impl Conflict {
         conflict: failure::Conflict,
     ) -> Self {
         let vc_from_path = |path: &Path| {
-            // Recall that paths are stored right-to-left, in the opposite order
-            // of how we print them. Thus we need the head.
-            let depset = match path.head().map(|v| (*v).clone()) {
+            let depset = match path.last() {
                 None => deps,
-                Some((ref pkg, ref ver)) => {
+                Some(&(ref pkg, ref ver)) => {
                     &registry
                         .get(&pkg)
                         .expect("path package must exist in registry")
@@ -128,9 +126,9 @@ impl Conflict {
 
         let disjoint = |vc1: &VersionConstraint, vc2: &VersionConstraint| -> bool {
             // Turn version constraints into constraints
-            let c1 = ra.constraint_for(conflict.package.clone(), Arc::new(vc1.clone()), Path::default())
+            let c1 = ra.constraint_for(conflict.package.clone(), Arc::new(vc1.clone()), Path::new())
                 .expect("we should not have gotten a conflict if there is a PackageMissing or UninhabitedConstraint error");
-            let c2 = ra.constraint_for(conflict.package.clone(), Arc::new(vc2.clone()), Path::default())
+            let c2 = ra.constraint_for(conflict.package.clone(), Arc::new(vc2.clone()), Path::new())
                 .expect("we should not have gotten a conflict if there is a PackageMissing or UninhabitedConstraint error");
 
             c1.as_map().keys().all(|ver| !c2.contains_key(&ver))
@@ -206,8 +204,8 @@ mod test {
             package: Arc::new(pkg("X")),
             existing: constraint(
                 &[
-                    ("1", &[("A", "1"), ("B", "1")]),
-                    ("2", &[("A", "2"), ("B", "1")]),
+                    ("1", &[("B", "1"), ("A", "1")]),
+                    ("2", &[("B", "1"), ("A", "2")]),
                 ],
             ),
             conflicting: constraint(&[("3", &[])]),
@@ -217,7 +215,7 @@ mod test {
             Conflict {
                 package: Arc::new(pkg("X")),
                 existing: range(">= 2 < 3"), // from A 2
-                existing_path: path(&[("A", "2"), ("B", "1")]),
+                existing_path: path(&[("B", "1"), ("A", "2")]),
                 conflicting: range(">= 3 < 4"), // from deps
                 conflicting_path: path(&[]),
             }
@@ -228,8 +226,8 @@ mod test {
             package: Arc::new(pkg("X")),
             existing: constraint(
                 &[
-                    ("1", &[("A", "1"), ("B", "1")]),
-                    ("2", &[("C", "1"), ("B", "1")]),
+                    ("1", &[("B", "1"), ("A", "1")]),
+                    ("2", &[("B", "1"), ("C", "1")]),
                 ],
             ),
             conflicting: constraint(&[("3", &[])]),
@@ -239,7 +237,7 @@ mod test {
             Conflict {
                 package: Arc::new(pkg("X")),
                 existing: range("2"), // C 1's range was replaced
-                existing_path: path(&[("C", "1"), ("B", "1")]),
+                existing_path: path(&[("B", "1"), ("C", "1")]),
                 conflicting: range(">= 3 < 4"), // from deps
                 conflicting_path: path(&[]),
             }
@@ -250,8 +248,8 @@ mod test {
             package: Arc::new(pkg("X")),
             conflicting: constraint(
                 &[
-                    ("1", &[("A", "1"), ("B", "1")]),
-                    ("2", &[("C", "1"), ("B", "1")]),
+                    ("1", &[("B", "1"), ("A", "1")]),
+                    ("2", &[("B", "1"), ("C", "1")]),
                 ],
             ),
             existing: constraint(&[("3", &[])]),
@@ -261,7 +259,7 @@ mod test {
             Conflict {
                 package: Arc::new(pkg("X")),
                 conflicting: range("2"), // C 1's range was replaced
-                conflicting_path: path(&[("C", "1"), ("B", "1")]),
+                conflicting_path: path(&[("B", "1"), ("C", "1")]),
                 existing: range(">= 3 < 4"), // from deps
                 existing_path: path(&[]),
             }

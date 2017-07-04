@@ -192,17 +192,16 @@ fn infer_indirect_dependencies(
 mod unit_test {
     use super::*;
     use test_helpers::{pkg, ver, range, sample_registry};
-    use solver::test_helpers::{constraint_set, partial_sln};
-    use index::{Index, Package, Dependencies};
+    use solver::test_helpers::{constraint_set, partial_sln, path};
+    use index::{Index, Package, Dependencies, read_index};
     use test::Bencher;
     use std::sync::Arc;
     use solver::constraints::Constraint;
-    use std::path;
     use solver::error::{Error, Conflict};
 
     #[bench]
     fn resolve_something_real(b: &mut Bencher) {
-        let reg = ::index::read_index(path::Path::new("test/cargo.rmp")).unwrap();
+        let reg = read_index(::std::path::Path::new("test/cargo.rmp")).unwrap();
 
         let problem =
             deps!{
@@ -262,7 +261,7 @@ mod unit_test {
 
     #[bench]
     fn deep_conflict(b: &mut Bencher) {
-        let reg = ::index::read_index(path::Path::new("test/cargo.rmp")).unwrap();
+        let reg = read_index(::std::path::Path::new("test/cargo.rmp")).unwrap();
 
         let problem =
             deps!{
@@ -276,11 +275,9 @@ mod unit_test {
                 Err(Error::Conflict(Conflict {
                     package: Arc::new(pkg("hyper")),
                     existing: range("^0.11"),
-                    existing_path: conslist![
-                        (Arc::new(pkg("hyper_rustls")), Arc::new(ver("0.8.0")))
-                    ],
+                    existing_path: path(&[("hyper_rustls", "0.8.0")]),
                     conflicting: range("^0.10.4"),
-                    conflicting_path: conslist![(Arc::new(pkg("rocket")), Arc::new(ver("0.2.8")))],
+                    conflicting_path: path(&[("rocket", "0.2.8")]),
                 }))
             );
         });
@@ -328,23 +325,11 @@ mod unit_test {
             Err(Failure::conflict(
                 Arc::new(pkg("right_pad")),
                 Constraint::new()
-                    .insert(
-                        Arc::new(ver("1.0.0")),
-                        conslist![(Arc::new(pkg("left_pad")), Arc::new(ver("1.0.0")))],
-                    )
-                    .insert(
-                        Arc::new(ver("1.0.1")),
-                        conslist![(Arc::new(pkg("left_pad")), Arc::new(ver("1.0.0")))],
-                    ),
+                    .insert(ver("1.0.0"), path(&[("left_pad", "1.0.0")]))
+                    .insert(ver("1.0.1"), path(&[("left_pad", "1.0.0")])),
                 Constraint::new()
-                    .insert(
-                        Arc::new(ver("2.0.0")),
-                        conslist![(Arc::new(pkg("lol_pad")), Arc::new(ver("1.0.0")))],
-                    )
-                    .insert(
-                        Arc::new(ver("2.0.1")),
-                        conslist![(Arc::new(pkg("lol_pad")), Arc::new(ver("1.0.0")))],
-                    ),
+                    .insert(ver("2.0.0"), path(&[("lol_pad", "1.0.0")]))
+                    .insert(ver("2.0.1"), path(&[("lol_pad", "1.0.0")])),
             ))
         );
     }
@@ -368,7 +353,8 @@ mod unit_test {
             P0 => "^1"
         };
         b.iter(|| {
-            // Benchmark very deep paths
+            // The main performance issue we're benchmarking here is not the
+            // solver logic itself, but the cloning of very deep paths.
             solve(&reg, &problem).unwrap();
         })
     }

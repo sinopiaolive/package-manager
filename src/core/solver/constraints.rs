@@ -92,6 +92,7 @@ impl Mappable for Constraint {
 
 pub struct BreadthFirstIter {
     paths: Vec<Path>,
+    depth: usize,
     vec_pos: usize,
 }
 
@@ -102,28 +103,28 @@ impl BreadthFirstIter {
         vec.extend(right.0.values().map(|v| (*v).clone()));
         BreadthFirstIter {
             vec_pos: vec.len() - 1,
+            depth: 0,
             paths: vec,
         }
     }
 }
 
 impl Iterator for BreadthFirstIter {
-    type Item = Arc<(Arc<PackageName>, Arc<Version>)>;
+    type Item = (Arc<PackageName>, Arc<Version>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let started = self.vec_pos;
         loop {
             self.vec_pos = (self.vec_pos + 1) % self.paths.len();
+            if self.vec_pos == 0 {
+                self.depth += 1;
+            }
             if self.vec_pos == started {
                 return None;
             }
-            let l = self.paths[self.vec_pos].clone();
-            match l.uncons() {
-                None => continue,
-                Some((car, cdr)) => {
-                    self.paths[self.vec_pos] = cdr;
-                    return Some(car);
-                }
+            let path = &self.paths[self.vec_pos];
+            if path.len() >= self.depth {
+                return Some(path[path.len() - self.depth].clone())
             }
         }
     }
@@ -141,26 +142,26 @@ impl ConstraintSet {
         &self,
         cheap_conflict: &Option<Failure>,
     ) -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
-        let path_iter: Box<Iterator<Item = Arc<(Arc<PackageName>, Arc<Version>)>>> =
+        let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> =
             match cheap_conflict {
                 &Some(Failure::Conflict(ref conflict)) => {
                     Box::new(
                         BreadthFirstIter::new(&conflict.existing, &conflict.conflicting)
-                            .chain(::std::iter::once(Arc::new((
+                            .chain(::std::iter::once((
                                 conflict.package.clone(),
                                 Arc::new(Version::new(vec![], vec![], vec![])),
-                            )))),
+                            ))),
                     )
                 }
                 &Some(Failure::PackageMissing(ref pkg_missing)) => {
-                    Box::new(pkg_missing.path.iter())
+                    Box::new(pkg_missing.path.iter().rev().cloned())
                 }
                 &Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
-                    Box::new(pkg_missing.path.iter())
+                    Box::new(pkg_missing.path.iter().rev().cloned())
                 }
                 &None => Box::new(::std::iter::empty()),
             };
-        for (ref package, _) in path_iter.map(|v| (*v).clone()) {
+        for (ref package, _) in path_iter {
             if let Some((constraint, cdr)) = self.uncons(package) {
                 return Some((cdr, package.clone(), (*constraint).clone()));
             }
@@ -264,7 +265,7 @@ mod test {
     #[test]
     fn constraint_merge() {
         let c1 = constraint(
-            &[("1", &[("A", "1")]), ("1.0.1", &[("A", "2"), ("B", "2")])],
+            &[("1", &[("A", "1")]), ("1.0.1", &[("B", "2"), ("A", "2")])],
         );
         let c2 = constraint(&[("1.0.1", &[("C", "1")]), ("1.0.2", &[("C", "2")])]);
         let expected = constraint(&[("1.0.1", &[("C", "1")])]);
@@ -435,7 +436,7 @@ mod test {
             cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
                 constraint(
-                    &[("1", &[("null", "1"), ("C", "1"), ("A", "1")])],
+                    &[("1", &[("A", "1"), ("C", "1"), ("null", "1")])],
                 ),
                 null_constraint.clone(),
             ))).unwrap()
@@ -446,8 +447,8 @@ mod test {
         assert_eq!(
             cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
-                constraint(&[("1", &[("null", "1"), ("A", "1")])]),
-                constraint(&[("1", &[("C", "1"), ("null", "1")])]),
+                constraint(&[("1", &[("A", "1"), ("null", "1")])]),
+                constraint(&[("1", &[("null", "1"), ("C", "1")])]),
             ))).unwrap()
                 .1,
             Arc::new(pkg("C"))

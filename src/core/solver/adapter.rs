@@ -91,7 +91,7 @@ impl<'r> RegistryAdapter<'r> {
         version: Arc<Version>,
         path: Path,
     ) -> Result<ConstraintSet, Failure> {
-        let new_path = path.cons((package.clone(), version.clone()));
+        let new_path = path.push((package.clone(), version.clone()));
         let release = self.registry
             .get(&package)
             .expect(&format!("package not found: {}", package))
@@ -119,7 +119,7 @@ impl<'r> RegistryAdapter<'r> {
             let constraint = self.constraint_for(
                 package_arc.clone(),
                 version_constraint_arc.clone(),
-                conslist![],
+                Path::new(),
             )?;
             constraint_set = constraint_set.insert(package_arc.clone(), constraint);
         }

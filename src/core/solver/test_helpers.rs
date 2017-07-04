@@ -3,9 +3,11 @@ use solver::{Path, Constraint, ConstraintSet, JustifiedVersion, PartialSolution}
 use test_helpers::{pkg, ver};
 
 pub fn path(l: &[(&str, &str)]) -> Path {
-    l.iter()
-        .map(|&(p, v)| (Arc::new(pkg(p)), Arc::new(ver(v))))
-        .collect()
+    Path::from_vec(
+        l.iter()
+            .map(|&(p, v)| (Arc::new(pkg(p)), Arc::new(ver(v))))
+            .collect(),
+    )
 }
 
 pub fn constraint(l: &[(&str, &[(&str, &str)])]) -> Constraint {
