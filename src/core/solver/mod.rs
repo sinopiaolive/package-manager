@@ -334,9 +334,9 @@ mod unit_test {
         );
     }
 
-    #[bench]
-    fn large_number_of_dependencies_does_not_cause_stack_overflow(b: &mut Bencher) {
-        let n = 500;
+    #[test]
+    fn large_number_of_dependencies_does_not_cause_stack_overflow() {
+        let n = 2000;
 
         let mut reg = Index::new();
         for i in 0..n {
@@ -352,11 +352,7 @@ mod unit_test {
             deps!{
             P0 => "^1"
         };
-        b.iter(|| {
-            // The main performance issue we're benchmarking here is not the
-            // solver logic itself, but the cloning of very deep paths.
-            solve(&reg, &problem).unwrap();
-        })
+        solve(&reg, &problem).unwrap();
     }
 
     #[test]
