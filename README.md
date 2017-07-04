@@ -324,3 +324,12 @@ TODO
 ### Package ownership and user accounts
 
 Tbd.
+
+## Other questions to explore
+
+* Separate inward-facing (your project consumes other libraries) and
+  outward-facing (your project is published for consumption by other libraries)
+  manifests? Apps only use the inward-facing part, libraries use both.
+
+* Can we make it possible for packages to provide "compatibility shims" for old
+  versions of themselves, so that v2.0.0 can also pretend to be v1.0.0?
