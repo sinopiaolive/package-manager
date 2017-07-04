@@ -166,6 +166,7 @@ mod unit_test {
     use super::*;
     use test_helpers::{pkg, ver, range, sample_registry};
     use solver::test_helpers::{constraint_set, partial_sln};
+    use index::{Index, Package, Dependencies};
     use test::Bencher;
     use std::sync::Arc;
     use solver::constraints::Constraint;
@@ -315,6 +316,29 @@ mod unit_test {
                     ),
             ))
         );
+    }
+
+    #[test]
+    fn large_number_of_dependencies_does_not_cause_stackoverflow() {
+        // Recursion depth. 1000 doesn't work for Jo here. We may want to
+        // eventually move the solver into a thread or rewrite it to be
+        // stackless.
+        let n = 500;
+
+        let mut reg = Index::new();
+        for i in 0..n {
+            let mut deps = Dependencies::new();
+            if i != n - 1 {
+                deps.insert(pkg(&format!("P{}", i + 1)), range("^1"));
+            }
+            let mut package = Package::new();
+            package.insert(ver("1"), deps);
+            reg.insert(pkg(&format!("P{}", i)), package);
+        }
+        let problem = deps!{
+            P0 => "^1"
+        };
+        solve(&reg, &problem).unwrap();
     }
 
     #[test]
