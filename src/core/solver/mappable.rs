@@ -45,4 +45,8 @@ where
     fn len(&self) -> usize {
         self.as_map().len()
     }
+
+    fn get_min(&self) -> Option<(Arc<Self::K>, Arc<Self::V>)> {
+        self.as_map().get_min()
+    }
 }

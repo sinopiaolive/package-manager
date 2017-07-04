@@ -23,30 +23,27 @@ use solver::mappable::Mappable;
 fn search(
     ra: &RegistryAdapter,
     mut stack: ConstraintSet,
-    cheap: bool,
     solution: &PartialSolution,
 ) -> Result<PartialSolution, Failure> {
-    let mut cheap_failure = None;
-    if !cheap {
-        loop {
-            match search(ra, stack.clone(), true, solution) {
-                Ok(sln) => {
-                    return Ok(sln);
-                }
-                Err(failure) => {
-                    cheap_failure = Some(failure);
-                    let (new_stack, modified) =
-                        infer_indirect_dependencies(ra, stack.clone(), solution)?;
-                    if !modified {
-                        break;
-                    } else {
-                        stack = new_stack.clone();
-                    }
+    let mut cheap_failure;
+    loop {
+        match cheap_attempt(ra, &stack, solution) {
+            Ok(sln) => {
+                return Ok(sln);
+            }
+            Err(failure) => {
+                cheap_failure = failure;
+                let (new_stack, modified) =
+                    infer_indirect_dependencies(ra, stack.clone(), solution)?;
+                if !modified {
+                    break;
+                } else {
+                    stack = new_stack.clone();
                 }
             }
         }
     }
-    match stack.pop(&cheap_failure) {
+    match stack.pop(&Some(cheap_failure)) {
         None => Ok(solution.clone()),
         Some((stack_tail, package, constraint)) => {
             let mut first_failure = None;
@@ -58,33 +55,63 @@ fn search(
                         path: (*path).clone(),
                     },
                 );
-                let search_try_version = || {
+                let try_version = || {
                     let constraint_set = ra.constraint_set_for(
                         package.clone(),
                         version.clone(),
                         (*path).clone(),
                     )?;
                     let (new_deps, _) = stack_tail.and(&constraint_set, &new_solution)?;
-                    Ok(search(ra.clone(), new_deps, cheap, &new_solution)?)
+                    Ok(search(ra.clone(), new_deps, &new_solution)?)
                 };
-                if cheap {
-                    // Only try the best version.
-                    return search_try_version();
-                } else {
-                    match search_try_version() {
-                        Err(failure) => {
-                            if first_failure.is_none() {
-                                first_failure = Some(failure);
-                            }
-                            continue;
+                match try_version() {
+                    Err(failure) => {
+                        if first_failure.is_none() {
+                            first_failure = Some(failure);
                         }
-                        Ok(out) => return Ok(out),
+                        continue;
                     }
+                    Ok(out) => return Ok(out),
                 }
             }
             Err(first_failure.expect(
                 "unreachable: constraint should never be empty",
             ))
+        }
+    }
+}
+
+// Try naively picking the highest version of each package without any
+// backtracking, to see if we're done. If this doesn't work, return the first
+// conflict.
+fn cheap_attempt(
+    ra: &RegistryAdapter,
+    stack_ref: &ConstraintSet,
+    solution_ref: &PartialSolution,
+) -> Result<PartialSolution, Failure> {
+    let mut stack = stack_ref.clone();
+    let mut solution = solution_ref.clone();
+    loop {
+        match stack.pop(&None) {
+            None => return Ok(solution.clone()),
+            Some((stack_tail, package, constraint)) => {
+                let (version, path) = constraint.get_min().expect(
+                    "unreachable: constraints should never be empty",
+                );
+                solution = solution.insert(
+                    package.clone(),
+                    JustifiedVersion {
+                        version: version.clone(),
+                        path: (*path).clone(),
+                    },
+                );
+                let constraint_set = ra.constraint_set_for(
+                    package.clone(),
+                    version.clone(),
+                    (*path).clone(),
+                )?;
+                stack = stack_tail.and(&constraint_set, &solution)?.0;
+            }
         }
     }
 }
@@ -97,7 +124,7 @@ pub fn solve(reg: &Index, deps: &Dependencies) -> Result<Solution, Error> {
 
 fn solve_inner(ra: &RegistryAdapter, deps: &Dependencies) -> Result<Solution, Failure> {
     let constraint_set = ra.constraint_set_from(deps)?;
-    let partial_solution = search(&ra, constraint_set.clone(), false, &PartialSolution::new())?;
+    let partial_solution = search(&ra, constraint_set.clone(), &PartialSolution::new())?;
     Ok(Solution::from(partial_solution))
 }
 
@@ -177,7 +204,8 @@ mod unit_test {
     fn resolve_something_real(b: &mut Bencher) {
         let reg = ::index::read_index(path::Path::new("test/cargo.rmp")).unwrap();
 
-        let problem = deps!{
+        let problem =
+            deps!{
             tokio_proto => "^0",
             hyper => "^0.11",
             url => "^1"
@@ -236,7 +264,8 @@ mod unit_test {
     fn deep_conflict(b: &mut Bencher) {
         let reg = ::index::read_index(path::Path::new("test/cargo.rmp")).unwrap();
 
-        let problem = deps!{
+        let problem =
+            deps!{
             rocket => "^0.2.8",
             hyper_rustls => "^0.8"
         };
@@ -247,9 +276,11 @@ mod unit_test {
                 Err(Error::Conflict(Conflict {
                     package: Arc::new(pkg("hyper")),
                     existing: range("^0.11"),
-                    existing_path: conslist![(Arc::new(pkg("hyper_rustls")), Arc::new(ver("0.8.0")))],
+                    existing_path: conslist![
+                        (Arc::new(pkg("hyper_rustls")), Arc::new(ver("0.8.0")))
+                    ],
                     conflicting: range("^0.10.4"),
-                    conflicting_path: conslist![(Arc::new(pkg("rocket")), Arc::new(ver("0.2.8")))]
+                    conflicting_path: conslist![(Arc::new(pkg("rocket")), Arc::new(ver("0.2.8")))],
                 }))
             );
         });
@@ -318,11 +349,8 @@ mod unit_test {
         );
     }
 
-    #[test]
-    fn large_number_of_dependencies_does_not_cause_stackoverflow() {
-        // Recursion depth. 1000 doesn't work for Jo here. We may want to
-        // eventually move the solver into a thread or rewrite it to be
-        // stackless.
+    #[bench]
+    fn large_number_of_dependencies_does_not_cause_stack_overflow(b: &mut Bencher) {
         let n = 500;
 
         let mut reg = Index::new();
@@ -335,10 +363,14 @@ mod unit_test {
             package.insert(ver("1"), deps);
             reg.insert(pkg(&format!("P{}", i)), package);
         }
-        let problem = deps!{
+        let problem =
+            deps!{
             P0 => "^1"
         };
-        solve(&reg, &problem).unwrap();
+        b.iter(|| {
+            // Benchmark very deep paths
+            solve(&reg, &problem).unwrap();
+        })
     }
 
     #[test]
