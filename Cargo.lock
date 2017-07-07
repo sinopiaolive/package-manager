@@ -1,6 +1,6 @@
 [root]
-name = "server"
-version = "0.1.0"
+name = "pm_server"
+version = "0.0.0"
 
 [[package]]
 name = "aho-corasick"
@@ -76,18 +76,18 @@ version = "0.1.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "package-manager"
-version = "1.0.0"
+name = "pm"
+version = "0.0.0"
 dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "pm_lib 1.0.0",
+ "pm_lib 0.0.0",
  "serde 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "pm_lib"
-version = "1.0.0"
+version = "0.0.0"
 dependencies = [
  "im 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "license-exprs 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
