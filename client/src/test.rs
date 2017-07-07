@@ -1,7 +1,7 @@
 use std::result;
 use std::env;
-use package_manager::manifest::{serialise_manifest, read_manifest};
-use package_manager::error::Error;
+use pm_lib::manifest::{serialise_manifest, read_manifest};
+use pm_lib::error::Error;
 
 pub const USAGE: &'static str = "Test page.
 

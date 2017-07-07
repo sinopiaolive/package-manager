@@ -10,7 +10,6 @@ extern crate toml;
 #[macro_use]
 extern crate quick_error;
 extern crate license_exprs;
-#[macro_use]
 extern crate im;
 #[macro_use]
 extern crate nom;

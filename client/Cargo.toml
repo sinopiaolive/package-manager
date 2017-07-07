@@ -1,0 +1,14 @@
+[package]
+authors = ["Bodil Stokke <bodil@bodil.org>"]
+name = "package-manager"
+version = "1.0.0"
+
+[[bin]]
+name = "pm"
+path = "src/main.rs"
+
+[dependencies]
+pm_lib = { path = "../lib" }
+docopt = "0.8"
+serde = "1.0"
+serde_derive = "1.0"

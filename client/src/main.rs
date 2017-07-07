@@ -2,14 +2,14 @@ extern crate docopt;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate package_manager;
+extern crate pm_lib;
 
 use std::process;
 use std::env;
 use docopt::Docopt;
 use serde::de::Deserialize;
-use package_manager::error::Error;
-use package_manager::manifest::find_project_dir;
+use pm_lib::error::Error;
+use pm_lib::manifest::find_project_dir;
 
 const USAGE: &'static str = "Your package manager.
 
