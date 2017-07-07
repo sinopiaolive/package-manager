@@ -9,7 +9,6 @@ use std::fmt::Display;
 use serde::de::Error;
 use std::cmp::{Ord, PartialOrd, Ordering};
 use std::hash::{Hash, Hasher};
-use super::error;
 
 use self::VersionIdentifier::{Numeric, Alphanumeric};
 
@@ -29,12 +28,10 @@ impl Version {
         }
     }
 
-    pub fn from_str(s: &str) -> Result<Version, error::Error> {
+    pub fn from_str(s: &str) -> Option<Version> {
         match version(s.as_bytes()) {
-            Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Custom(
-                format!("invalid version string {:?}", s),
-            )),
+            Done(b"", v) => Some(v),
+            _ => None,
         }
     }
 

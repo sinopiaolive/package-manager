@@ -1,9 +1,9 @@
-use manifest::PackageName;
+use pm_lib::manifest::PackageName;
 use solver::path::Path;
 use im::map::Map;
 use std::fmt;
 use std::sync::Arc;
-use version::Version;
+use pm_lib::version::Version;
 use solver::solution::{PartialSolution, JustifiedVersion};
 use solver::failure::Failure;
 use solver::mappable::Mappable;
@@ -261,7 +261,7 @@ fn contained_in(
 #[cfg(test)]
 mod test {
     use super::*;
-    use test_helpers::{pkg, range};
+    use pm_lib::test_helpers::{pkg, range};
     use solver::test_helpers::{constraint, constraint_set, partial_sln, path};
 
     #[test]

@@ -1,7 +1,10 @@
 use std::convert::From;
 
-use index::{Index, Dependencies};
+use pm_lib::index::{Index, Dependencies};
 
+#[cfg(test)]
+#[macro_use]
+mod test_helpers;
 mod path;
 mod constraints;
 mod failure;
@@ -9,8 +12,6 @@ mod error;
 mod solution;
 mod adapter;
 mod mappable;
-#[cfg(test)]
-mod test_helpers;
 
 pub use solver::constraints::{Constraint, ConstraintSet};
 pub use solver::failure::Failure;
@@ -191,9 +192,10 @@ fn infer_indirect_dependencies(
 #[cfg(test)]
 mod unit_test {
     use super::*;
-    use test_helpers::{pkg, ver, range, sample_registry};
+    use pm_lib::test_helpers::{pkg, ver, range};
+    use self::test_helpers::sample_registry;
     use solver::test_helpers::{constraint_set, partial_sln, path};
-    use index::{Index, Package, Dependencies, read_index};
+    use pm_lib::index::{Index, Package, Dependencies, read_index};
     use test::Bencher;
     use std::sync::Arc;
     use solver::constraints::Constraint;

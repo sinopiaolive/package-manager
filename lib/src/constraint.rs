@@ -6,7 +6,6 @@ use version::{Version, version, caret_bump, tilde_bump};
 use std::cmp::Ordering;
 use std::fmt;
 use nom;
-use super::error;
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub enum VersionConstraint {
@@ -45,12 +44,10 @@ impl<'de> Deserialize<'de> for VersionConstraint {
 }
 
 impl VersionConstraint {
-    pub fn from_str(s: &str) -> Result<VersionConstraint, error::Error> {
+    pub fn from_str(s: &str) -> Option<VersionConstraint> {
         match version_constraint(s.as_bytes()) {
-            Done(b"", v) => Ok(v),
-            _ => Err(error::Error::Custom(
-                format!("invalid version constraint {:?}", s),
-            )),
+            Done(b"", v) => Some(v),
+            _ => None,
         }
     }
 

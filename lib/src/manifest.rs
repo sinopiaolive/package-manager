@@ -1,5 +1,4 @@
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::Error;
 use std::path::{Path, PathBuf};
 use constraint::VersionConstraint;
 use version::Version;
@@ -14,7 +13,31 @@ use std::collections::BTreeMap;
 use std::str;
 use toml;
 use license_exprs::validate_license_expr;
-use super::error;
+
+quick_error! {
+    #[derive(Debug)]
+    pub enum Error {
+        Io(err: ::std::io::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        Custom(err: String) {
+            description(err)
+            from()
+        }
+        FromToml(err: toml::de::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        ToToml(err: toml::ser::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+    }
+}
 
 fn is_false(a: &bool) -> bool {
     !*a
@@ -44,7 +67,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn to_string(&self) -> Result<String, error::Error> {
+    pub fn to_string(&self) -> Result<String, Error> {
         Ok(toml::ser::to_string(self)?)
     }
 }
@@ -78,35 +101,29 @@ fn validate_package_name(s: &str) -> bool {
 }
 
 impl PackageName {
-    pub fn from_str(s: &str) -> Result<PackageName, error::Error> {
-        fn error(s: &str) -> Result<PackageName, error::Error> {
-            Err(error::Error::Custom(
-                format!("invalid package name '{:?}'", s),
-            ))
-        }
-
+    pub fn from_str(s: &str) -> Option<PackageName> {
         let mut it = s.split('/');
         match it.next() {
-            None => error(s),
+            None => None,
             Some(namespace) => {
                 if !validate_package_name(namespace) {
-                    error(s)
+                    None
                 } else {
                     match it.next() {
-                        None => Ok(PackageName {
+                        None => Some(PackageName {
                             namespace: None,
                             name: namespace.to_string(),
                         }),
                         Some(name) => {
                             if !validate_package_name(namespace) {
-                                error(s)
+                                None
                             } else {
                                 match it.next() {
-                                    None => Ok(PackageName {
+                                    None => Some(PackageName {
                                         namespace: Some(namespace.to_string()),
                                         name: name.to_string(),
                                     }),
-                                    Some(_) => error(s),
+                                    Some(_) => None,
                                 }
                             }
                         }
@@ -140,6 +157,8 @@ impl<'de> Deserialize<'de> for PackageName {
         where
         D: Deserializer<'de>,
     {
+        use serde::de::Error;
+
         let s = String::deserialize(deserializer)?;
         // return Ok(PackageName {
         //     namespace: Some("lol".to_string()),
@@ -147,7 +166,7 @@ impl<'de> Deserialize<'de> for PackageName {
         // })
 
         match PackageName::from_str(&s) {
-            Ok(package_name) => Ok(package_name),
+            Some(package_name) => Ok(package_name),
             _ => Err(D::Error::custom("Invalid package name")),
         }
     }
@@ -188,7 +207,7 @@ fn denormalise_deps(path: &String, deps: &DependencySet) -> DependencySet {
     }))
 }
 
-pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error> {
+pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, Error> {
     validate_manifest(manifest)?;
     let path = manifest.name.clone().namespace.unwrap();
     let deps = normalise_deps(&path, &manifest.dependencies);
@@ -199,7 +218,7 @@ pub fn normalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error>
     Ok(m)
 }
 
-pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Error> {
+pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, Error> {
     validate_manifest(manifest)?;
     let path = manifest.name.clone().namespace.unwrap();
     let deps = denormalise_deps(&path, &manifest.dependencies);
@@ -212,11 +231,11 @@ pub fn denormalise_manifest(manifest: &Manifest) -> Result<Manifest, error::Erro
 
 // TODO watch https://github.com/serde-rs/serde/issues/642 - when this issue is implemented,
 // make the deserialiser call this function instead of calling it manually.
-pub fn validate_manifest(manifest: &Manifest) -> Result<(), error::Error> {
+pub fn validate_manifest(manifest: &Manifest) -> Result<(), Error> {
     match manifest.name.namespace {
         None => {
-            return Err(error::Error::Message(
-                "Package name must contain a namespace!",
+            return Err(Error::Custom(
+                "Package name must contain a namespace!".to_string(),
             ))
         }
         _ => (),
@@ -224,7 +243,7 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<(), error::Error> {
     match &manifest.license {
         &Some(ref l) => {
             match validate_license_expr(l.as_str()) {
-                Err(ref e) => return Err(error::Error::Custom(format!("{}", e))),
+                Err(ref e) => return Err(Error::Custom(format!("{}", e))),
                 _ => (),
             }
         }
@@ -233,11 +252,11 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<(), error::Error> {
     Ok(())
 }
 
-pub fn serialise_manifest(manifest: &Manifest) -> Result<String, error::Error> {
+pub fn serialise_manifest(manifest: &Manifest) -> Result<String, Error> {
     denormalise_manifest(manifest)?.to_string()
 }
 
-pub fn deserialise_manifest(data: &String) -> Result<Manifest, error::Error> {
+pub fn deserialise_manifest(data: &String) -> Result<Manifest, Error> {
     Ok(normalise_manifest(&toml::from_str(data)?)?)
 }
 
@@ -250,18 +269,18 @@ fn find_manifest(path: &Path) -> Option<PathBuf> {
     }
 }
 
-pub fn find_manifest_path() -> Result<PathBuf, error::Error> {
+pub fn find_manifest_path() -> Result<PathBuf, Error> {
     let cwd = env::current_dir()?;
-    find_manifest(&cwd).ok_or(error::Error::Message("no project file found!"))
+    find_manifest(&cwd).ok_or(Error::Custom("no project file found!".to_string()))
 }
 
-pub fn find_project_dir() -> Result<PathBuf, error::Error> {
+pub fn find_project_dir() -> Result<PathBuf, Error> {
     let mut manifest_path = find_manifest_path()?;
     manifest_path.pop();
     Ok(manifest_path)
 }
 
-pub fn read_manifest() -> Result<Manifest, error::Error> {
+pub fn read_manifest() -> Result<Manifest, Error> {
     let manifest_path = find_manifest_path()?;
     let data = File::open(manifest_path).and_then(|mut f| {
         let mut s = String::new();

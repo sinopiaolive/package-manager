@@ -1,7 +1,7 @@
 use std::sync::Arc;
-use constraint::VersionConstraint;
-use manifest::PackageName;
-use index::{Index, Dependencies};
+use pm_lib::constraint::VersionConstraint;
+use pm_lib::manifest::PackageName;
+use pm_lib::index::{Index, Dependencies};
 use solver::path::Path;
 use solver::failure;
 use solver::failure::Failure;
@@ -158,7 +158,7 @@ impl Conflict {
 #[cfg(test)]
 mod test {
     use super::*;
-    use test_helpers::{pkg, range};
+    use pm_lib::test_helpers::{pkg, range};
     use solver::test_helpers::{constraint, path};
 
     #[test]

@@ -7,13 +7,36 @@ use std::sync::Arc;
 use rmp_serde::{self, encode};
 use serde_json;
 
-use error::Error;
 use version::Version;
 use constraint::VersionConstraint;
 use manifest::PackageName;
-use path;
 
 
+
+quick_error! {
+    #[derive(Debug)]
+    pub enum Error {
+        Io(err: ::std::io::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        Custom(err: String) {
+            description(err)
+            from()
+        }
+        FromRMP(err: rmp_serde::decode::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        ToRMP(err: rmp_serde::encode::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+    }
+}
 
 pub type Index = HashMap<PackageName, Package>;
 pub type Package = HashMap<Version, Dependencies>;
@@ -24,10 +47,6 @@ pub fn read_index(path: &Path) -> Result<Arc<Index>, Error> {
     let mut s = Vec::new();
     f.read_to_end(&mut s)?;
     Ok(Arc::new(rmp_serde::from_slice(&s)?))
-}
-
-pub fn read_default() -> Result<Arc<Index>, Error> {
-    read_index(&path::config_path()?.as_path().join("index.rmp"))
 }
 
 pub fn write_to<W>(i: &Index, wr: &mut W) -> Result<(), Error>
@@ -53,18 +72,4 @@ where
     serde_json::from_str(&s)
         .map_err(|e| Error::Custom(format!("{}", e)))
         .map(|v| Arc::new(v))
-}
-
-#[cfg(test)]
-mod unit_test {
-    use super::*;
-    use std::path::Path;
-
-    #[test]
-    fn read_index_bench() {
-        // There doesn't seem to be a way to run a function once and still get
-        // timings as with b.iter().
-        // https://github.com/rust-lang/rust/issues/11010#issuecomment-312270219
-        read_index(Path::new("test/cargo.rmp")).unwrap();
-    }
 }

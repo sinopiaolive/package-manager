@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::ops::Index;
 use std::fmt;
 use std::slice::Iter;
-use manifest::PackageName;
-use version::Version;
+use pm_lib::manifest::PackageName;
+use pm_lib::version::Version;
 
 /// A dependency chain of packages.
 pub struct Path(Arc<Vec<(Arc<PackageName>, Arc<Version>)>>);

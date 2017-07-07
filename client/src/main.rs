@@ -1,14 +1,27 @@
+#![feature(test)]
+
 extern crate docopt;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate pm_lib;
+extern crate toml;
+#[macro_use]
+extern crate quick_error;
+extern crate im;
+#[cfg(test)]
+extern crate test;
+
+mod error;
+mod path;
+#[macro_use]
+mod solver;
 
 use std::process;
 use std::env;
 use docopt::Docopt;
 use serde::de::Deserialize;
-use pm_lib::error::Error;
+use error::Error;
 use pm_lib::manifest::find_project_dir;
 
 const USAGE: &'static str = "Your package manager.
@@ -39,10 +52,7 @@ macro_rules! each_subcommand {
     }
 }
 
-macro_rules! declare_mod {
-    ($name:ident) => ( pub mod $name; )
-}
-each_subcommand!(declare_mod);
+mod command;
 
 
 
@@ -59,7 +69,7 @@ fn run_builtin_command<'de, Flags: Deserialize<'de>>(
 fn attempt_builtin_command(cmd: &str) -> Option<Result> {
     macro_rules! cmd {
         ($name:ident) => (if cmd == stringify!($name).replace("_", "-") {
-            return Some(run_builtin_command($name::execute, $name::USAGE))
+            return Some(run_builtin_command(command::$name::execute, command::$name::USAGE))
         })
     }
     each_subcommand!(cmd);

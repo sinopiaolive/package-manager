@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::iter::{FromIterator, IntoIterator};
 use std::convert::From;
-use manifest::PackageName;
-use version::Version;
+use pm_lib::manifest::PackageName;
+use pm_lib::version::Version;
 use solver::path::Path;
 use im::map::Map;
 use solver::mappable::Mappable;

@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use manifest::PackageName;
+use pm_lib::manifest::PackageName;
 use solver::constraints::Constraint;
 use solver::path::Path;
-use constraint::VersionConstraint;
+use pm_lib::constraint::VersionConstraint;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Failure {
