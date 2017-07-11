@@ -4,3 +4,9 @@ version = "0.0.0"
 authors = ["Bodil Stokke <bodil@bodil.org>", "Jo Liss <joliss42@gmail.com>"]
 
 [dependencies]
+rocket = "0.2.9"
+rocket_codegen = "0.2.9"
+rocket_contrib = "0.2.9"
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
