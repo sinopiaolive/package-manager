@@ -5,9 +5,9 @@
 This as-yet unnamed Package Manager resolves and fetches project-local
 dependencies in an environment-agnostic (language-agnostic) way.
 
-Think of it as a Bundler or Cargo that is language-independent. Alternatively,
-think of it as a Bower with dependency resolution that resolves conflicts
-automatically, rather than requiring user intervention.
+Think of it as a Bundler that is language-independent. Alternatively, think of
+it as a Bower with dependency resolution that resolves conflicts automatically,
+rather than requiring user intervention.
 
 The Package Manager has its own registry. It's not a drop-in replacement for any
 existing package manager.
@@ -19,9 +19,9 @@ This is work-in-progress code, and you cannot use it to do anything yet.
 ## Motivation
 
 At the moment, every language environment (such as Ruby or Rust) has its own
-package manager (such as Bundler or Cargo). All those package managers tend to
-roughly solve the same problem with only slight variations between them. This
-Package Manager is an attempt to solve the problem once and for all.
+package manager (such as Bundler). All those package managers tend to roughly
+solve the same problem with only slight variations between them. This Package
+Manager is an attempt to solve the problem once and for all.
 
 It does not aim to unify all package managers or serve as a drop-in replacement
 for any existing package manager. Rather, it aims to obviate the need to write a
@@ -68,8 +68,7 @@ the problem for us.)
 Bower's flat dependency resolution isn't fully automatic: When it encounters a
 conflict, it asks the user what to do. We want to run without intervention,
 producing either a set of package versions or an error saying "it's impossible
-to satisfy the dependencies you specified, and here's why" -- just like Bundler
-or Cargo.
+to satisfy the dependencies you specified, and here's why" -- just like Bundler.
 
 ## What's included?
 
