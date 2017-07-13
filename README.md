@@ -5,6 +5,13 @@
 This as-yet unnamed Package Manager resolves and fetches project-local
 dependencies in an environment-agnostic (language-agnostic) way.
 
+Think of it as a Bundler or Cargo that is language-independent. Alternatively,
+think of it as a Bower with dependency resolution that resolves conflicts
+automatically, rather than requiring user intervention.
+
+The Package Manager has its own registry. It's not a drop-in replacement for any
+existing package manager.
+
 ## Usage
 
 This is work-in-progress code, and you cannot use it to do anything yet.
