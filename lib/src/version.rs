@@ -235,8 +235,15 @@ pub fn caret_bump(v: &Version) -> Version {
         if i == 0u64 {
             parts.push(i);
         } else {
-            // TODO we need to handle overflows here
-            parts.push(i + 1);
+            if i < u64::max_value() {
+                parts.push(i + 1);
+            } else {
+                // Cheap way to avoid having to deal with u64 overflow. This
+                // technically breaks caret syntax in this case, but we're OK
+                // with that!
+                parts.push(i);
+            }
+
             return Version::new(parts, vec![], vec![]);
         }
     }
@@ -407,6 +414,9 @@ mod unit_test {
         assert_eq!(caret_bump(&ver("0")), ver("1"));
         assert_eq!(caret_bump(&ver("0.1.2.3-beta2+lol")), ver("0.2"));
         assert_eq!(caret_bump(&ver("0-beta2+lol")), ver("1"));
+        // We don't care whether this matches anything, we just don't want it to
+        // panic.
+        caret_bump(&ver("18446744073709551615"));
     }
 
     #[test]
