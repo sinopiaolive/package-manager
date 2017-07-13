@@ -100,6 +100,15 @@ impl Version {
             a => a,
         }
     }
+
+    pub fn base_version_is_zero(&self) -> bool {
+        for &field in &self.fields {
+            if field != 0 {
+                return false;
+            }
+        }
+        return true;
+    }
 }
 
 impl PartialEq for Version {

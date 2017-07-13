@@ -166,6 +166,9 @@ fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
         Done(_, Range(Some(ref v1), Some(ref v2))) if v1.semver_cmp(v2) != Ordering::Less => {
             nom::IResult::Error(nom::ErrorKind::Custom(1))
         }
+        Done(_, Caret(ref v)) if v.base_version_is_zero() => {
+            nom::IResult::Error(nom::ErrorKind::Custom(2))
+        }
         r @ _ => r,
     }
 }
@@ -227,6 +230,12 @@ mod test {
     }
 
     #[test]
+    fn parse_caret_constraint_must_be_non_zero() {
+        assert_eq!(version_constraint(b"^0.0-rc1+wtf"),
+                   nom::IResult::Error(nom::ErrorKind::Custom(2)));
+    }
+
+    #[test]
     fn parse_tilde_constraint() {
         let v1 = Version::new(
             vec![1,2,3,4,0],
@@ -274,9 +283,6 @@ mod test {
         assert!(!range("^1.2.0-pre.1").contains(&ver("1.2.0-pre.0")));
         assert!(range("^1.2.0-pre.1").contains(&ver("1.3-beta")));
         assert!(!range("^1.2.0-pre.1").contains(&ver("2-beta")));
-        assert!(range("^0-pre.1").contains(&ver("0.9")));
-        assert!(!range("^0-pre.1").contains(&ver("1")));
-        assert!(range("^0.0-pre.1").contains(&ver("0.9")));
         assert!(range("^0.0.0.1.2.3").contains(&ver("0.0.0.1.3")));
         assert!(!range("^0.0.0.1.2.3").contains(&ver("0.0.0.2")));
 

@@ -257,9 +257,7 @@ We define the following format for Version Constraints:
   If `version` has leading zeros, the first non-zero digit must match. For
   example, `^0.0.1.2` matches any `^0.0.1.x` version that is `>= 0.0.1.2`.
 
-  If `version` is equal to `0`, it matches any version `< 1`. *[Should
-  we disallow `^0` in favor of `< 1` so that we don't need to explain this edge
-  case?]*
+  `version` must be greater than `0`.
 
 * `~<version>`: matches any version that is `>= <version>` and starts with the
   same two digits. For example, `~1.2.3` matches any `1.2.x` version that is `>=
