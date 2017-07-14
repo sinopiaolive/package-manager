@@ -280,7 +280,7 @@ facilitate searching.
 
 * `license: Option<String>`
 
-  *[Should we force this to conform to some set of license codes?]*
+  The `license` string must conform to SPDX.
 
 * `license_file: Option<String>`
 
