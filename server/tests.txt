@@ -1,0 +1,26 @@
+:server = http://localhost:8000
+
+# register user
+
+POST :server/register
+Content-Type: application/json
+
+{
+  "user": "lol",
+  "password": "omg"
+}
+
+# authenticate user
+
+POST :server/auth
+Content-Type: application/json
+
+{
+  "user": "lol",
+  "password": "omg"
+}
+
+# test auth
+
+GET :server/test
+Authentication: Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoibG9sIn0.Y3Kt1t97-d3XT2rTaTsalUlwJz5Wkc_pXDXbCmCqkOo
