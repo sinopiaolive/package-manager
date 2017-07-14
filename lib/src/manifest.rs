@@ -93,43 +93,48 @@ impl fmt::Debug for PackageName {
     }
 }
 
+// We probably want to disallow LPT1, etc.
+// https://msdn.microsoft.com/en-us/library/aa561308.aspx
+
+fn validate_package_namespace(s: &str) -> bool {
+    s.chars().all(|c| {
+        (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
+    }) && s.len() > 0 && s.len() <= 128 && s.chars().next().unwrap() != '-'
+}
+
 fn validate_package_name(s: &str) -> bool {
     s.chars().all(|c| {
         (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' ||
             c == '-'
-    })
+    }) && s.len() > 0 && s.len() <= 128 && s.chars().next().unwrap() != '-'
 }
 
 impl PackageName {
     pub fn from_str(s: &str) -> Option<PackageName> {
-        let mut it = s.split('/');
-        match it.next() {
-            None => None,
-            Some(namespace) => {
-                if !validate_package_name(namespace) {
-                    None
-                } else {
-                    match it.next() {
-                        None => Some(PackageName {
-                            namespace: None,
-                            name: namespace.to_string(),
-                        }),
-                        Some(name) => {
-                            if !validate_package_name(namespace) {
-                                None
-                            } else {
-                                match it.next() {
-                                    None => Some(PackageName {
-                                        namespace: Some(namespace.to_string()),
-                                        name: name.to_string(),
-                                    }),
-                                    Some(_) => None,
-                                }
-                            }
-                        }
-                    }
-                }
+        let segments = s.split('/').count();
+        if segments == 1 {
+            if validate_package_name(s) {
+                Some(PackageName {
+                    namespace: None,
+                    name: s.to_string(),
+                })
+            } else {
+                None
             }
+        } else if segments == 2 {
+            let mut it = s.split('/');
+            let namespace = it.next().unwrap();
+            let name = it.next().unwrap();
+            if validate_package_namespace(namespace) && validate_package_name(name) {
+                Some(PackageName {
+                    namespace: Some(namespace.to_string()),
+                    name: name.to_string(),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 }
@@ -145,7 +150,7 @@ impl Display for PackageName {
 
 impl Serialize for PackageName {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
+    where
         S: Serializer,
     {
         serializer.serialize_str(&*self.to_string())
@@ -154,16 +159,12 @@ impl Serialize for PackageName {
 
 impl<'de> Deserialize<'de> for PackageName {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
+    where
         D: Deserializer<'de>,
     {
         use serde::de::Error;
 
         let s = String::deserialize(deserializer)?;
-        // return Ok(PackageName {
-        //     namespace: Some("lol".to_string()),
-        //     name: "lol".to_string()
-        // })
 
         match PackageName::from_str(&s) {
             Some(package_name) => Ok(package_name),
@@ -294,6 +295,28 @@ pub fn read_manifest() -> Result<Manifest, Error> {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn package_name_from_str() {
+        assert_eq!(
+            PackageName::from_str("a/B"),
+            Some(PackageName {
+                namespace: Some("a".to_string()),
+                name: "B".to_string(),
+            })
+        );
+
+        assert_eq!(
+            PackageName::from_str("B"),
+            Some(PackageName {
+                namespace: None,
+                name: "B".to_string(),
+            })
+        );
+
+        assert_eq!(PackageName::from_str("A/B"), None);
+        assert_eq!(PackageName::from_str("a/:-)"), None);
+    }
 
     #[test]
     fn deserialise_and_normalise() {

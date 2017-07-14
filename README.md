@@ -72,7 +72,7 @@ to satisfy the dependencies you specified, and here's why" -- just like Bundler.
 
 ## What's included?
 
-* Server functionality to host an index of packages and package contents.
+* Server functionality to host a registry of packages.
 
 * Client functionality for app authors to
 
@@ -159,13 +159,11 @@ A Dependency Set maps Package Names to Version Constraints.
 ### Package Names
 
 Package Names are of the format `<namespace>/<name>`, where `<namespace>` and
-`<name>` are case sensitive strings matching `[a-zA-Z_-]+`, both freely chosen
-by the package author.
+`<name>` are case sensitive strings chosen freely by the package author, with
+`<namespace>` matching `[a-z0-9_][a-z0-9_-]*` (up to 128 characters) and `<name>`
+matching `[a-zA-Z0-9_][a-zA-Z0-9_-]*` (up to 128 characters).
 
-*[To avoid issues on case insensitive file systems, should we disallow
-conflicting capitalizations in the registry, or make package names case
-insensitive, or even disallow capital letters? This question similarly applies
-to pre-release tags in version numbers.]*
+Conflicting package name capitalizations are disallowed by the registry.
 
 ### Version numbers
 
