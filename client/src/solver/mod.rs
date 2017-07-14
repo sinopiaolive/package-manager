@@ -207,7 +207,7 @@ mod unit_test {
 
         let problem =
             deps!{
-            tokio_proto => "^0",
+            tokio_proto => "<1",
             hyper => "^0.11",
             url => "^1"
         };

@@ -73,6 +73,11 @@ function desugar(wat) {
   if (m9) {
     return `^${m9[1]}`;
   }
+  // ^0.0.0
+  const m10 = /^\^ *[0.]+$/.exec(r);
+  if (m10) {
+    return `< 1.0.0`;
+  }
   return r;
 }
 
