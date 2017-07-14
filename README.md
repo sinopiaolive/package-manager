@@ -238,14 +238,16 @@ We define the following format for Version Constraints:
 
   Observe that we do not expect `>= 1.0 < 2.0` to match 2.0-beta.1 even though
   2.0-beta.1 orders before 2.0. To achieve this, we define the following
-  exception:
+  exception for constraints of the form `>= <ver1> < <ver2>` and `< <ver2>`:
 
   If `ver2` has no pre-release tags, then this does not match
-  `<ver2>-<any.pre.release.tag>`, unless the base version of `ver1` equals
-  `ver2` (up to trailing zeros). For example, the following constraint does not
-  match version 2.0-beta.1:
+  `<ver2>-<any.pre.release.tag>`, unless `ver1` is given and its base version
+  equals `ver2` (up to trailing zeros). For example, the following constraints
+  do not match version 2.0-beta.1:
 
     * `>= 1.0 < 2.0`
+
+    * `< 2.0`
 
   However, the following constraints do match version 2.0-beta.1:
 
@@ -253,11 +255,7 @@ We define the following format for Version Constraints:
 
     * `>= 1.0 < 2.0-beta.2`
 
-    * `>= 2.0-beta.1 < 2.0` *[Should we get rid of this special case to make
-      the logic easier to explain? If so, do we make this constraint illegal
-      or uninhabited?]*
-
-    * `< 2.0` *[This one is arguably surprising.]*
+    * `>= 2.0-beta.1 < 2.0`
 
 * `^<version>`: matches any version that is `>= <version>` and starts with the
   same digit. For example, `^1.2` matches any `1.x` version that is `>= 1.2`.

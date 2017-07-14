@@ -90,7 +90,7 @@ fn contained_in_range(version: &Version, min: Option<&Version>, max: Option<&Ver
 /// This means that `2-pre.1` will be in bounds for `< 2-pre.2` but not
 /// for `< 2`. `1.9-pre` would be in bounds for both.
 fn max_match(v: &Version, maybe_min: Option<&Version>, max: &Version) -> bool {
-    if max.has_pre() || maybe_min.is_none() || maybe_min.map(|v| v.normalized_fields()) == Some(max.normalized_fields()) {
+    if max.has_pre() || maybe_min.map(|v| v.normalized_fields()) == Some(max.normalized_fields()) {
         v.semver_cmp(max) == Ordering::Less
     } else {
         v.normalized_fields() < max.normalized_fields()
@@ -271,10 +271,17 @@ mod test {
         assert!(!range(">=3").contains(&ver("1.2.3")));
         assert!(!range(">=2 <3").contains(&ver("1.2.3")));
         assert!(!range(">=1 <2-pre").contains(&ver("2")));
-        assert!(!range(">=1 <2").contains(&ver("2-beta")));
-        assert!(range(">=1 <2-pre").contains(&ver("2-beta")));
-        assert!(range(">=2-pre <2").contains(&ver("2-pre")));
-        assert!(!range(">=2-pre <2").contains(&ver("2")));
+
+        // Upper bounds exclude pre-release versions on the upper bound.
+        assert!(range("<2").contains(&ver("1.5-beta.1")));
+        assert!(!range("<2").contains(&ver("2-beta.1")));
+        assert!(range(">=1.0 <2").contains(&ver("1.5-beta.1")));
+        assert!(!range(">=1.0 <2").contains(&ver("2-beta.1")));
+        // ... unless upper bound has a pre-release tag.
+        assert!(range("<2-beta.2").contains(&ver("2-beta.1")));
+        assert!(range(">=1.0 <2-beta.2").contains(&ver("2-beta.1")));
+        // ... and unless lower and upper bound have same base version.
+        assert!(range(">=2.0-beta.1 <2").contains(&ver("2-beta.1")));
 
         assert!(range("^1.2.0").contains(&ver("1.2")));
         assert!(range("^1.2.0-pre.1").contains(&ver("1.2")));
