@@ -90,12 +90,10 @@ fn contained_in_range(version: &Version, min: Option<&Version>, max: Option<&Ver
 /// This means that `2-pre.1` will be in bounds for `< 2-pre.2` but not
 /// for `< 2`. `1.9-pre` would be in bounds for both.
 fn max_match(v: &Version, maybe_min: Option<&Version>, max: &Version) -> bool {
-    match maybe_min {
-        None => v.strip().semver_cmp(max) == Ordering::Less,
-        Some(min) if min.strip().semver_cmp(&max.strip()) == Ordering::Less && !max.has_pre() => {
-            v.strip().semver_cmp(max) == Ordering::Less
-        }
-        _ => v.semver_cmp(max) == Ordering::Less,
+    if max.has_pre() || maybe_min.is_none() || maybe_min.map(|v| v.normalized_fields()) == Some(max.normalized_fields()) {
+        v.semver_cmp(max) == Ordering::Less
+    } else {
+        v.normalized_fields() < max.normalized_fields()
     }
 }
 

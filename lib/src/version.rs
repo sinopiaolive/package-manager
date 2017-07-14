@@ -46,10 +46,6 @@ impl Version {
         )
     }
 
-    pub fn strip(&self) -> Version {
-        Version::new(self.fields.clone(), vec![], vec![])
-    }
-
     pub fn has_pre(&self) -> bool {
         !self.prerelease.is_empty()
     }
