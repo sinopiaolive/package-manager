@@ -1,5 +1,6 @@
 use nom::{digit, ErrorKind};
 use nom::IResult::Done;
+use nom;
 use std::fmt;
 use std::str::FromStr;
 use std::str;
@@ -325,7 +326,7 @@ named!(build_part<Vec<VersionIdentifier>>, alt_complete!(preceded!(
     char!('+'), return_error!(ErrorKind::Custom(1), ext_version)
 ) | empty_vec));
 
-named!(pub version<Version>, do_parse!(
+named!(version_unchecked<Version>, do_parse!(
     fields: base_version >>
     pre: pre_part >>
     build: build_part >>
@@ -335,6 +336,13 @@ named!(pub version<Version>, do_parse!(
         build: build
     })
 ));
+
+pub fn version(input: &[u8]) -> nom::IResult<&[u8], Version> {
+    match version_unchecked(input) {
+        Done(i, _) if input.len() - i.len() > 128 => nom::IResult::Error(nom::ErrorKind::Custom(1)),
+        r @ _ => r,
+    }
+}
 
 
 #[cfg(test)]
@@ -424,7 +432,7 @@ mod unit_test {
         assert_eq!(caret_bump(&ver("0.1.2.3-beta2+lol")), ver("0.2"));
         assert_eq!(caret_bump(&ver("0-beta2+lol")), ver("1"));
         // We don't care whether this matches anything, we just don't want it to
-        // panic.
+        // panic due to overflow.
         caret_bump(&ver("18446744073709551615"));
     }
 
@@ -494,5 +502,7 @@ mod unit_test {
         assert!(version(b"1+123456789123456789123456789123456789").is_err());
         assert!(version(b"1+01").is_err());
         assert!(version(b"1+_not_alphanumeric_").is_err());
+        assert!(version(format!("1-{}", "a".repeat(126)).as_bytes()).is_done());
+        assert!(version(format!("1-{}", "a".repeat(127)).as_bytes()).is_err());
     }
 }

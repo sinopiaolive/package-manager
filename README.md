@@ -178,10 +178,14 @@ with the following changes:
 
 * The number fields and numeric pre-release fields must fit `u64`.
 
+* Version numbers can be up to 128 characters long.
+
 * We do not allow build metadata (semver section 10), e.g. 1.0.0+sha.5114f85,
   because it does not appear to be used widely
   ([thread](https://twitter.com/jo_liss/status/879671042989580288)). *[The
   alternative is to allow it but ignore it like trailing zeros.]*
+
+Conflicting version capitalizations are disallowed by the registry.
 
 #### Version priority
 
