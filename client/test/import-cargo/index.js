@@ -78,6 +78,20 @@ function desugar(wat) {
   if (m10) {
     return `< 1.0.0`;
   }
+  // ~1.2.3
+  const m11 = /^~ *(([0-9]+)\.([0-9]+)[0-9a-zA-Z.-]*)/.exec(r);
+  if (m11) {
+    return `>= ${m11[1]} < ${m11[2]}.${parseInt(m11[3], 10) + 1}`;
+  }
+  // ~1
+  const m12 = /^~ *([0-9]+)/.exec(r);
+  if (m12) {
+    if (m12[1] == '0') {
+      return '< 1';
+    } else {
+      return `^${m12[1]}`;
+    }
+  }
   return r;
 }
 
