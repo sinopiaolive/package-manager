@@ -1,3 +1,4 @@
+#![allow(unused_features)]
 #![feature(test)]
 
 extern crate docopt;
@@ -11,11 +12,15 @@ extern crate quick_error;
 extern crate im;
 #[cfg(test)]
 extern crate test;
+extern crate reqwest;
+extern crate linefeed;
+extern crate rpassword;
 
 mod error;
 mod path;
-#[macro_use]
-mod solver;
+mod auth;
+// #[macro_use]
+// mod solver;
 
 use std::process;
 use std::env;
@@ -47,6 +52,7 @@ type Result = std::result::Result<(), Error>;
 
 macro_rules! each_subcommand {
     ($mac:ident) => {
+        $mac!(login);
         $mac!(test);
         // add more like this here
     }
