@@ -11,6 +11,7 @@ extern crate redis;
 #[macro_use]
 extern crate quick_error;
 extern crate medallion;
+extern crate rand;
 
 mod error;
 mod user;
@@ -26,7 +27,7 @@ use rocket_contrib::JSON;
 use error::{Res, Error};
 use auth::{Authenticate, JWTToken};
 use store::Store;
-use user::make_secret;
+use user::generate_secret;
 
 
 
@@ -42,7 +43,7 @@ fn register(store: State<Store>, auth: JSON<AuthPair>) -> Res<String> {
         true => Err(Error::Status(Status::BadRequest)),
         false => {
             store.set_password(&auth.user, &auth.0.password)?;
-            store.set_secret(&auth.user, &make_secret())?;
+            store.set_secret(&auth.user, &generate_secret()?)?;
             Ok("OK".to_string())
         }
     }

@@ -23,4 +23,4 @@ Content-Type: application/json
 # test auth
 
 GET :server/test
-Authentication: Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoibG9sIn0.Y3Kt1t97-d3XT2rTaTsalUlwJz5Wkc_pXDXbCmCqkOo
+Authentication: Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoibG9sIn0.jv-BKQwesOfJLfjlVgewBMVI_X7z_vmv8_rMV7xi6Kc
