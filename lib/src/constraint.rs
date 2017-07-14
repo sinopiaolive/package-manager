@@ -1,8 +1,8 @@
 use nom::IResult::Done;
-use self::VersionConstraint::{Exact, Range, Caret, Tilde};
+use self::VersionConstraint::{Exact, Range, Caret};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use version::{Version, version, caret_bump, tilde_bump};
+use version::{Version, version, caret_bump};
 use std::cmp::Ordering;
 use std::fmt;
 use nom;
@@ -12,7 +12,6 @@ pub enum VersionConstraint {
     Exact(Version),
     Range(Option<Version>, Option<Version>),
     Caret(Version),
-    Tilde(Version),
 }
 
 impl Serialize for VersionConstraint {
@@ -59,7 +58,6 @@ impl VersionConstraint {
             &Range(None, Some(ref v)) => format!("< {}", v),
             &Range(Some(ref v1), Some(ref v2)) => format!(">= {} < {}", v1, v2),
             &Caret(ref v) => format!("^{}", v),
-            &Tilde(ref v) => format!("~{}", v),
         }
     }
 
@@ -67,7 +65,6 @@ impl VersionConstraint {
         match self {
             &Exact(ref v) => version == v,
             &Caret(ref v) => contained_in_range(&version, Some(&v), Some(&caret_bump(&v))),
-            &Tilde(ref v) => contained_in_range(&version, Some(&v), Some(&tilde_bump(&v))),
             &Range(ref v1, ref v2) => contained_in_range(&version, v1.as_ref(), v2.as_ref()),
         }
     }
@@ -143,16 +140,9 @@ named!(caret_constraint<VersionConstraint>, ws!(do_parse!(
         (Caret(v))
 )));
 
-named!(tilde_constraint<VersionConstraint>, ws!(do_parse!(
-    tag!(b"~") >>
-        v: version >>
-        (Tilde(v))
-)));
-
 named!(pub version_constraint_unchecked<VersionConstraint>,
        alt_complete!(open_constraint
                      | caret_constraint
-                     | tilde_constraint
                      | closed_constraint
                      | max_constraint
                      | min_constraint
@@ -234,17 +224,6 @@ mod test {
     }
 
     #[test]
-    fn parse_tilde_constraint() {
-        let v1 = Version::new(
-            vec![1,2,3,4,0],
-            vec![VersionIdentifier::Alphanumeric("rc1".to_string())],
-            vec![VersionIdentifier::Alphanumeric("wtf".to_string())],
-        );
-        assert_eq!(version_constraint(b"~1.2.3.4.0-rc1+wtf"),
-                   Done(&b""[..], Tilde(v1)));
-    }
-
-    #[test]
     fn constraint_as_string() {
         assert_eq!(Exact(ver("1.2.3.0-beta.0+foo")).as_string(), "1.2.3.0-beta.0+foo");
 
@@ -255,7 +234,6 @@ mod test {
                    ">= 1.2.3 < 2");
 
         assert_eq!(Caret(ver!(1,2,3,0)).as_string(), "^1.2.3.0");
-        assert_eq!(Tilde(ver!(1,2,3,0)).as_string(), "~1.2.3.0");
     }
 
     #[test]
@@ -290,15 +268,5 @@ mod test {
         assert!(!range("^1.2.0-pre.1").contains(&ver("2-beta")));
         assert!(range("^0.0.0.1.2.3").contains(&ver("0.0.0.1.3")));
         assert!(!range("^0.0.0.1.2.3").contains(&ver("0.0.0.2")));
-
-        assert!(range("~0-pre.1").contains(&ver("0.2-pre.0")));
-        assert!(!range("~0-pre.1").contains(&ver("1.0")));
-        assert!(range("~0.0-pre.1").contains(&ver("0.0.1-pre.0")));
-        assert!(!range("~0.0-pre.1").contains(&ver("0.2-pre.0")));
-        assert!(range("~1.2.3").contains(&ver("1.2.4")));
-        assert!(!range("~1.2.3").contains(&ver("1.3-beta.1")));
-        assert!(range("~1.2").contains(&ver("1.2.4")));
-        assert!(!range("~1.2").contains(&ver("1.3")));
-        assert!(!range("~1.2").contains(&ver("1.3-beta")));
     }
 }

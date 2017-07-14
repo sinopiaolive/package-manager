@@ -265,23 +265,8 @@ We define the following format for Version Constraints:
 
   `version` must be greater than `0`.
 
-* `~<version>`: matches any version that is `>= <version>` and starts with the
-  same two digits. For example, `~1.2.3` matches any `1.2.x` version that is `>=
-  1.2.3`.
-
-  If `<version>` has only one digit, it matches any version that is `>=
-  <version>` and starts with the same digit. For example, `~1` matches any `1.x`
-  version. *[This special case is redundant with caret syntax, and
-  makes trailing zeros significant. Should we disallow it to make the tilde
-  syntax easier to explain?]*
-
-  *[Should we get rid of the tilde syntax altogether? It's used less
-  frequently in the age of semver and confusingly differs from the caret syntax
-  in its treatment of leading zeros.]*
-
-We allow zero or more spaces after `>=`, `<`, `^`, and `~`. However, when
-printing version constraints, we use the canonical amount of whitespace as
-written above.
+We allow zero or more spaces after `>=`, `<`, and `^`. However, when printing
+version constraints, we use the canonical amount of whitespace as written above.
 
 [TODO: Discuss the possibility of allowing optional constraints and negative
 constraints (exclusions).]

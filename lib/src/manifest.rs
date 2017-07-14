@@ -468,7 +468,7 @@ private = false
 
 [dependencies]
 right-pad = \"^1.2.3\"
-down-pad = \"~5.6.0\"
+down-pad = \">= 5.6.0\"
 
 [devDependencies]
 webpack = \"^7.0.5\"

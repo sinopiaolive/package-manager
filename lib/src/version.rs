@@ -209,23 +209,6 @@ impl Ord for VersionIdentifier {
 }
 
 
-
-/// Increment the last component of a version.
-///
-/// For instance, bumping `1` would yield `2`, and bumping `1.2.3.4` would yield `1.2.3.5`.
-///
-/// This drops all tags from the version.
-pub fn bump_last(v: &Version) -> Version {
-    let mut v1 = Version::new(v.fields.clone(), vec![], vec![]);
-    match v1.fields.pop() {
-        None => v1,
-        Some(next) => {
-            v1.fields.push(next + 1);
-            v1
-        }
-    }
-}
-
 /// Increment the first non-zero component, drop the rest.
 ///
 /// This is the effect of Semver's caret operator `^`.
@@ -255,24 +238,6 @@ pub fn caret_bump(v: &Version) -> Version {
     }
     Version::new(vec![1], vec![], vec![]) // version 0
 }
-
-/// If there are two components or less, bump the last one.
-/// If there are more than two components, bump the second and drop the rest.
-///
-/// This is the effect of Semver's tilde operator `~`.
-///
-/// Eg. `tilde_bump(1.2)` and `tilde_bump(1.2.3)` both yield `1.3`,
-/// and `tilde_bump(1)` yields `2`.
-///
-/// This drops all tags from the version.
-pub fn tilde_bump(v: &Version) -> Version {
-    bump_last(&Version::new(
-        v.fields.iter().map(|i| *i).take(2).collect(),
-        vec![],
-        vec![],
-    ))
-}
-
 
 
 named!(nat<u64>, map_res!(map_res!(digit, str::from_utf8), to_u64));
@@ -410,15 +375,6 @@ mod unit_test {
     }
 
     #[test]
-    fn test_bump_last() {
-        assert_eq!(bump_last(&ver("1.2.3.0")), ver("1.2.3.1"));
-        assert_eq!(bump_last(&ver("1.2.3")), ver("1.2.4"));
-        assert_eq!(bump_last(&ver("1.2")), ver("1.3"));
-        assert_eq!(bump_last(&ver("3")), ver("4"));
-        assert_eq!(bump_last(&ver("1.2.3-beta2+lol")), ver("1.2.4"));
-    }
-
-    #[test]
     fn test_caret_bump() {
         assert_eq!(caret_bump(&ver("1.2.3")), ver("2"));
         assert_eq!(caret_bump(&ver("0.1.2")), ver("0.2"));
@@ -430,17 +386,6 @@ mod unit_test {
         // We don't care whether this matches anything, we just don't want it to
         // panic due to overflow.
         caret_bump(&ver("18446744073709551615"));
-    }
-
-    #[test]
-    fn test_tilde_bump() {
-        assert_eq!(tilde_bump(&ver("1.0.0")), ver("1.1"));
-        assert_eq!(tilde_bump(&ver("1.0")), ver("1.1"));
-        assert_eq!(tilde_bump(&ver("1")), ver("2"));
-        assert_eq!(tilde_bump(&ver("1.2.3-beta2+lol")), ver("1.3"));
-        assert_eq!(tilde_bump(&ver("0-beta2+lol")), ver("1"));
-        assert_eq!(tilde_bump(&ver("0.0-beta2+lol")), ver("0.1"));
-        assert_eq!(tilde_bump(&ver("0.0.0-beta2+lol")), ver("0.1"));
     }
 
     #[test]
