@@ -19,8 +19,8 @@ extern crate rpassword;
 mod error;
 mod path;
 mod auth;
-// #[macro_use]
-// mod solver;
+#[macro_use]
+mod solver;
 
 use std::process;
 use std::env;
