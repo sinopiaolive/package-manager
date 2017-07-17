@@ -1,7 +1,8 @@
-use std::result;
-use std::env;
-use pm_lib::manifest::{serialise_manifest, read_manifest};
+use std::io::Read;
+use reqwest;
+use reqwest::header::Authorization;
 use error::Error;
+use config::get_config;
 
 pub const USAGE: &'static str = "Test page.
 
@@ -10,33 +11,29 @@ Usage:
 
 Options:
     -h, --help     Display this message.
-    --bdd          Use the Official BDD Style.
 ";
 
 #[derive(Debug, Deserialize)]
-pub struct Args {
-    flag_bdd: bool,
-}
+pub struct Args {}
 
 
 
-pub fn execute(args: Args) -> result::Result<(), Error> {
-    if args.flag_bdd {
-        println!("As the test command, when I am called, then I am the test command.")
+pub fn execute(_args: Args) -> Result<(), Error> {
+    let config = get_config()?;
+    let token = config.auth.token.ok_or(Error::Message(From::from("Please log in first.")))?;
+
+    let http = reqwest::Client::new()?;
+    let mut res = http.get("http://localhost:8000/test")?
+        .header(Authorization(format!("Bearer {}", token)))
+        .send()?;
+
+    if res.status().is_success() {
+        println!("Your JWT works.");
     } else {
-        println!("This is the test command.")
+        let mut data = String::new();
+        res.read_to_string(&mut data)?;
+        println!("{} says: {} {}", res.url(), res.status(), data);
     }
-    println!(
-        "Also, my working directory is {:?}\n",
-        env::current_dir().unwrap().display()
-    );
-
-    println!("Here is the manifest file I found there:\n");
-    let manifest = read_manifest()?;
-    println!("{:?}", manifest);
-
-    println!("\nHere it is re-serialised:\n");
-    println!("{}", serialise_manifest(&manifest).unwrap());
 
     Ok(())
 }

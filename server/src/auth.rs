@@ -32,7 +32,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Authenticate {
     type Error = Error;
 
     fn from_request(request: &'a Request<'r>) -> Outcome<Self, (Status, Self::Error), ()> {
-        match request.headers().get_one("Authentication").and_then(
+        match request.headers().get_one("Authorization").and_then(
             parse_auth_header,
         ) {
             None => Outcome::Failure((Status::Unauthorized, Error::Status(Status::Unauthorized))),
