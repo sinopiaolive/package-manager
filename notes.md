@@ -1,3 +1,4 @@
+```
 struct Manifest:
   pm : String // package manager version
   name : String
@@ -35,6 +36,7 @@ union VersionConstraint:
 struct Version:
   // start with Steve's semver library, only allowing a.b.c
   // later we can maybe allow arbitrary number a.b.c.d.e
+```
 
 Later: Dependencies for platform:
   - hard to agree on what's a platform (unix, windows, mac? ruby, jruby? node, browser?)
@@ -43,20 +45,20 @@ Later: Dependencies for platform:
 
 Later: privateDependencies/staticDependencies
 
-Later: externalDependencies
-  e.g. rustc: ~1.1.2; like engine
-
-Later: private registries
-  registry URL
-  access=restricted
+Later: externalDependencies, e.g. rustc: ~1.1.2; like engine
 
 Later: features?
 
 Later: npm link scenarios
+
 - workspaces: groups of related packages developed together
+
 - git dependencies: committing interdependent work-in-progress for other people to test
+
 - replace: pulling hotfixes into an app
-  - redundant with git dependencies?
+
+    - redundant with git dependencies?
+
 - .cargo/config: testing out fixes locally
 
 
