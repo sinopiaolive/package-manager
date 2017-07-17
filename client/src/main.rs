@@ -19,6 +19,8 @@ extern crate rpassword;
 mod error;
 mod path;
 mod auth;
+mod config;
+#[allow(dead_code)] // TODO please remove this when the solver is actually being used
 #[macro_use]
 mod solver;
 
@@ -122,7 +124,7 @@ fn main() {
             .unwrap() {
             Ok(_) => process::exit(0),
             Err(e) => {
-                println!("{}", e);
+                println!("ERROR: {}", e);
                 process::exit(1)
             }
         }

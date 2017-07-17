@@ -6,6 +6,7 @@ use reqwest;
 
 use error::Error;
 use auth::AuthPair;
+use config::{Config, Auth, get_config, write_config};
 
 pub const USAGE: &'static str = "Login.
 
@@ -51,7 +52,12 @@ pub fn execute(args: Args) -> Result<(), Error> {
     let mut token = String::new();
     res.read_to_string(&mut token)?;
 
-    println!("Your token is {}", token);
-
-    Ok(())
+    let config = get_config()?;
+    write_config(&Config {
+        auth: Auth {
+            token: Some(token),
+            ..config.auth
+        },
+        ..config
+    })
 }

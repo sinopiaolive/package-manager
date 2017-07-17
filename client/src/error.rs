@@ -1,5 +1,6 @@
 use std;
 use reqwest;
+use toml;
 
 use pm_lib::manifest;
 use pm_lib::index;
@@ -18,6 +19,16 @@ quick_error! {
             from()
         }
         Http(err: reqwest::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        TomlDe(err: toml::de::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        TomlSer(err: toml::ser::Error) {
             cause(err)
             description(err.description())
             from()
