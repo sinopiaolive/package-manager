@@ -14,15 +14,6 @@ pub struct JustifiedVersion {
     pub path: Path,
 }
 
-impl JustifiedVersion {
-    pub fn new(version: Arc<Version>, path: Path) -> JustifiedVersion {
-        JustifiedVersion {
-            version: version.clone(),
-            path: path.clone(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PartialSolution(pub Map<PackageName, JustifiedVersion>);
 
