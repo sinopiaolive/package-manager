@@ -91,17 +91,6 @@ For example, npm fails to distinguish between app and library projects, and as a
 result every time you create a Node app with an empty `package.json`, npm
 complains about missing fields and you need to fill in some dummy values.
 
-By contrast, on Ruby Bundler, apps use only a `Gemfile` (example: Discourse's
-[Gemfile](https://github.com/discourse/discourse/blob/master/Gemfile)), which
-does not require any metadata, while libraries use a `gemspec`, as well as a
-mostly-empty `Gemfile` that defers to the gemspec via an aptly-named `gemspec`
-function (example: Capybara's
-[gemspec](https://github.com/teamcapybara/capybara/blob/master/capybara.gemspec)
-and
-[Gemfile](https://github.com/teamcapybara/capybara/blob/667faf54677662ecf7a340c8b1c12ab418a17391/Gemfile#L4)).
-The entire setup is slightly confusing due to Bundler (`Gemfile`) being built on
-top RubyGems (`gemspec`). But perhaps there are some interesting ideas in here.
-
 For apps, in addition to not needing metadata, the distinction between
 `dependencies` and `devDependencies` is usually irrelevant. For example, on npm,
 the mocha test framework (correctly) recommends running `npm install --save-dev
@@ -125,8 +114,19 @@ To this end, we might want to split the manifest into `pm-dependencies.toml` and
 
     ```sh
     pm install --save-dev foo # adds foo to pm-dependencies.toml
-    pm install --save foo     # adds foo to pm-package.toml, inside a [dependencies] section
+    pm install --save foo     # adds foo to pm-package.toml, inside a
+                              # [dependencies] section for runtime dependencies
     ```
+
+This is similar to Bundler, where apps use only a `Gemfile` (example:
+Discourse's
+[Gemfile](https://github.com/discourse/discourse/blob/master/Gemfile)), which
+does not contain any metadata, while libraries use a `gemspec`, as well as a
+mostly-empty `Gemfile` that defers to the gemspec via an aptly-named `gemspec`
+function (example: Capybara's
+[gemspec](https://github.com/teamcapybara/capybara/blob/master/capybara.gemspec)
+and
+[Gemfile](https://github.com/teamcapybara/capybara/blob/667faf54677662ecf7a340c8b1c12ab418a17391/Gemfile#L4)).
 
 
 ## Things to implement before releasing v1
