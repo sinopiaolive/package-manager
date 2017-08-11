@@ -1,65 +1,25 @@
+## Files
+
+The `files` field, controlling which files to release.
+
 ```
-struct Manifest:
-  pm : String // package manager version
-  name : String
-  version : String
-  private/publish : Boolean
-  dependencies : Array<VersionedPackageSpec>
-    name : String
-    constraint : VersionConstraint
-      // version must be >= minVersionOrNull, < maxVersionOrNull
-      ( minVersionOrNull, maxVersionOrNull )
-  devDependencies : (same)
-
-  files:
-    include: possible values:
-      [ "**/*.js", ... ] // explicit list of globs
-      null
-        // auto-detect VCS (default), applying .gitignore
-        // throws error if there are uncommitted files
-    exclude: defaults to []
-      // e.g. [ '/tests' ]
-
-  // Not crucial but useful metadata:
-  author : String
-  description : String
-  license : String
-  license-file: String // default: whatever we find in [ 'LICENSE', 'LICENSE.*', ... ]
-  homepage, documentation, bugs : String
-  repository : Repository
-  keywords : Array<String>
-
-union VersionConstraint:
-  Version
-  Pair(Option<Version>, Option<Version>)
-
-struct Version:
-  // start with Steve's semver library, only allowing a.b.c
-  // later we can maybe allow arbitrary number a.b.c.d.e
+files: {
+  include: possible values:
+    [ "**/*.js", ... ] // explicit list of globs
+    null
+      // auto-detect VCS (default), applying .gitignore
+      // throws error if there are uncommitted files
+  exclude: defaults to []
+    // e.g. [ '/tests' ]
+}
 ```
 
-Later: Dependencies for platform:
-  - hard to agree on what's a platform (unix, windows, mac? ruby, jruby? node, browser?)
-  - have arbitrary set of platform tags, allow "dependencies.(!jruby && mac)"
-  - print warning if no build-tool-supplied platform
 
-Later: privateDependencies/staticDependencies
+## Platforms
 
-Later: externalDependencies, e.g. rustc: ~1.1.2; like engine
-
-Later: features?
-
-Later: npm link scenarios
-
-- workspaces: groups of related packages developed together
-
-- git dependencies: committing interdependent work-in-progress for other people to test
-
-- replace: pulling hotfixes into an app
-
-    - redundant with git dependencies?
-
-- .cargo/config: testing out fixes locally
+* hard to agree on what's a platform (unix, windows, mac? ruby, jruby? node, browser?)
+* have arbitrary set of platform tags, allow "dependencies.(!jruby && mac)"
+* print warning if no build-tool-supplied platform
 
 
 ## Private and 3rd-party registries
@@ -75,17 +35,17 @@ default_registry = "crates.io" # default, always has lowest priority
 [dependencies]
 # left-pad does not exist on the private registry, so it comes from the
 # default registry.
-rust/left-pad = "^1.2.3"
+"rust/left-pad" = "^1.2.3"
 
 # acme-lib exists on the private registry. If anybody were to push acme-lib
 # to the public registry, the public acme-lib will be ignored completely.
-rust/acme-lib = "^1.2.3"
+"rust/acme-lib" = "^1.2.3"
 
 # Somebody chose to push rust/serde to the private registry. Oops!
 # This suddenly starts shadowing the publicly-released serde
 # package on every project that uses the private registry.
 # The solution is: don't do that.
-rust/serde = "^1.2.3"
+"rust/serde" = "^1.2.3"
 ```
 
 * Don't put `https://` protocol into registry_url -- we don't want duplicate
@@ -100,7 +60,7 @@ rust/serde = "^1.2.3"
   each package:
 
     ```toml
-    rust/acme-lib = { version = "^1.2.3", registry_url = "internal.acme.corp" }
+    "rust/acme-lib" = { version = "^1.2.3", registry_url = "internal.acme.corp" }
     ```
 
   The main disadvantage here is that we need all packages to agree on where the
@@ -130,7 +90,7 @@ sure we don't back ourselves into a corner. These features include:
 
 * [ ] Platforms
 
-* [ ] Path length limitations
+* [ ] File name and path length limitations
 
 * [ ] Cargo [features](http://doc.crates.io/manifest.html#the-features-section)
 
