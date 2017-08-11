@@ -107,13 +107,14 @@ For apps, in addition to not needing metadata, the distinction between
 the mocha test framework (correctly) recommends running `npm install --save-dev
 mocha`. If you are working on a library, this is great. But imagine you are a
 newcomer to Node working on your first app. Now if you open your `package.json`,
-you're forced to learn about the distinction between `dependencies` and
+you're forced to learn about the difference between `dependencies` and
 `devDependencies`, just to find out that it isn't relevant for you at all.
 
-To this end, we might want to split the manifest into `pm-dependencies.toml`
-(only dev dependencies) and `pm-package.toml` (everything else):
+To this end, we might want to split the manifest into `pm-dependencies.toml` and
+`pm-package.toml`, where all the package metadata for libraries goes into
+`pm-package.toml`.
 
-* Apps need `pm-dependencies.toml`.
+* Apps only need `pm-dependencies.toml`.
 
     ```sh
     pm install --save-dev foo # adds foo to pm-dependencies.toml
