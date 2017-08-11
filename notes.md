@@ -64,47 +64,57 @@ Later: npm link scenarios
 
 ## Private and 3rd-party registries
 
-```
-primary_registry = 'crates.io' // default
+Project manifest (not for published libraries):
 
-// `namespace` comes from primary registry, `@namespace` comes from secondary
-// registries:
-[registries]
-// @mozilla_nightly namespace comes from this registry & namespace
-mozilla_nightly = 'nightly.mozilla.org#mozilla_nightly'
-// @anything_else namespaces come from this registry
-* = 'https://private-pmreg.acme.com'
+```toml
+registries = [
+  'private-registry.acme.corp'
+]
+default_registry = 'crates.io' # default, always has lowest priority
 
 [dependencies]
-left-pad = '1.2.3'
-@rust/our_private_library = '1.2.3' // from private-pmreg.acme.com
-@mozilla_nightly/servo = '1.2.3'
-// This is sugar for this absolute package syntax:
-nightly.mozilla.org/pm#mozilla_nightly/servo = '1.2.3'
+# left-pad does not exist on the private registry, so it comes from the
+# default registry.
+rust/left-pad = '^1.2.3'
+
+# acme-lib exists on the private registry. If anybody were to push acme-lib
+# to the public registry, the public acme-lib will be ignored completely.
+rust/acme-lib = '^1.2.3'
+
+# Somebody chose to push rust/serde to the private registry. Oops!
+# This suddenly starts shadowing the publicly-released serde
+# package on every project that uses the private registry.
+# The solution is: don't do that.
+rust/serde = '^1.2.3'
 ```
 
-```
-PackageName {
-    registry_url: Option<String>,
-    namespace: String,
-    name: String
-}
-```
+* Don't put `https://` protocol into registry_url -- we don't want duplicate
+  versions of the same package due to different protocols.
 
-Don't put `https://` protocol into registry_url -- we don't want duplicate
-versions of the same package due to different protocols.
+* `manifest.lock` records the registry URL for every package at time of
+  resolution.
 
-Installed packages: `pm info --json`
+* Private packages like `rust/acme-lib` depend on other private packages (`rust/acme-foo = ^1.2.3`) without mentioning the registry. They rely on the private registry being made available through the consuming project's manifest.
 
-```
-[
-    {
-        registry_url: "nightly.mozilla.org",
-        namespace: "rust",
-        name: "servo",
-        version: "1.2.3",
-        path: ".../fasdlkfjsdlafkj/servo"
-    },
-    ...
-]
-```
+* The main alternative to this approach is making the registry URL explicit for
+  each package:
+
+    ```toml
+    rust/acme-lib = { version: '^1.2.3', registry_url: 'internal.acme.corp' }
+    ```
+
+  The main disadvantage here is that we need all packages to agree on where the
+  `rust/acme-lib` dependency comes from, which likely means that the solver
+  needs to be aware of the registry URL, either as part of the `PackageName` or
+  as part of the version:
+
+    ```rust
+    struct Versionoid {
+      version: Version,
+      registry_url: Option<String>
+    }
+    ```
+
+  Either approach comes with problems (in implementation complexity and
+  sometimes in how it interacts with git URLs), and we couldn't find a solution
+  that we found satisfactory.
