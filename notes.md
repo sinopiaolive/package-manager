@@ -80,6 +80,12 @@ default_registry = "crates.io" # default, always has lowest priority
   that we found satisfactory.
 
 
+## Things to implement before releasing v1
+
+* [ ] Enforce file name and path length limitations ([Naming Files, Paths, and Namespaces (Windows)](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx))
+
+
+
 ## Things to plan for before releasing v1
 
 For features that we don't want to implement in v1, we may still want to get a
@@ -89,8 +95,6 @@ sure we don't back ourselves into a corner. These features include:
 * [x] Private registries
 
 * [ ] Platforms
-
-* [ ] File name and path length limitations
 
 * [ ] Cargo [features](http://doc.crates.io/manifest.html#the-features-section)
 
