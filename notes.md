@@ -81,10 +81,56 @@ default_registry = "crates.io" # default, always has lowest priority
   that we found satisfactory.
 
 
+## Distinguishing apps and libraries
+
+Apps that are not published on the registry don't technically require most
+project metadata, like name, description, version, etc. They really only need
+`[dependencies]`.
+
+For example, npm fails to distinguish between app and library projects, and as a
+result every time you create a Node app with an empty `package.json`, npm
+complains about missing fields and you need to fill in some dummy values.
+
+By contrast, on Ruby Bundler, apps use only a `Gemfile` (example: Discourse's
+[Gemfile](https://github.com/discourse/discourse/blob/master/Gemfile)), which
+does not require any metadata, while libraries use a `gemspec`, as well as a
+mostly-empty `Gemfile` that defers to the gemspec via an aptly-named `gemspec`
+function (example: Capybara's
+[gemspec](https://github.com/teamcapybara/capybara/blob/master/capybara.gemspec)
+and
+[Gemfile](https://github.com/teamcapybara/capybara/blob/667faf54677662ecf7a340c8b1c12ab418a17391/Gemfile#L4)).
+The entire setup is slightly confusing due to Bundler (`Gemfile`) being built on
+top RubyGems (`gemspec`). But perhaps there are some interesting ideas in here.
+
+For apps, in addition to not needing metadata, the distinction between
+`dependencies` and `devDependencies` is usually irrelevant. For example, on npm,
+the mocha test framework (correctly) recommends running `npm install --save-dev
+mocha`. If you are working on a library, this is great. But imagine you are a
+newcomer to Node working on your first app. Now if you open your `package.json`,
+you're forced to learn about the distinction between `dependencies` and
+`devDependencies`, just to find out that it isn't relevant for you at all.
+
+To this end, we might want to split the manifest into `pm-dependencies.toml`
+(only dev dependencies) and `pm-package.toml` (everything else):
+
+* Apps need `pm-dependencies.toml`.
+
+    ```sh
+    pm install --save-dev foo # adds foo to pm-dependencies.toml
+    pm install --save foo     # adds foo to pm-dependencies.toml (equivalent)
+    ```
+
+* Libraries need `pm-dependencies.toml` and `pm-package.toml`.
+
+    ```sh
+    pm install --save-dev foo # adds foo to pm-dependencies.toml
+    pm install --save foo     # adds foo to pm-package.toml, inside a [dependencies] section
+    ```
+
+
 ## Things to implement before releasing v1
 
 * [ ] Enforce file name and path length limitations ([Naming Files, Paths, and Namespaces (Windows)](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx))
-
 
 
 ## Things to plan for before releasing v1
@@ -122,3 +168,5 @@ sure we don't back ourselves into a corner. These features include:
 * [ ] Versioning the manifest format (like [`rubygems_version`](http://guides.rubygems.org/specification-reference/#rubygems_version)?)
 
 * [ ] Using the Package Manager for installing binaries
+
+* [ ] That compatibility thing Jo is writing a blog post about
