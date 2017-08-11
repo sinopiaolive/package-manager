@@ -17,9 +17,10 @@ files: {
 
 ## Platforms
 
-* hard to agree on what's a platform (unix, windows, mac? ruby, jruby? node, browser?)
-* have arbitrary set of platform tags, allow "dependencies.(!jruby && mac)"
-* print warning if no build-tool-supplied platform
+* Don't deal with platforms at all.
+* If some package depends on `foo` for Linux and `bar` for Windows, we just
+  download both every time.
+* It's the build tool's responsibility to pick up the right packages.
 
 
 ## Private and 3rd-party registries
@@ -94,7 +95,7 @@ sure we don't back ourselves into a corner. These features include:
 
 * [x] Private registries
 
-* [ ] Platforms
+* [x] Platforms
 
 * [ ] Cargo [features](http://doc.crates.io/manifest.html#the-features-section)
 
