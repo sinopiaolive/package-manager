@@ -1,69 +1,80 @@
-use medallion::Token;
-use rocket::request::{Request, FromRequest};
-use rocket::Outcome;
-use rocket::http::Status;
+use std::fmt;
+
+use data_encoding::BASE64URL;
+use serde_json;
+
+use rocket::request::FromFormValue;
+use rocket::http::RawStr;
 
 use error::{Res, Error};
-use store::Store;
+use user::{User, Org};
 
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
-pub struct JWTToken {
-    pub user: String,
+use github::Github;
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum AuthSource {
+    Github,
 }
 
-impl Default for JWTToken {
-    fn default() -> JWTToken {
-        JWTToken { user: String::default() }
+impl AuthSource {
+    pub fn from_str(name: &str) -> Res<Self> {
+        match name {
+            "github" => Ok(AuthSource::Github),
+            _ => Err(Error::NoSuchAuthSource(name.to_string()))
+        }
+    }
+
+    pub fn provider(&self) -> Res<Box<AuthProvider>> {
+        Ok(Box::new(match self {
+            &AuthSource::Github => Github::new()?,
+        }))
     }
 }
 
-fn parse_auth_header<'a>(header: &'a str) -> Option<&'a str> {
-    let start = "Bearer ";
-    if header.starts_with(start) {
-        Some(&header[start.len()..])
-    } else {
-        None
+impl fmt::Display for AuthSource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        f.write_str(match self {
+            &AuthSource::Github => "github",
+        })
     }
 }
 
-pub struct Authenticate(Token<(), JWTToken>);
-
-impl<'a, 'r> FromRequest<'a, 'r> for Authenticate {
+impl<'v> FromFormValue<'v> for AuthSource {
     type Error = Error;
 
-    fn from_request(request: &'a Request<'r>) -> Outcome<Self, (Status, Self::Error), ()> {
-        match request.headers().get_one("Authorization").and_then(
-            parse_auth_header,
-        ) {
-            None => Outcome::Failure((Status::Unauthorized, Error::Status(Status::Unauthorized))),
-            Some(token) => match Token::parse(token) {
-                Ok(token) => Outcome::Success(Authenticate(token)),
-                Err(err) => Outcome::Failure((Status::Unauthorized, Error::JWT(err)))
-            }
-        }
+    fn from_form_value(val: &'v RawStr) -> Res<Self> {
+        AuthSource::from_str(&val.url_decode()?)
     }
 }
 
-impl Authenticate {
-    fn token(&self) -> &Token<(), JWTToken> {
-        &self.0
-    }
 
-    fn claims(&self) -> Res<JWTToken> {
-        match self.token().payload.claims {
-            None => Err(Error::Status(Status::Unauthorized)),
-            Some(ref claims) => Ok(claims.clone())
+
+pub trait AuthProvider {
+    fn user(&self, token: &str) -> Res<User>;
+    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = Org>>>;
+}
+
+
+
+#[derive(Serialize, Deserialize, Clone, FromForm)]
+pub struct AuthToken {
+    pub user: User,
+    pub token: String
+}
+
+impl AuthToken {
+    pub fn new(user: &User, token: &str) -> AuthToken {
+        AuthToken {
+            user: user.clone(),
+            token: token.to_string()
         }
     }
 
-    pub fn validate(&self, store: &Store) -> Res<JWTToken> {
-        let claims = self.claims()?;
-        match store.get(&claims.user) {
-            Err(_) => Err(Error::Status(Status::Unauthorized)),
-            Ok(user) => match self.token().verify(user.secret.as_bytes()) {
-                Ok(true) => Ok(claims),
-                _ => Err(Error::Status(Status::Unauthorized))
-            }
-        }
+    pub fn decode(data: &[u8]) -> Res<AuthToken> {
+        Ok(serde_json::from_slice(&BASE64URL.decode(data)?)?)
+    }
+
+    pub fn encode(&self) -> Res<String> {
+        Ok(BASE64URL.encode(serde_json::to_string(self)?.as_bytes()))
     }
 }

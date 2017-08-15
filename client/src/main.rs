@@ -13,12 +13,15 @@ extern crate im;
 #[cfg(test)]
 extern crate test;
 extern crate reqwest;
-extern crate linefeed;
-extern crate rpassword;
+extern crate rand;
+extern crate data_encoding;
+extern crate url;
+extern crate webbrowser;
+extern crate hyper;
+extern crate futures;
 
 mod error;
 mod path;
-mod auth;
 mod config;
 #[allow(dead_code)] // TODO please remove this when the solver is actually being used
 #[macro_use]

@@ -2,19 +2,24 @@
 authors = ["Bodil Stokke <bodil@bodil.org>", "Jo Liss <joliss42@gmail.com>"]
 name = "pm"
 version = "0.0.0"
-
 [[bin]]
 name = "pm"
 path = "src/main.rs"
 
 [dependencies]
-pm_lib = { path = "../lib" }
+data-encoding = "2.0.0-rc.1"
 docopt = "0.8"
-serde = "1.0"
-serde_derive = "1.0"
+futures = "0.1.14"
+hyper = "0.11"
 im = "5.0"
 quick-error = "1.2"
-toml = "0.4"
+rand = "0.3"
 reqwest = "0.7"
-linefeed = "0.2"
-rpassword = "0.4"
+serde = "1.0"
+serde_derive = "1.0"
+toml = "0.4"
+url = "1.5"
+webbrowser = "0.2"
+
+[dependencies.pm_lib]
+path = "../lib"
