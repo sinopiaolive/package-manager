@@ -81,53 +81,41 @@ default_registry = "crates.io" # default, always has lowest priority
   that we found satisfactory.
 
 
-## Distinguishing apps and libraries
+## Manifest syntax
 
-Apps that are not published on the registry don't technically require most
-project metadata, like name, description, version, etc. They really only need
-`[dependencies]`.
+```
+pm 1.2
 
-For example, npm fails to distinguish between app and library projects, and as a
-result every time you create a Node app with an empty `package.json`, npm
-complains about missing fields and you need to fill in some dummy values.
+registries [
+  "internal.google.com"
+]
 
-For apps, in addition to not needing metadata, the distinction between
-`dependencies` and `devDependencies` is usually irrelevant. For example, on npm,
-the mocha test framework (correctly) recommends running `npm install --save-dev
-mocha`. If you are working on a library, this is great. But imagine you are a
-newcomer to Node working on your first app. Now if you open your `package.json`,
-you're forced to learn about the difference between `dependencies` and
-`devDependencies`, just to find out that it isn't relevant for you at all.
+dependencies {
+  js/left-pad: ^2.0.0
+  js/right-pad: ^2.0.0
+  js/tokio: ^2.0.0
 
-To this end, we might want to split the manifest into `pm-dependencies.toml` and
-`pm-package.toml`, where all the package metadata for libraries goes into
-`pm-package.toml`.
+  js/mocha: ^1.2.3 group="dev" // this is used for the whizbo
+  js/debugger: ^1.2.3 group="dev" group="test"
 
-* Apps only need `pm-dependencies.toml`.
+  js/foo: git="https://github.com/joliss/foo"
+  js/bar: path="C:\\Program Files\\bar"
+  js/up-pad: ^2.0.0
+}
 
-    ```sh
-    pm install --save-dev foo # adds foo to pm-dependencies.toml
-    pm install --save foo     # adds foo to pm-dependencies.toml (equivalent)
-    ```
-
-* Libraries need `pm-dependencies.toml` and `pm-package.toml`.
-
-    ```sh
-    pm install --save-dev foo # adds foo to pm-dependencies.toml
-    pm install --save foo     # adds foo to pm-package.toml, inside a
-                              # [dependencies] section for runtime dependencies
-    ```
-
-This is similar to Bundler, where apps use only a `Gemfile` (example:
-Discourse's
-[Gemfile](https://github.com/discourse/discourse/blob/master/Gemfile)), which
-does not contain any metadata, while libraries use a `gemspec`, as well as a
-mostly-empty `Gemfile` that defers to the gemspec via an aptly-named `gemspec`
-function (example: Capybara's
-[gemspec](https://github.com/teamcapybara/capybara/blob/master/capybara.gemspec)
-and
-[Gemfile](https://github.com/teamcapybara/capybara/blob/667faf54677662ecf7a340c8b1c12ab418a17391/Gemfile#L4)).
-
+package {
+  name: "mypkg"
+  version: "1.0.0"
+  description: "The description."
+  license_file: [ "license/GPL" ]
+  keywords: []
+  license: "MIT"
+  files: [
+    "foo"
+    "**/*.js"
+  ]
+}
+```
 
 ## Things to implement before releasing v1
 
