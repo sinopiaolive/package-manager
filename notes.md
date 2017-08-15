@@ -94,6 +94,7 @@ dependencies {
   js/left-pad: ^2.0.0
   js/right-pad: ^2.0.0
   js/tokio: ^2.0.0
+  js/abc: >=1.5.0 <3.0.0
 
   js/mocha: ^1.2.3 group="dev" // this is used for the whizbo
   js/debugger: ^1.2.3 group="dev" group="test"
