@@ -1,7 +1,7 @@
 use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 use std::iter::FromIterator;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 
 use rand::{Rng, OsRng};
 use data_encoding::HEXUPPER;
@@ -32,16 +32,43 @@ Options:
 pub struct Args {}
 
 
-struct Done(Arc<AtomicBool>, Arc<Mutex<Option<Task>>>);
 
-impl Done {
+const AUTHENTICATED_DOC: &'static str = "
+<html>
+  <head>
+    <style>
+      body { text-align: center; background: white; }
+    </style>
+  </head>
+  <body>
+    <h1>You are authenticated!</h1>
+    <p>You may safely close this window.</p>
+  </body>
+</html>
+";
+
+
+
+#[derive(Clone)]
+struct Done<A> {
+    value: Arc<Mutex<Option<A>>>,
+    task: Arc<Mutex<Option<Task>>>,
+}
+
+impl<A> Done<A> {
     fn new() -> Self {
-        Done(Arc::new(AtomicBool::new(false)), Arc::new(Mutex::new(None)))
+        Done {
+            value: Arc::new(Mutex::new(None)),
+            task: Arc::new(Mutex::new(None)),
+        }
     }
 
-    fn done(&self) {
-        self.0.store(true, Ordering::Relaxed);
-        match self.1.lock() {
+    fn done(&self, value: A) {
+        match self.value.lock() {
+            Ok(ref mut mutex) => **mutex = Some(value),
+            _ => panic!("failed to acquire mutex!?"),
+        }
+        match self.task.lock() {
             Ok(ref mutex) => {
                 match **mutex {
                     Some(ref task) => {
@@ -55,30 +82,36 @@ impl Done {
     }
 }
 
-impl Future for Done {
-    type Item = ();
-    type Error = ();
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        if self.0.load(Ordering::Relaxed) {
-            Ok(Async::Ready(()))
-        } else {
-            match self.1.lock() {
-                Ok(ref mut mutex) => {
-                    **mutex = Some(current())
-                }
-                _ => panic!("failed to acquire mutex in poll!!11"),
-            }
-            Ok(Async::NotReady)
+impl<A: Clone> Done<A> {
+    fn get(&self) -> Option<A> {
+        match self.value.lock() {
+            Ok(ref mutex) => (**mutex).clone(),
+            _ => panic!("failed to acquire mutex!?"),
         }
     }
 }
 
-impl Clone for Done {
-    fn clone(&self) -> Self {
-        Done(self.0.clone(), self.1.clone())
+impl<A> Future for Done<A> {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.value.lock() {
+            Ok(ref mutex) => {
+                if (**mutex).is_some() {
+                    Ok(Async::Ready(()))
+                } else {
+                    match self.task.lock() {
+                        Ok(ref mut mutex) => **mutex = Some(current()),
+                        _ => panic!("failed to acquire mutex in poll!!11"),
+                    }
+                    Ok(Async::NotReady)
+                }
+            }
+            _ => panic!("failed to acquire mutex in poll!!11"),
+        }
     }
 }
-
 
 
 
@@ -110,7 +143,7 @@ fn parse_callback_args(req: &Request) -> Option<CallbackArgs> {
 
 struct Callback {
     state: String,
-    done: Done,
+    done: Done<String>,
 }
 
 impl Service for Callback {
@@ -124,21 +157,12 @@ impl Service for Callback {
             if args.state != self.state {
                 return future::ok(bad_request());
             }
-            let out = format!("You authenticated! Your token is: {}", args.token);
-            let config = get_config().expect("unable to read user config file");
-            write_config(&Config {
-                auth: Auth {
-                    token: Some(args.token),
-                    ..config.auth
-                },
-                ..config
-            }).expect("unable to write user config file");
-            self.done.done();
+            self.done.done(args.token);
             future::ok(
                 Response::new()
-                    .with_header(ContentLength(out.len() as u64))
-                    .with_header(ContentType::plaintext())
-                    .with_body(out),
+                    .with_header(ContentLength(AUTHENTICATED_DOC.len() as u64))
+                    .with_header(ContentType::html())
+                    .with_body(AUTHENTICATED_DOC),
             )
         } else {
             future::ok(bad_request())
@@ -154,25 +178,39 @@ pub fn generate_secret() -> Result<String, Error> {
 pub fn execute(_: Args) -> Result<(), Error> {
     let done = Done::new();
     let callback_done = done.clone();
-    let token = generate_secret()?;
+    let secret = generate_secret()?;
     let mut url = Url::parse("http://localhost:8000/login_client").unwrap();
-    url.query_pairs_mut().append_pair("token", &token);
+    url.query_pairs_mut().append_pair("token", &secret);
     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let server = Http::new()
         .bind(&socket, move || {
             Ok(Callback {
-                state: token.clone(),
+                state: secret.clone(),
                 done: callback_done.clone(),
             })
         })
-        .unwrap();
+        .expect("unable to launch local web server");
 
     url.query_pairs_mut().append_pair(
         "callback",
         &format!("http://{}", server.local_addr().unwrap()),
     );
-    webbrowser::open(url.as_str())?;
+    thread::spawn(move || webbrowser::open(url.as_str()));
 
-    server.run_until(done).unwrap();
+    server.run_until(done.clone()).unwrap();
+
+    let token = done.get().expect(
+        "unable to get auth token from web server",
+    );
+
+    let config = get_config()?;
+    write_config(&Config {
+        auth: Auth {
+            token: Some(token),
+            ..config.auth
+        },
+        ..config
+    })?;
+
     Ok(())
 }
