@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use std::fs::File;
+use std::fs::{File, create_dir_all};
 use toml;
 
 use error::Error;
@@ -45,6 +45,7 @@ pub fn get_config() -> Result<Config, Error> {
 
 pub fn write_config(config: &Config) -> Result<(), Error> {
     let mut path = config_path()?;
+    create_dir_all(&path)?;
     path.push("config.toml");
     let mut file = File::create(path)?;
     let data = toml::to_string(config)?;

@@ -28,7 +28,7 @@ pub fn execute(_args: Args) -> Result<(), Error> {
         .send()?;
 
     if res.status().is_success() {
-        println!("Your JWT works.");
+        println!("You are logged in with a valid auth token.");
     } else {
         let mut data = String::new();
         res.read_to_string(&mut data)?;
