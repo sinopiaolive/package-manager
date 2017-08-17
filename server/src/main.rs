@@ -22,6 +22,7 @@ mod user;
 mod store;
 mod auth;
 mod github;
+mod gitlab;
 
 use rocket::request::{Request, FromRequest};
 use rocket::response::Redirect;
@@ -35,6 +36,7 @@ use url::Url;
 use error::{Res, Error};
 use store::Store;
 use github::{Github, GITHUB_CLIENT_ID};
+use gitlab::{Gitlab, GITLAB_CLIENT_ID};
 use auth::{AuthProvider, AuthToken};
 
 
@@ -179,15 +181,24 @@ struct Login {
 #[get("/login_client?<login>")]
 fn login_client(store: State<Store>, login: Login) -> Res<Markup> {
     store.register_login(&login.token, &login.callback)?;
-    let url = format!(
+    let github_url = format!(
         "https://github.com/login/oauth/authorize?scope=user:email&client_id={}&state={}",
         GITHUB_CLIENT_ID,
+        login.token
+    );
+    let gitlab_url = format!(
+        "https://gitlab.com/oauth/authorize?client_id={}&state={}&response_type=code&redirect_uri=http://localhost:8000/gitlab/callback&scope=read_user",
+        GITLAB_CLIENT_ID,
         login.token
     );
     Ok(html_doc(html!{
         p { "Use this decadent bourgeois identity provider to log in:" }
         p.pad {
-            a.btn href=(url) "Log in with GitHub";
+            a.btn href=(github_url) "Log in with GitHub";
+        }
+        p { "Or choose a service provided under the Glorious People's Licence:" }
+        p.pad {
+            a.btn href=(gitlab_url) "Log in with GitLab";
         }
     }))
 }
@@ -213,10 +224,25 @@ fn github_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
     Ok(Redirect::to(redirect.as_str()))
 }
 
+#[get("/gitlab/callback?<callback>")]
+fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect> {
+    let mut redirect = Url::parse(&store.validate_login(&callback.state)?)?;
+    let gitlab = Gitlab::new()?;
+    let token = gitlab.validate_callback(&callback.code)?;
+    let user = gitlab.user(&token.access_token)?;
+    let auth = AuthToken::new(&user, &token.access_token);
+    println!("User data: {:?}", user);
+    redirect
+        .query_pairs_mut()
+        .append_pair("token", &auth.encode()?)
+        .append_pair("state", &callback.state);
+    Ok(Redirect::to(redirect.as_str()))
+}
+
 fn main() {
     let store = Store::new().expect("couldn't connect to Redis server");
     rocket::ignite()
         .manage(store)
-        .mount("/", routes![index, test, login_client, github_callback])
+        .mount("/", routes![index, test, login_client, github_callback, gitlab_callback])
         .launch();
 }

@@ -10,24 +10,28 @@ use error::{Res, Error};
 use user::{User, Org};
 
 use github::Github;
+use gitlab::Gitlab;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum AuthSource {
     Github,
+    Gitlab
 }
 
 impl AuthSource {
     pub fn from_str(name: &str) -> Res<Self> {
         match name {
             "github" => Ok(AuthSource::Github),
+            "gitlab" => Ok(AuthSource::Gitlab),
             _ => Err(Error::NoSuchAuthSource(name.to_string()))
         }
     }
 
     pub fn provider(&self) -> Res<Box<AuthProvider>> {
-        Ok(Box::new(match self {
-            &AuthSource::Github => Github::new()?,
-        }))
+        Ok(match self {
+            &AuthSource::Github => Box::new(Github::new()?),
+            &AuthSource::Gitlab => Box::new(Gitlab::new()?),
+        })
     }
 }
 
@@ -35,6 +39,7 @@ impl fmt::Display for AuthSource {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match self {
             &AuthSource::Github => "github",
+            &AuthSource::Gitlab => "gitlab",
         })
     }
 }
