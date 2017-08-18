@@ -249,7 +249,7 @@ fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
 
 fn main() {
     dotenv::dotenv().ok();
-    let store = Store::new().expect("couldn't connect to Redis server");
+    let store = Store::new().expect("couldn't connect to Postgres server");
     rocket::ignite()
         .manage(store)
         .mount("/", routes![index, test, login_client, github_callback, gitlab_callback])
