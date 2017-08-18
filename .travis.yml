@@ -2,4 +2,13 @@ language: rust
 rust:
   # remember to edit ./rust-toolchain as well
   - nightly-2017-08-01
-script: cargo test --all
+services:
+  - postgresql
+env:
+  - DATABASE_URL="postgres://postgres@localhost/registry"
+before_script:
+  - psql -c 'create database registry;' -U postgres
+  - cargo install diesel_cli --no-default-features --features postgres
+script:
+  - cd server; diesel database reset
+  - cargo test --all

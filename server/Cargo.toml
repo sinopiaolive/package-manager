@@ -4,9 +4,11 @@ name = "pm_server"
 version = "0.0.0"
 [dependencies]
 data-encoding = "2.0.0-rc.1"
+diesel = { version = "0.15.2", features = ["postgres"] }
+diesel_codegen = { version = "0.15.0", features = ["postgres"] }
+dotenv = "0.10.1"
 quick-error = "1.2"
 rand = "0.3"
-redis = "0.8"
 reqwest = "0.7"
 rocket = "0.3"
 rocket_codegen = "0.3"

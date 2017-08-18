@@ -1,4 +1,5 @@
 use std::env;
+use std::io::Read;
 
 use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
@@ -7,9 +8,9 @@ use reqwest;
 use reqwest::header::{Accept, Authorization, qitem};
 use reqwest::mime::APPLICATION_JSON;
 
-use error::Res;
+use error::{Res, Error};
 use auth::{AuthSource, AuthProvider};
-use user::{User, Org};
+use user::{User, Org, UserRecord, OrgRecord};
 
 pub static GITHUB_CLIENT_ID: &'static str = "a009958d6b555fa8c1f7";
 
@@ -33,9 +34,14 @@ pub struct OAuthToken {
 pub struct GithubUser {
     login: String,
     id: usize,
-    // name: String,
-    // email: String,
-    // avatar_url: String,
+    avatar_url: String,
+    // gravatar_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GithubEmail {
+    email: String,
+    primary: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -85,6 +91,18 @@ impl Github {
             .json()?)
     }
 
+    #[allow(dead_code)]
+    fn get_string(&self, url: &str, token: &str) -> Res<String> {
+        let mut s = String::new();
+        let mut res = self.http
+            .get(&format!("https://api.github.com/{}", url))?
+            .header(Accept(vec![qitem(APPLICATION_JSON)]))
+            .header(Authorization(format!("token {}", token)))
+            .send()?;
+        res.read_to_string(&mut s)?;
+        Ok(s)
+    }
+
     pub fn validate_callback(&self, code: &str) -> Res<OAuthToken> {
         Ok(self.http
             .post("https://github.com/login/oauth/access_token")?
@@ -100,20 +118,34 @@ impl Github {
 }
 
 impl AuthProvider for Github {
-    fn user(&self, token: &str) -> Res<User> {
+    fn user(&self, token: &str) -> Res<UserRecord> {
         let user: GithubUser = self.get("user", token)?;
-        Ok(User {
-            provider: AuthSource::Github,
-            id: format!("{}", user.id),
-        })
+        let emails: Vec<GithubEmail> = self.get("user/emails", token)?;
+        let email = emails
+            .iter()
+            .find(|e| e.primary)
+            .or(emails.iter().next())
+            .ok_or(Error::UserHasNoEmail(format!(
+                "{}:{} ({})",
+                AuthSource::Github,
+                user.id,
+                user.login
+            )))?;
+        Ok(UserRecord::new(&User {
+                provider: AuthSource::Github,
+                id: format!("{}", user.id),
+            }, &user.login, &email.email, &user.avatar_url))
     }
 
-    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = Org>>> {
+    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = OrgRecord>>> {
         let orgs: Vec<GithubOrg> = self.get("user/orgs", token)?;
         Ok(Box::new(orgs.into_iter().map(|org| {
-            Org {
-                provider: AuthSource::Github,
-                id: format!("{}", org.id),
+            OrgRecord {
+                id: Org {
+                    provider: AuthSource::Github,
+                    id: format!("{}", org.id),
+                },
+                name: org.login,
             }
         })))
     }

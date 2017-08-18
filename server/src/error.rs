@@ -1,5 +1,4 @@
 use std::env;
-use redis;
 use serde_json;
 use reqwest;
 use data_encoding;
@@ -7,16 +6,12 @@ use url;
 use rocket::http::Status;
 use rocket::response::{Response, Responder};
 use rocket::request::Request;
+use diesel;
 
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
         Io(err: ::std::io::Error) {
-            cause(err)
-            description(err.description())
-            from()
-        }
-        Redis(err: redis::RedisError) {
             cause(err)
             description(err.description())
             from()
@@ -51,6 +46,16 @@ quick_error! {
             description(err.description())
             from()
         }
+        DieselConnection(err: diesel::ConnectionError) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        DieselResult(err: diesel::result::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
         Status(code: Status) {}
         NoSuchAuthSource(name: String) {
             description(name)
@@ -59,6 +64,12 @@ quick_error! {
             description(name)
         }
         InvalidLoginState(name: String) {
+            description(name)
+        }
+        UserHasNoEmail(name: String) {
+            description(name)
+        }
+        UnknownUser(name: String) {
             description(name)
         }
     }

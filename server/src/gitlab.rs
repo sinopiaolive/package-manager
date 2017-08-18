@@ -9,7 +9,7 @@ use reqwest::mime::APPLICATION_JSON;
 
 use error::Res;
 use auth::{AuthSource, AuthProvider};
-use user::{User, Org};
+use user::{User, Org, UserRecord, OrgRecord};
 
 pub static GITLAB_CLIENT_ID: &'static str = "05568e094f02af3b1593fe1b7e6f6651684885968232d87812334d8b74deb995";
 
@@ -34,9 +34,9 @@ pub struct OAuthToken {
 pub struct GitlabUser {
     username: String,
     id: usize,
+    email: String,
+    avatar_url: String,
     // name: String,
-    // email: String,
-    // avatar_url: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -103,20 +103,28 @@ impl Gitlab {
 }
 
 impl AuthProvider for Gitlab {
-    fn user(&self, token: &str) -> Res<User> {
+    fn user(&self, token: &str) -> Res<UserRecord> {
         let user: GitlabUser = self.get("user", token)?;
-        Ok(User {
-            provider: AuthSource::Gitlab,
-            id: format!("{}", user.id),
-        })
+        Ok(UserRecord::new(
+            &User {
+                provider: AuthSource::Gitlab,
+                id: format!("{}", user.id),
+            },
+            &user.username,
+            &user.email,
+            &user.avatar_url,
+        ))
     }
 
-    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = Org>>> {
+    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = OrgRecord>>> {
         let orgs: Vec<GitlabGroup> = self.get("groups", token)?;
         Ok(Box::new(orgs.into_iter().map(|org| {
-            Org {
-                provider: AuthSource::Gitlab,
-                id: format!("{}", org.id),
+            OrgRecord {
+                id: Org {
+                    provider: AuthSource::Gitlab,
+                    id: format!("{}", org.id),
+                },
+                name: org.path,
             }
         })))
     }

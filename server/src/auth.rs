@@ -7,7 +7,7 @@ use rocket::request::FromFormValue;
 use rocket::http::RawStr;
 
 use error::{Res, Error};
-use user::{User, Org};
+use user::{UserRecord, OrgRecord, User};
 
 use github::Github;
 use gitlab::Gitlab;
@@ -55,8 +55,8 @@ impl<'v> FromFormValue<'v> for AuthSource {
 
 
 pub trait AuthProvider {
-    fn user(&self, token: &str) -> Res<User>;
-    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = Org>>>;
+    fn user(&self, token: &str) -> Res<UserRecord>;
+    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = OrgRecord>>>;
 }
 
 

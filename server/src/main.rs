@@ -8,7 +8,6 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 extern crate rocket_contrib;
-extern crate redis;
 #[macro_use]
 extern crate quick_error;
 extern crate rand;
@@ -16,10 +15,16 @@ extern crate maud;
 extern crate reqwest;
 extern crate data_encoding;
 extern crate url;
+extern crate dotenv;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_codegen;
 
 mod error;
-mod user;
+mod schema;
 mod store;
+mod user;
 mod auth;
 mod github;
 mod gitlab;
@@ -136,14 +141,15 @@ impl<'a, 'r> FromRequest<'a, 'r> for Authenticate {
 }
 
 impl Authenticate {
-    pub fn validate(&self) -> Res<AuthToken> {
+    pub fn validate(&self, store: &Store) -> Res<AuthToken> {
         match self.0.user.provider.provider() {
             Err(_) => Err(Error::Status(Status::Unauthorized)),
             Ok(provider) => {
                 match provider.user(&self.0.token) {
                     Err(_) => Err(Error::Status(Status::Unauthorized)),
                     Ok(user) => {
-                        if user == self.0.user {
+                        if user.user()? == self.0.user {
+                            store.update_user(&user)?;
                             Ok(self.0.clone())
                         } else {
                             Err(Error::Status(Status::Unauthorized))
@@ -158,8 +164,8 @@ impl Authenticate {
 
 
 #[get("/test")]
-fn test(auth: Authenticate) -> Res<String> {
-    auth.validate()?;
+fn test(auth: Authenticate, store: State<Store>) -> Res<String> {
+    auth.validate(&store)?;
     Ok("Hello Joe".to_string())
 }
 
@@ -215,8 +221,9 @@ fn github_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
     let github = Github::new()?;
     let token = github.validate_callback(&callback.code)?;
     let user = github.user(&token.access_token)?;
-    let auth = AuthToken::new(&user, &token.access_token);
+    let auth = AuthToken::new(&user.user()?, &token.access_token);
     println!("User data: {:?}", user);
+    store.update_user(&user)?;
     redirect
         .query_pairs_mut()
         .append_pair("token", &auth.encode()?)
@@ -230,8 +237,9 @@ fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
     let gitlab = Gitlab::new()?;
     let token = gitlab.validate_callback(&callback.code)?;
     let user = gitlab.user(&token.access_token)?;
-    let auth = AuthToken::new(&user, &token.access_token);
+    let auth = AuthToken::new(&user.user()?, &token.access_token);
     println!("User data: {:?}", user);
+    store.update_user(&user)?;
     redirect
         .query_pairs_mut()
         .append_pair("token", &auth.encode()?)
@@ -240,6 +248,7 @@ fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
 }
 
 fn main() {
+    dotenv::dotenv().ok();
     let store = Store::new().expect("couldn't connect to Redis server");
     rocket::ignite()
         .manage(store)
