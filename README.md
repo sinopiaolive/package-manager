@@ -14,7 +14,9 @@ existing package manager.
 
 ## Usage
 
-This is work-in-progress code, and you cannot use it to do anything yet.
+This is work-in-progress code, and you cannot use it to do anything useful yet.
+Instructions for running the existing codebase can be found in
+[COMPILE.md](COMPILE.md).
 
 ## Motivation
 
