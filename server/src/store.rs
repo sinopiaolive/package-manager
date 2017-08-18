@@ -77,7 +77,20 @@ impl Store {
 
     pub fn update_user(&self, user: &UserRecord) -> Res<()> {
         let db = self.db()?;
-        diesel::insert(user).into(users::table).execute(&db)?;
+        match self.get_user(&user.user()?) {
+            Ok(_) => {
+                diesel::update(users::table.filter(users::id.eq(&user.id)))
+                    .set((
+                        users::name.eq(&user.name),
+                        users::email.eq(&user.email),
+                        users::avatar.eq(&user.avatar),
+                    ))
+                    .execute(&db)?;
+            }
+            Err(_) => {
+                diesel::insert(user).into(users::table).execute(&db)?;
+            }
+        }
         Ok(())
     }
 
@@ -88,7 +101,7 @@ impl Store {
         )?;
         match results.into_iter().next() {
             None => Err(Error::UnknownUser(user.to_string())),
-            Some(user) => Ok(user)
+            Some(user) => Ok(user),
         }
     }
 }
