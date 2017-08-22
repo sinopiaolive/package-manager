@@ -1,6 +1,6 @@
 CREATE TABLE login_sessions (
-  token VARCHAR PRIMARY KEY,
-  callback VARCHAR NOT NULL,
+  token TEXT PRIMARY KEY,
+  callback TEXT NOT NULL,
   stamp TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

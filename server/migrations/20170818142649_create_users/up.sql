@@ -1,6 +1,6 @@
 CREATE TABLE users (
-  id VARCHAR PRIMARY KEY,
-  name VARCHAR NOT NULL,
-  email VARCHAR NOT NULL,
-  avatar VARCHAR
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  avatar TEXT
 );

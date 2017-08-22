@@ -1,16 +1,18 @@
+// infer_schema!("dotenv:DATABASE_URL");
+
 table! {
     users {
-        id -> VarChar,
-        name -> VarChar,
-        email -> VarChar,
-        avatar -> Nullable<VarChar>,
+        id -> Text,
+        name -> Text,
+        email -> Text,
+        avatar -> Nullable<Text>,
     }
 }
 
 table! {
     login_sessions (token) {
-        token -> VarChar,
-        callback -> VarChar,
+        token -> Text,
+        callback -> Text,
         stamp -> Timestamp,
     }
 }
