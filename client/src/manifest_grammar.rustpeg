@@ -1,0 +1,86 @@
+use super::manifest::*;
+
+pub manifest -> Manifest<'input>
+  = entries:manifest_entry ** newline { Manifest { entries: entries } }
+
+pub manifest_entry -> ManifestEntry<'input>
+  = w:ws_or_comment { ManifestEntry::WsOrComment(w) }
+    / d:dependencies { ManifestEntry::Dependencies(d) }
+
+pub ws_or_comment -> WsOrComment<'input>
+  = ws:$(ws*) comment:$(comment?) {
+      WsOrComment { ws: ws, comment: comment }
+    }
+
+pub dependencies -> Dependencies<'input>
+  = opening_line:$(ws* "dependencies" ws* "{" ws_or_comment newline)
+    entries:dependencies_entry*
+    closing_line:$(ws* "}" ws_or_comment)
+    {
+      Dependencies {
+        opening_line: opening_line,
+        entries: entries,
+        closing_line: closing_line,
+      }
+    }
+
+pub dependencies_entry -> DependenciesEntry<'input>
+  = ws_or_comment:ws_or_comment { DependenciesEntry::BlankLine(ws_or_comment) }
+    / dependency:dependency { DependenciesEntry::DependencyLine(dependency) }
+
+pub dependency -> DependencyLine<'input>
+  = prefix_ws:$(ws*)
+    body_source:$(dependency_body)
+    suffix_ws:$(ws_or_comment) {
+      let body = dependency_body(body_source).unwrap();
+      DependencyLine {
+        prefix_ws: prefix_ws,
+        body_source: body_source,
+        body: body,
+        suffix_ws: suffix_ws,
+      }
+    }
+
+pub dependency_body -> DependencyBody<'input>
+  = package_name:package_name
+    ws*
+    ":"
+    ws*
+    version_constraint_component1:version_constraint_component
+    version_constraint_component2:version_constraint_component_with_ws? {
+      DependencyBody {
+        package_name: package_name,
+        version_constraint_component1: version_constraint_component1,
+        version_constraint_component2: version_constraint_component2,
+      }
+    }
+
+pub package_name -> &'input str
+  = $([-a-zA-Z0-9_/]+)
+
+pub version_constraint_component -> &'input str
+  = $(constraint_prefix version)
+
+pub version_constraint_component_with_ws -> &'input str
+  = ws+
+    component:version_constraint_component {
+      component
+    }
+
+pub constraint_prefix
+  = "^" / ">=" / "<" / ""
+
+pub version
+  = [-0-9a-zA-Z.]+
+
+pub comment -> &'input str
+  = $("//" non_control*)
+
+pub ws -> &'input str
+  = $([ \t])
+
+pub non_control -> &'input str
+  = $([\t\u{0020}-\u{007E}\u{00A0}-\u{10FFFF}])
+
+pub newline -> &'input str
+  = $("\r"? "\n")
