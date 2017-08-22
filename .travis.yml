@@ -4,6 +4,8 @@ rust:
   - nightly-2017-08-01
 services:
   - postgresql
+addons:
+  postgresql: "9.6"
 env:
   - DATABASE_URL="postgres://postgres@localhost/registry"
 before_script:
