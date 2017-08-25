@@ -28,7 +28,7 @@ mod config;
 #[macro_use]
 mod solver;
 #[allow(dead_code)]
-mod manifest;
+mod manifest_parser;
 peg_file! manifest_grammar("manifest_grammar.rustpeg");
 
 use std::process;

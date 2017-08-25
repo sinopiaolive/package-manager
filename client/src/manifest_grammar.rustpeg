@@ -1,19 +1,25 @@
-use super::manifest::*;
+use super::manifest_parser::*;
 
 pub manifest -> Manifest<'input>
-  = entries:manifest_entry ** newline { Manifest { entries: entries } }
+  = entries:manifest_entry ** newline
+  {
+    Manifest {
+      entries: entries
+    }
+  }
 
 pub manifest_entry -> ManifestEntry<'input>
-  = w:ws_or_comment { ManifestEntry::WsOrComment(w) }
-    / d:dependencies { ManifestEntry::Dependencies(d) }
+  = d:dependencies { ManifestEntry::Dependencies(d) }
+  / w:ws_or_comment { ManifestEntry::WsOrComment(w) }
 
 pub ws_or_comment -> WsOrComment<'input>
-  = ws:$(ws*) comment:$(comment?) {
-      WsOrComment { ws: ws, comment: comment }
-    }
+  = ws:$(ws*) comment:$(comment?)
+  {
+    WsOrComment { ws: ws, comment: comment }
+  }
 
 pub dependencies -> Dependencies<'input>
-  = opening_line:$(ws* "dependencies" ws* "{" ws_or_comment newline)
+  = opening_line:$(ws* "dependencies" ws* "{" ws_or_comment) newline
     entries:dependencies_entry*
     closing_line:$(ws* "}" ws_or_comment)
     {
@@ -25,14 +31,15 @@ pub dependencies -> Dependencies<'input>
     }
 
 pub dependencies_entry -> DependenciesEntry<'input>
-  = ws_or_comment:ws_or_comment { DependenciesEntry::BlankLine(ws_or_comment) }
-    / dependency:dependency { DependenciesEntry::DependencyLine(dependency) }
+  = ws_or_comment:ws_or_comment newline { DependenciesEntry::BlankLine(ws_or_comment) }
+    / dependency:dependency newline { DependenciesEntry::DependencyLine(dependency) }
 
 pub dependency -> DependencyLine<'input>
   = prefix_ws:$(ws*)
     body_source:$(dependency_body)
-    suffix_ws:$(ws_or_comment) {
-      let body = dependency_body(body_source).unwrap();
+    suffix_ws:$(ws_or_comment)
+    {
+      let body = dependency_body(body_source).unwrap(); // reparse
       DependencyLine {
         prefix_ws: prefix_ws,
         body_source: body_source,
@@ -63,7 +70,8 @@ pub version_constraint_component -> &'input str
 
 pub version_constraint_component_with_ws -> &'input str
   = ws+
-    component:version_constraint_component {
+    component:version_constraint_component
+    {
       component
     }
 
