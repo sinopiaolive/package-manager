@@ -1,0 +1,81 @@
+eof = { eoi } // report explicitly
+
+newline = { "\r"? ~ "\n" }
+
+non_control_char = { "\t" | '\u{0020}'..'\u{007E}' | '\u{00A0}'..'\u{10FFFF}' }
+ws_char = { " " | "\t" }
+ws = @{ ws_char+ }
+// Like `ws?` but emits a pair even if empty
+maybe_ws = @{ ws_char* }
+
+// Trailing underscore because `comment` is a magic rule (as is `whitespace`)
+comment_ = @{ "//" ~ non_control_char* }
+
+
+manifest = { manifest_entry ~ (newline ~ manifest_entry)* }
+manifest_eof = { manifest ~ eof }
+
+manifest_entry = { dependencies | blank_line }
+
+blank_line = @{ maybe_ws ~ comment_? }
+
+dependencies = {
+    dependencies_opening_line ~ newline
+    ~ (
+        (dependency | blank_line)
+        ~ newline
+    )*
+    ~ dependencies_closing_line
+}
+
+dependencies_opening_line = {
+    maybe_ws ~ "dependencies" ~ maybe_ws ~ "{" ~ maybe_ws ~ comment_?
+}
+
+dependencies_closing_line = {
+    maybe_ws ~ "}" ~ maybe_ws ~ comment_?
+}
+
+// e.g. "  js/left-pad: ^1.2.3  // for text handling"
+dependency = {
+    maybe_ws
+    ~ package_name
+    ~ maybe_ws
+    ~ colon
+    ~ maybe_ws
+    ~ version_constraint
+    ~ maybe_ws
+    ~ comment_?
+}
+
+package_name = @{
+    package_name_component // namespace
+    ~ "/"
+    ~ package_name_component // name
+}
+
+// Note: These rules are permissive and require further validation in the Rust code.
+package_name_component = {
+    ('a'..'z' | 'A'..'Z' | '0'..'9' | "_" | "-")+
+}
+
+colon = { ":" }
+
+version_constraint = {
+    version_constraint_component
+    ~ (
+        ws
+        ~ version_constraint_component
+    )?
+
+}
+
+version_constraint_component = {
+    ("^" | ">=" | "<" | "")
+    ~ version
+}
+
+version = @{
+    '0'..'9'
+    ~ ('0'..'9' | 'a'..'z' | 'A'..'Z' | "-" | ".")*
+}

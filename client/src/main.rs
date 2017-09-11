@@ -20,6 +20,9 @@ extern crate url;
 extern crate webbrowser;
 extern crate hyper;
 extern crate futures;
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
 
 mod error;
 mod path;
@@ -30,6 +33,7 @@ mod solver;
 #[allow(dead_code)]
 mod manifest_parser;
 peg_file! manifest_grammar("manifest_grammar.rustpeg");
+mod pest_parser;
 
 use std::process;
 use std::env;
