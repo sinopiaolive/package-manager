@@ -22,6 +22,8 @@ serde_derive = "1.0"
 toml = "0.4"
 url = "1.5"
 webbrowser = "0.2"
+pest = "1.0.0-beta.11"
+pest_derive = "1.0.0-beta.11"
 
 [dependencies.pm_lib]
 path = "../lib"
