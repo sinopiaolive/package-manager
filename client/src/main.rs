@@ -1,6 +1,5 @@
 #![allow(unused_features)]
 #![feature(plugin,test)]
-#![plugin(peg_syntax_ext)]
 
 extern crate docopt;
 extern crate serde;
@@ -31,8 +30,6 @@ mod config;
 #[macro_use]
 mod solver;
 #[allow(dead_code)]
-mod manifest_parser;
-peg_file! manifest_grammar("manifest_grammar.rustpeg");
 mod pest_parser;
 
 use std::process;
@@ -110,9 +107,6 @@ fn change_to_project_dir() -> Result {
 
 
 fn main() {
-    // Prevent dead_code warnings for manifest_grammar until we actually use it
-    let _ = manifest_grammar::manifest("");
-
     let args: Args = Docopt::new(USAGE)
         .map(|d| d.options_first(true))
         .map(|d| d.help(true))

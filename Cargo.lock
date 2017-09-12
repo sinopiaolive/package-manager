@@ -620,22 +620,6 @@ version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "peg"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "peg-syntax-ext"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "peg 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "percent-encoding"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -669,8 +653,6 @@ dependencies = [
  "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "im 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "peg 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "peg-syntax-ext 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest 1.0.0-beta.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest_derive 1.0.0-beta.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "pm_lib 0.0.0",
@@ -1353,8 +1335,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum ordermap 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "d0e2df2a1933286f9d5f370ce42c3056a426845c5491b42ebcab900715bf2c5e"
 "checksum pear 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)" = "87dd0e084e2c18b047658e40f89b856dfc23104011fd43f9369e873d03b7f15b"
 "checksum pear_codegen 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)" = "0455b67d07b3aa40a552256059f11eb8db3a848cbec81bae3e3cb366e6e74e24"
-"checksum peg 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "36a474cba42744afe0f223e9d4263594b3387f172e512259c72d2011e477c4fb"
-"checksum peg-syntax-ext 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "73c6541641bcf873455f1d208566ee3c85543de74f2a65a198109e86365501a8"
 "checksum percent-encoding 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de154f638187706bde41d9b4738748933d64e6b37bdbffc0b47a97d16a6ae356"
 "checksum pest 1.0.0-beta.11 (registry+https://github.com/rust-lang/crates.io-index)" = "927518cc1e6438d29d45f357375ea23e395af626a759b6c4ce6204bfe8e776b0"
 "checksum pest_derive 1.0.0-beta.11 (registry+https://github.com/rust-lang/crates.io-index)" = "25728271a9229d13cecbe2f3f777e7e4572bc705f78ba5c58e961c8f48435069"
