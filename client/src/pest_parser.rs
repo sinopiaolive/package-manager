@@ -28,10 +28,15 @@ pub fn get_dependencies<'a>(manifest_source: &'a str)
             for pair in children(pair, Rule::manifest_entry) {
                 for pair in children(pair, Rule::dependencies) {
                     for pair in children(pair, Rule::dependency) {
+                        let package_name_pair = find(pair.clone(), Rule::package_name);
+                        let vc_pair = find(pair, Rule::version_constraint);
                         let (package_name, version_constraint) =
-                            get_dependency(pair)?;
+                            get_dependency(package_name_pair.clone(), vc_pair)?;
                         if depset.contains_key(&package_name) {
-                            panic!(); // TODO
+                            return Err(pest::Error::CustomErrorSpan {
+                                message: "Duplicate dependency".to_string(),
+                                span: package_name_pair.into_span(),
+                            })
                         }
                         depset.insert(package_name, version_constraint);
                     }
@@ -42,12 +47,18 @@ pub fn get_dependencies<'a>(manifest_source: &'a str)
     Ok(depset)
 }
 
-fn get_dependency<'a>(pair: Pair<'a>) -> Result<(PackageName, VersionConstraint), Error<'a>> {
-    let package_name_pair = find(pair.clone(), Rule::package_name);
-    let package_name = PackageName::from_str(package_name_pair.into_span().as_str()).expect("TODO");
+fn get_dependency<'a>(
+    package_name_pair: Pair<'a>,
+    vc_pair: Pair<'a>)
+    -> Result<(PackageName, VersionConstraint), Error<'a>> {
+    let package_name = PackageName::from_str(package_name_pair.as_str()).ok_or_else(||
+        pest::Error::CustomErrorSpan {
+            message: "Invalid package name".to_string(),
+            span: package_name_pair.into_span(),
+        }
+    )?;
 
-    let vc_pair = find(pair, Rule::version_constraint);
-    let vc_components = children(vc_pair, Rule::version_constraint_component);
+    let vc_components = children(vc_pair.clone(), Rule::version_constraint_component);
     let version_constraint = match vc_components.len() {
         1 => {
             let vc_component = vc_components.into_iter().next().unwrap();
@@ -61,7 +72,13 @@ fn get_dependency<'a>(pair: Pair<'a>) -> Result<(PackageName, VersionConstraint)
                 "{} {}", vcc1.into_span().as_str(), vcc2.into_span().as_str()))
         }
         _ => unreachable!()
-    }.expect("TODO");
+    }.ok_or_else(||
+        pest::Error::CustomErrorSpan {
+            // More error detail would make this much more user-friendly.
+            message: "Invalid version constraint".to_string(),
+            span: vc_pair.into_span(),
+        }
+    )?;
 
     Ok((package_name, version_constraint))
 }
@@ -77,7 +94,7 @@ fn children_of_pairs<'a>(pairs: Pairs, rule: pest_parser::Rule) -> Vec<Pair> {
 
 fn find<'a>(pair: Pair<'a>, rule: pest_parser::Rule) -> Pair<'a> {
     pair.into_inner().find(|pair| pair.as_rule() == rule)
-        .expect(&format!("No child matching rule {:?}", rule))
+        .expect(&format!("No child matching rule {:?}", rule)) // TODO closure me
 }
 
 
@@ -86,6 +103,9 @@ pub fn test_parser() {
     print_pairs(pairs, 0);
 
     println!("dependencies: {:?}", get_dependencies(" \n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n js/right-pad: >=4.5.6 <5.0.0 // foo\n}").unwrap_or_else(|e| panic!("{}", e)));
+
+    // println!("dependencies: {:?}", get_dependencies(" \n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n js/right-pad: >=4.x.6 <5.0.0 // foo\n}").unwrap_or_else(|e| panic!("{}", e)));
+    // println!("dependencies: {:?}", get_dependencies(" \n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n js/left-pad: >=4.5.6 <5.0.0 // foo\n}").unwrap_or_else(|e| panic!("{}", e)));
 }
 
 fn print_pairs<'a>(pairs: pest::iterators::Pairs<pest_parser::Rule, pest::inputs::StrInput<'a>>, indent: usize) {
