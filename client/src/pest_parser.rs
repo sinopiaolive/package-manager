@@ -25,21 +25,19 @@ pub fn get_dependencies<'a>(manifest_source: &'a str)
     let mut depset = DependencySet::new();
     for pair in children_of_pairs(pairs, Rule::manifest_eof) {
         for pair in children(pair, Rule::manifest) {
-            for pair in children(pair, Rule::manifest_entry) {
-                for pair in children(pair, Rule::dependencies) {
-                    for pair in children(pair, Rule::dependency) {
-                        let package_name_pair = find(pair.clone(), Rule::package_name);
-                        let vc_pair = find(pair, Rule::version_constraint);
-                        let (package_name, version_constraint) =
-                            get_dependency(package_name_pair.clone(), vc_pair)?;
-                        if depset.contains_key(&package_name) {
-                            return Err(pest::Error::CustomErrorSpan {
-                                message: "Duplicate dependency".to_string(),
-                                span: package_name_pair.into_span(),
-                            })
-                        }
-                        depset.insert(package_name, version_constraint);
+            for pair in children(pair, Rule::dependencies) {
+                for pair in children(pair, Rule::dependency) {
+                    let package_name_pair = find(pair.clone(), Rule::package_name);
+                    let vc_pair = find(pair, Rule::version_constraint);
+                    let (package_name, version_constraint) =
+                        get_dependency(package_name_pair.clone(), vc_pair)?;
+                    if depset.contains_key(&package_name) {
+                        return Err(pest::Error::CustomErrorSpan {
+                            message: "Duplicate dependency".to_string(),
+                            span: package_name_pair.into_span(),
+                        })
                     }
+                    depset.insert(package_name, version_constraint);
                 }
             }
         }
@@ -99,13 +97,10 @@ fn find<'a>(pair: Pair<'a>, rule: pest_parser::Rule) -> Pair<'a> {
 
 
 pub fn test_parser() {
-    let pairs = ManifestParser::parse_str(Rule::manifest_eof, " \n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n}").unwrap_or_else(|e| panic!("{}", e));
+    let pairs = ManifestParser::parse_str(Rule::manifest_eof, " \n pm 1.0 // yay \n\n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n}").unwrap_or_else(|e| panic!("{}", e));
     print_pairs(pairs, 0);
 
-    println!("dependencies: {:?}", get_dependencies(" \n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n js/right-pad: >=4.5.6 <5.0.0 // foo\n}").unwrap_or_else(|e| panic!("{}", e)));
-
-    // println!("dependencies: {:?}", get_dependencies(" \n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n js/right-pad: >=4.x.6 <5.0.0 // foo\n}").unwrap_or_else(|e| panic!("{}", e)));
-    // println!("dependencies: {:?}", get_dependencies(" \n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n js/left-pad: >=4.5.6 <5.0.0 // foo\n}").unwrap_or_else(|e| panic!("{}", e)));
+    println!("dependencies: {:?}", get_dependencies("pm 1.0\ndependencies { \njs/left-pad: ^1.2.3 // foo\n js/right-pad: >=4.5.6 <5.0.0 // foo\n}").unwrap_or_else(|e| panic!("{}", e)));
 }
 
 fn print_pairs<'a>(pairs: pest::iterators::Pairs<pest_parser::Rule, pest::inputs::StrInput<'a>>, indent: usize) {

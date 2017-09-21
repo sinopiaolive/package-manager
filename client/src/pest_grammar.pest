@@ -12,12 +12,19 @@ maybe_ws = @{ ws_char* }
 comment_ = @{ "//" ~ non_control_char* }
 
 
-manifest = { manifest_entry ~ (newline ~ manifest_entry)* }
+manifest = {
+    (blank_line ~ newline)*
+    ~ pm_version_tag ~ newline
+    ~ (blank_line ~ newline)*
+    ~ dependencies
+    ~ (newline ~ blank_line)*
+}
+
 manifest_eof = { manifest ~ eof }
 
-manifest_entry = { dependencies | blank_line }
-
 blank_line = @{ maybe_ws ~ comment_? }
+
+pm_version_tag = { maybe_ws ~ "pm" ~ ws ~ "1.0" ~ maybe_ws ~ comment_? }
 
 dependencies = {
     dependencies_opening_line ~ newline
