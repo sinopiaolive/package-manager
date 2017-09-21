@@ -1,7 +1,7 @@
 language: rust
 rust:
   # remember to edit ./rust-toolchain as well
-  - nightly-2017-08-01
+  - nightly-2017-08-22
 services:
   - postgresql
 addons:
