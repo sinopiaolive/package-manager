@@ -122,6 +122,8 @@ package {
 
 * [ ] Enforce file name and path length limitations ([Naming Files, Paths, and Namespaces (Windows)](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx))
 
+* [ ] Package dependency on PM version (supplied by registry, not by package).
+
 
 ## Things to plan for before releasing v1
 
