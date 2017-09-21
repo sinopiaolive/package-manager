@@ -9,6 +9,7 @@ extern crate pm_lib;
 extern crate toml;
 #[macro_use]
 extern crate quick_error;
+#[macro_use]
 extern crate im;
 #[cfg(test)]
 extern crate test;
@@ -26,9 +27,10 @@ extern crate pest_derive;
 mod error;
 mod path;
 mod config;
-#[allow(dead_code)] // TODO please remove this when the solver is actually being used
-#[macro_use]
-mod solver;
+mod registry;
+// #[allow(dead_code)] // TODO please remove this when the solver is actually being used
+// #[macro_use]
+// mod solver;
 #[allow(dead_code)]
 mod pest_parser;
 
@@ -64,6 +66,7 @@ macro_rules! each_subcommand {
     ($mac:ident) => {
         $mac!(login);
         $mac!(test);
+        $mac!(search);
         // add more like this here
     }
 }

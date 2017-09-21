@@ -1,4 +1,4 @@
-#![feature(plugin, custom_derive, proc_macro, conservative_impl_trait)]
+#![feature(plugin, custom_derive, conservative_impl_trait)]
 #![plugin(rocket_codegen)]
 #![allow(resolve_trait_on_defaulted_unit)]
 
@@ -11,7 +11,6 @@ extern crate rocket_contrib;
 #[macro_use]
 extern crate quick_error;
 extern crate rand;
-extern crate maud;
 extern crate reqwest;
 extern crate data_encoding;
 extern crate url;
@@ -26,15 +25,19 @@ mod schema;
 mod store;
 mod user;
 mod auth;
+mod package;
+mod search;
 mod github;
 mod gitlab;
+
+#[cfg(test)]
+mod test;
 
 use rocket::request::{Request, FromRequest};
 use rocket::response::Redirect;
 use rocket::{Outcome, State};
 use rocket::http::Status;
-
-use maud::{html, Markup, PreEscaped};
+use rocket_contrib::Json;
 
 use url::Url;
 
@@ -94,19 +97,22 @@ h1 {
 .pad { padding: 1em; }
 ";
 
-fn html_doc(content: Markup) -> Markup {
-    html! {
-        (PreEscaped("<!doctype html>"));
-        html {
-            head {
-                style { (STYLES) }
-            }
-            body {
-                h1 { "☭ People's Revolutionary Package Registry ☭" }
-                (content)
-            }
-        }
-    }
+fn html_doc(content: &str) -> String {
+    format!(
+        "<!doctype html>
+<html>
+  <head>
+    <style>{}</style>
+  </head>
+  <body>
+    <h1>☭ People's Revolutionary Package Registry ☭</h1>
+    {}
+  </body>
+</html>
+",
+        STYLES,
+        content
+    )
 }
 
 
@@ -169,13 +175,26 @@ fn test(auth: Authenticate, store: State<Store>) -> Res<String> {
     Ok("Hello Joe".to_string())
 }
 
+#[derive(FromForm)]
+struct SearchQuery {
+    ns: String,
+    q: String
+}
+
+#[get("/search?<query>")]
+fn search(query: SearchQuery, store: State<Store>) -> Res<Json<Vec<String>>> {
+    Ok(Json(search::search(&store, &query.ns, query.q.split_whitespace().map(str::to_string).collect())?))
+}
+
 #[get("/")]
-fn index() -> Res<Markup> {
-    Ok(html_doc(html!{
-        p.pad {
-            a.btn href="/login" "Log in?";
-        }
-    }))
+fn index() -> Res<String> {
+    Ok(html_doc(
+        "
+<p class=\"pad\">
+  <a class=\"btn\" href=\"/login\">Log in?</a>
+</p>
+",
+    ))
 }
 
 #[derive(FromForm)]
@@ -185,7 +204,7 @@ struct Login {
 }
 
 #[get("/login_client?<login>")]
-fn login_client(store: State<Store>, login: Login) -> Res<Markup> {
+fn login_client(store: State<Store>, login: Login) -> Res<String> {
     store.register_login(&login.token, &login.callback)?;
     let github_url = format!(
         "https://github.com/login/oauth/authorize?scope=user:email&client_id={}&state={}",
@@ -197,16 +216,20 @@ fn login_client(store: State<Store>, login: Login) -> Res<Markup> {
         GITLAB_CLIENT_ID,
         login.token
     );
-    Ok(html_doc(html!{
-        p { "Use this decadent bourgeois identity provider to log in:" }
-        p.pad {
-            a.btn href=(github_url) "Log in with GitHub";
-        }
-        p { "Or choose a service provided under the Glorious People's Licence:" }
-        p.pad {
-            a.btn href=(gitlab_url) "Log in with GitLab";
-        }
-    }))
+    Ok(html_doc(&format!(
+        "
+<p>Use this decadent bourgeois identity provider to log in:</p>
+<p class=\"pad\">
+  <a class=\"btn\" href=\"{}\">Log in with GitHub</a>
+</p>
+<p>Or choose a service provided under the Glorious People's Licence:</p>
+<p>
+  <a class=\"btn\" href=\"{}\">Log in with GitLab</a>
+</p>
+",
+        github_url,
+        gitlab_url
+    )))
 }
 
 #[derive(FromForm)]
@@ -248,10 +271,14 @@ fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
 }
 
 fn main() {
-    dotenv::dotenv().ok();
+    #[cfg(not(test))] dotenv::dotenv().ok();
+
     let store = Store::new().expect("couldn't connect to Postgres server");
     rocket::ignite()
         .manage(store)
-        .mount("/", routes![index, test, login_client, github_callback, gitlab_callback])
+        .mount(
+            "/",
+            routes![index, test, search, login_client, github_callback, gitlab_callback],
+        )
         .launch();
 }

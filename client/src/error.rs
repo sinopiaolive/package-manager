@@ -13,6 +13,9 @@ quick_error! {
             from()
             from(s: &'static str) -> (s.to_string())
         }
+        Server(err: String) {
+            description(err)
+        }
         Io(err: std::io::Error) {
             cause(err)
             description(err.description())

@@ -33,7 +33,7 @@ CREATE TABLE package_releases (
   manifest TEXT NOT NULL,
   readme TEXT,
   deprecated BOOLEAN NOT NULL DEFAULT FALSE,
-  deprecated_by TEXT NOT NULL,
+  deprecated_by TEXT,
   deprecated_on TIMESTAMP,
   deleted TEXT,
   deleted_on TIMESTAMP,

@@ -14,6 +14,7 @@ use gitlab::Gitlab;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum AuthSource {
+    Test,
     Github,
     Gitlab
 }
@@ -21,6 +22,7 @@ pub enum AuthSource {
 impl AuthSource {
     pub fn from_str(name: &str) -> Res<Self> {
         match name {
+            "test" => Ok(AuthSource::Test),
             "github" => Ok(AuthSource::Github),
             "gitlab" => Ok(AuthSource::Gitlab),
             _ => Err(Error::NoSuchAuthSource(name.to_string()))
@@ -29,6 +31,7 @@ impl AuthSource {
 
     pub fn provider(&self) -> Res<Box<AuthProvider>> {
         Ok(match self {
+            &AuthSource::Test => Box::new(NullAuth),
             &AuthSource::Github => Box::new(Github::new()?),
             &AuthSource::Gitlab => Box::new(Gitlab::new()?),
         })
@@ -38,6 +41,7 @@ impl AuthSource {
 impl fmt::Display for AuthSource {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match self {
+            &AuthSource::Test => "test",
             &AuthSource::Github => "github",
             &AuthSource::Gitlab => "gitlab",
         })
@@ -57,6 +61,18 @@ impl<'v> FromFormValue<'v> for AuthSource {
 pub trait AuthProvider {
     fn user(&self, token: &str) -> Res<UserRecord>;
     fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = OrgRecord>>>;
+}
+
+pub struct NullAuth;
+
+impl AuthProvider for NullAuth {
+    fn user(&self, _: &str) -> Res<UserRecord> {
+        Err(Error::UnknownUser("null auth has no users".to_string()))
+    }
+
+    fn orgs(&self, _: &str) -> Res<Box<Iterator<Item = OrgRecord>>> {
+        Err(Error::UnknownUser("null auth has no orgs".to_string()))
+    }
 }
 
 

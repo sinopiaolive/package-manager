@@ -15,6 +15,10 @@ pub struct User {
 }
 
 impl User {
+    pub fn new(provider: AuthSource, id: &str) -> User {
+        User { provider, id: id.to_string() }
+    }
+
     pub fn to_string(&self) -> String {
         format!("{}", self)
     }
@@ -56,7 +60,7 @@ impl<'v> FromFormValue<'v> for User {
     }
 }
 
-#[derive(Insertable, Queryable, Identifiable, Debug)]
+#[derive(Insertable, Queryable, Identifiable, Associations, Debug)]
 #[table_name = "users"]
 pub struct UserRecord {
     pub id: String,

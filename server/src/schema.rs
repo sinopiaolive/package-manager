@@ -53,7 +53,7 @@ table! {
         manifest -> Text,
         readme -> Nullable<Text>,
         deprecated -> Bool,
-        deprecated_by -> Text,
+        deprecated_by -> Nullable<Text>,
         deprecated_on -> Nullable<Timestamp>,
         deleted -> Nullable<Text>,
         deleted_on -> Nullable<Timestamp>,

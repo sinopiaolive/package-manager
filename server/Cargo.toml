@@ -4,8 +4,8 @@ name = "pm_server"
 version = "0.0.0"
 [dependencies]
 data-encoding = "2.0.0-rc.1"
-diesel = { version = "0.15.2", features = ["postgres", "large-tables"] }
-diesel_codegen = { version = "0.15.0", features = ["postgres"] }
+diesel = { version = "0.16", features = ["postgres", "large-tables"] }
+diesel_codegen = { version = "0.16", features = ["postgres"] }
 dotenv = "0.10.1"
 quick-error = "1.2"
 rand = "0.3"
@@ -21,7 +21,3 @@ url = "1.5.1"
 [dependencies.im]
 features = ["serde"]
 version = "6.0"
-
-[dependencies.maud]
-features = ["rocket"]
-version = "0.17"
