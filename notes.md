@@ -81,6 +81,19 @@ default_registry = "crates.io" # default, always has lowest priority
   that we found satisfactory.
 
 
+## License fields
+
+* Try to auto-detect license_file if absent.
+* Require license tag and/or license_file, to prevent people from accidentally
+  publishing *all rights reserved* code.
+* If license tag and license file disagree there's a problem, but this doesn't
+  seem to happen a lot. It's not our problem.
+* We're already nudging users to be explicit on the client, so on the server we
+  can now guarantee that we have either tag or file.
+* On private registries, we might just allow not having a license. Or we might
+  let the server decide.
+
+
 ## Manifest syntax
 
 ```
