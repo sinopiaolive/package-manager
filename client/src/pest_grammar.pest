@@ -173,17 +173,20 @@ hex = {
     '0'..'9' | 'a'..'f' | 'A'..'F'
 }
 
-// TODO: Since we allow newlines, we need to allow comments here.
+whitespace_with_newline = {
+    (ws_char | (comment_? ~ newline))
+}
+
 array_value = {
     "["
-    ~ (ws_char | newline)*
+    ~ whitespace_with_newline*
     ~ (
         value
         ~ (
-            (ws_char | newline)+
+            whitespace_with_newline+
             ~ value
         )*
     )?
-    ~ (ws_char | newline)*
+    ~ whitespace_with_newline*
     ~ "]"
 }
