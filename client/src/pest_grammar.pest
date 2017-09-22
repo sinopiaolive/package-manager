@@ -14,19 +14,23 @@ comment_ = @{ "//" ~ non_control_char* }
 
 manifest = {
     (blank_line ~ newline)*
-    ~ pm_version_tag ~ newline
-    ~ (blank_line ~ newline)*
-    ~ dependencies
-    ~ (newline ~ blank_line)*
+    ~ pm_version_tag
+    ~ (newline ~ manifest_entry)*
 }
+
+manifest_entry = { metadata_section | dependencies_section | blank_line }
 
 manifest_eof = { manifest ~ eof }
 
 blank_line = @{ maybe_ws ~ comment_? }
 
+
+// We want to do a two-pass parse here. In the first pass, gobble up anything
+// that looks like a version and report errors. In the second pass, parse the
+// rest.
 pm_version_tag = { maybe_ws ~ "pm" ~ ws ~ "1.0" ~ maybe_ws ~ comment_? }
 
-dependencies = {
+dependencies_section = {
     dependencies_opening_line ~ newline
     ~ (
         (dependency | blank_line)
@@ -42,6 +46,24 @@ dependencies_opening_line = {
 dependencies_closing_line = {
     maybe_ws ~ "}" ~ maybe_ws ~ comment_?
 }
+
+metadata_section = {
+    metadata_opening_line ~ newline
+    ~ (
+        (metadata_entry | blank_line)
+        ~ newline
+    )*
+    ~ metadata_closing_line
+}
+
+metadata_opening_line = {
+    maybe_ws ~ "package" ~ maybe_ws ~ "{" ~ maybe_ws ~ comment_?
+}
+
+metadata_closing_line = {
+    maybe_ws ~ "}" ~ maybe_ws ~ comment_?
+}
+
 
 // e.g. "  js/left-pad: ^1.2.3  // for text handling"
 dependency = {
@@ -85,4 +107,83 @@ version_constraint_component = {
 version = @{
     '0'..'9'
     ~ ('0'..'9' | 'a'..'z' | 'A'..'Z' | "-" | ".")*
+}
+
+
+metadata_entry = {
+    maybe_ws
+    ~ keyword
+    ~ maybe_ws
+    ~ colon
+    ~ maybe_ws
+    ~ value
+    ~ maybe_ws
+    ~ comment_?
+}
+
+keyword = @{ 'a'..'z' | 'A'..'Z' | '0'..'9' | "_" }
+
+
+value = {
+    string_value | array_value
+}
+
+string_value = {
+    "\""
+    ~ string_character*
+    ~ "\""
+}
+
+string_character = {
+    literal_character
+    | escaped_quote
+    | escaped_backslash
+    | escaped_newline
+    | escaped_tab
+    | escaped_unicode
+}
+
+literal_character = {
+    !"\\"
+    ~ non_control_char
+}
+
+escaped_quote = { "\\\"" }
+
+escaped_backslash = { "\\\\" }
+
+escaped_newline = { "\\n" }
+
+escaped_tab = { "\\t" }
+
+escaped_unicode = {
+    "\\u{"
+    ~ (
+          (hex)
+        | (hex ~ hex)
+        | (hex ~ hex ~ hex)
+        | (hex ~ hex ~ hex ~ hex)
+        | (hex ~ hex ~ hex ~ hex ~ hex)
+        | (hex ~ hex ~ hex ~ hex ~ hex ~ hex)
+    )
+    ~ "}"
+}
+
+hex = {
+    '0'..'9' | 'a'..'f' | 'A'..'F'
+}
+
+// TODO: Since we allow newlines, we need to allow comments here.
+array_value = {
+    "["
+    ~ (ws_char | newline)*
+    ~ (
+        value
+        ~ (
+            (ws_char | newline)+
+            ~ value
+        )*
+    )?
+    ~ (ws_char | newline)*
+    ~ "]"
 }

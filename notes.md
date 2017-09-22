@@ -84,7 +84,7 @@ default_registry = "crates.io" # default, always has lowest priority
 ## Manifest syntax
 
 ```
-pm 1.2
+pm 1.0
 
 registries [
   "internal.google.com"
@@ -108,7 +108,7 @@ package {
   name: "mypkg"
   version: "1.0.0"
   description: "The description."
-  license_file: [ "license/GPL" ]
+  license_file: [ "license/GPL" "license/MIT" ]
   keywords: []
   license: "MIT"
   files: [

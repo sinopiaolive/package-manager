@@ -110,6 +110,9 @@ fn change_to_project_dir() -> Result {
 
 
 fn main() {
+    // pest_parser::test_parser();
+    // process::exit(0);
+
     let args: Args = Docopt::new(USAGE)
         .map(|d| d.options_first(true))
         .map(|d| d.help(true))
