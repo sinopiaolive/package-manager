@@ -18,7 +18,7 @@ fn get_db<F>(fixture: F) -> PgConnection
 where
     F: Fn(&PgConnection) -> Result<(), Error>,
 {
-    dotenv::from_filename(".test-env").ok();
+    dotenv::from_filename(".env").ok();
     let db = PgConnection::establish(&env::var("DATABASE_URL").expect(
         "no DATABASE_URL env var defined",
     )).expect("can't connect to database");
