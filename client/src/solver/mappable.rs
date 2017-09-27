@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use im::map::{Map, Iter};
+use im::shared::Shared;
 
 pub trait Mappable
 where
@@ -13,8 +14,8 @@ where
 
     fn insert<RK, RV>(&self, key: RK, value: RV) -> Self
     where
-        Arc<Self::K>: From<RK>,
-        Arc<Self::V>: From<RV>,
+        RK: Shared<Self::K>,
+        RV: Shared<Self::V>,
     {
         Self::wrap(self.as_map().insert(key, value))
     }
