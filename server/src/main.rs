@@ -10,7 +10,6 @@ extern crate serde_derive;
 extern crate rocket_contrib;
 #[macro_use]
 extern crate quick_error;
-extern crate rand;
 extern crate reqwest;
 extern crate data_encoding;
 extern crate url;

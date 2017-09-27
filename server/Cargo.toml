@@ -9,7 +9,6 @@ diesel_codegen = { version = "0.16", features = ["postgres"] }
 dotenv = "0.10.1"
 im = { version = "7.0", features = ["serde"] }
 quick-error = "1.2"
-rand = "0.3"
 reqwest = "0.7"
 rocket = "0.3"
 rocket_codegen = "0.3"
