@@ -11,8 +11,6 @@ extern crate toml;
 extern crate quick_error;
 #[macro_use]
 extern crate im;
-#[cfg(test)]
-extern crate test;
 extern crate reqwest;
 extern crate rand;
 extern crate data_encoding;
