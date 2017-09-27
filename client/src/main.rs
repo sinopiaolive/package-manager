@@ -21,14 +21,16 @@ extern crate futures;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
+#[cfg(test)]
+extern crate test;
 
 mod error;
 mod path;
 mod config;
 mod registry;
-// #[allow(dead_code)] // TODO please remove this when the solver is actually being used
-// #[macro_use]
-// mod solver;
+#[allow(dead_code)] // TODO please remove this when the solver is actually being used
+#[macro_use]
+mod solver;
 #[allow(dead_code)]
 mod pest_parser;
 

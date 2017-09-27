@@ -201,7 +201,7 @@ mod unit_test {
     use solver::constraints::Constraint;
     use solver::error::{Error, Conflict};
 
-    #[bench]
+    #[bench] #[ignore]
     fn resolve_something_real(b: &mut Bencher) {
         let reg = read_index(::std::path::Path::new("test/cargo.rmp")).unwrap();
 
@@ -261,7 +261,7 @@ mod unit_test {
         });
     }
 
-    #[bench]
+    #[bench] #[ignore]
     fn deep_conflict(b: &mut Bencher) {
         let reg = read_index(::std::path::Path::new("test/cargo.rmp")).unwrap();
 
@@ -334,7 +334,7 @@ mod unit_test {
         );
     }
 
-    #[test]
+    #[test] #[ignore]
     fn large_number_of_dependencies_does_not_cause_stack_overflow() {
         let n = 2000;
 

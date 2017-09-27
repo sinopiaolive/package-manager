@@ -13,4 +13,4 @@ before_script:
   - cargo install diesel_cli --no-default-features --features postgres
 script:
   - cd server; diesel database reset
-  - cargo test --all
+  - cargo test --all && cargo test --all -- --ignored
