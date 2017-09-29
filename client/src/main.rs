@@ -28,6 +28,7 @@ mod error;
 mod path;
 mod config;
 mod registry;
+mod manifest;
 #[allow(dead_code)] // TODO please remove this when the solver is actually being used
 #[macro_use]
 mod solver;

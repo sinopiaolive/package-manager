@@ -48,22 +48,17 @@ dependencies_closing_line = {
 }
 
 metadata_section = {
-    metadata_opening_line ~ newline
+    maybe_ws ~ "package" ~ maybe_ws ~ object ~ maybe_ws ~ comment_?
+}
+
+object = {
+    "{" ~ maybe_ws ~ comment_? ~ newline
     ~ (
-        (metadata_entry | blank_line)
+        (object_entry | blank_line)
         ~ newline
     )*
-    ~ metadata_closing_line
+    ~ maybe_ws ~ "}"
 }
-
-metadata_opening_line = {
-    maybe_ws ~ "package" ~ maybe_ws ~ "{" ~ maybe_ws ~ comment_?
-}
-
-metadata_closing_line = {
-    maybe_ws ~ "}" ~ maybe_ws ~ comment_?
-}
-
 
 // e.g. "  js/left-pad: ^1.2.3  // for text handling"
 dependency = {
@@ -96,7 +91,6 @@ version_constraint = {
         ws
         ~ version_constraint_component
     )?
-
 }
 
 version_constraint_component = {
@@ -110,7 +104,7 @@ version = @{
 }
 
 
-metadata_entry = {
+object_entry = {
     maybe_ws
     ~ keyword
     ~ maybe_ws
@@ -125,22 +119,20 @@ keyword = @{ 'a'..'z' | 'A'..'Z' | '0'..'9' | "_" }
 
 
 value = {
-    string_value | array_value
+    string_value | list_value
 }
 
 string_value = {
     "\""
-    ~ string_character*
+    ~ (
+        literal_character
+        | escaped_quote
+        | escaped_backslash
+        | escaped_newline
+        | escaped_tab
+        | escaped_unicode
+    )*
     ~ "\""
-}
-
-string_character = {
-    literal_character
-    | escaped_quote
-    | escaped_backslash
-    | escaped_newline
-    | escaped_tab
-    | escaped_unicode
 }
 
 literal_character = {
@@ -177,7 +169,7 @@ whitespace_with_newline = {
     (ws_char | (comment_? ~ newline))
 }
 
-array_value = {
+list_value = {
     "["
     ~ whitespace_with_newline*
     ~ (
