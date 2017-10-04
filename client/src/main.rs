@@ -33,7 +33,7 @@ mod manifest;
 #[macro_use]
 mod solver;
 #[allow(dead_code)]
-mod pest_parser;
+mod manifest_parser;
 
 use std::process;
 use std::env;
@@ -111,7 +111,7 @@ fn change_to_project_dir() -> Result {
 
 
 fn main() {
-    // pest_parser::test_parser();
+    // manifest::test_reader();
     // process::exit(0);
 
     let args: Args = Docopt::new(USAGE)
