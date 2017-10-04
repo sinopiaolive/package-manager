@@ -115,7 +115,7 @@ object_entry = {
     ~ comment_?
 }
 
-keyword = @{ 'a'..'z' | 'A'..'Z' | '0'..'9' | "_" }
+keyword = @{ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")+ }
 
 
 value = {
@@ -136,7 +136,7 @@ string_value = {
 }
 
 literal_character = {
-    !"\\"
+    !("\\" | "\"")
     ~ non_control_char
 }
 
