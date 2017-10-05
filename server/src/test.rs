@@ -10,7 +10,7 @@ use user::{User, UserRecord};
 use package::{Package, Release, PackageOwner};
 use error::Error;
 use schema::{users, packages, package_owners, package_releases};
-use search::search_db;
+use search::{search_db, SearchResult};
 
 embed_migrations!("migrations");
 
@@ -97,11 +97,31 @@ fn packages_fixture(db: &PgConnection) -> Result<(), Error> {
 fn test_package_search() {
     let db = get_db(packages_fixture);
     assert_eq!(
-        vec!["left-pad".to_string()],
+        vec![
+            SearchResult {
+                name: "left-pad".to_string(),
+                version: "2.0".to_string(),
+                publisher: "test:user".to_string(),
+                description: "left-pad".to_string(),
+            },
+        ],
         search_db(&db, "test", vec!["left".to_string(), "pad".to_string()]).unwrap()
     );
     assert_eq!(
-        vec!["left-pad".to_string(), "right-pad".to_string()],
+        vec![
+            SearchResult {
+                name: "left-pad".to_string(),
+                version: "2.0".to_string(),
+                publisher: "test:user".to_string(),
+                description: "left-pad".to_string(),
+            },
+            SearchResult {
+                name: "right-pad".to_string(),
+                version: "2.0".to_string(),
+                publisher: "test:user".to_string(),
+                description: "right-pad".to_string(),
+            },
+        ],
         search_db(&db, "test", vec!["pad".to_string()]).unwrap()
     );
 }

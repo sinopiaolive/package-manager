@@ -18,6 +18,8 @@ extern crate dotenv;
 extern crate diesel;
 #[macro_use]
 extern crate diesel_codegen;
+extern crate pm_lib;
+extern crate im;
 
 mod error;
 mod schema;
@@ -181,7 +183,7 @@ struct SearchQuery {
 }
 
 #[get("/search?<query>")]
-fn search(query: SearchQuery, store: State<Store>) -> Res<Json<Vec<String>>> {
+fn search(query: SearchQuery, store: State<Store>) -> Res<Json<Vec<search::SearchResult>>> {
     Ok(Json(search::search(&store, &query.ns, query.q.split_whitespace().map(str::to_string).collect())?))
 }
 

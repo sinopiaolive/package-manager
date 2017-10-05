@@ -5,6 +5,7 @@ extern crate docopt;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_json;
 extern crate pm_lib;
 extern crate toml;
 #[macro_use]
@@ -21,6 +22,8 @@ extern crate futures;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
+extern crate colored;
+extern crate term_size;
 #[cfg(test)]
 extern crate test;
 

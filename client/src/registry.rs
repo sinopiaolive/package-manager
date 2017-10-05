@@ -3,6 +3,7 @@ use reqwest;
 use reqwest::header::Authorization;
 use im::Map;
 use url::form_urlencoded::Serializer;
+use serde::Deserialize;
 
 use config::get_config;
 use error::Error;
@@ -26,6 +27,10 @@ pub fn get(url: &str, args: Map<String, String>) -> Result<String, Error> {
     } else {
         Err(Error::Server(format!("{} {}", res.status(), data)))
     }
+}
+
+pub fn get_json<A>(url: &str, args: Map<String, String>) -> Result<A, Error> where for<'de> A: Deserialize<'de> {
+    Ok(::serde_json::from_reader(get(url, args)?.as_bytes())?)
 }
 
 pub fn get_auth(url: &str, args: Map<String, String>) -> Result<String, Error> {

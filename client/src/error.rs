@@ -26,6 +26,11 @@ quick_error! {
             description(err.description())
             from()
         }
+        Json(err: ::serde_json::error::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
         TomlDe(err: toml::de::Error) {
             cause(err)
             description(err.description())
