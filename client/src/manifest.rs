@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use pest;
 use pm_lib::manifest::{PackageName, DependencySet};
 use pm_lib::version::Version;
-use manifest_parser::*; // we should expand this later
+use manifest_parser::{self, Pair, Rule, parse_manifest, get_dependencies, find_section_pairs, find_rule, get_field, check_object_fields, get_string, get_optional_field, get_optional_list_field};
+
+use error::Error;
 
 // The Manifest struct represents a parsed manifest file.
 
@@ -36,11 +38,11 @@ impl Release {
     {
         let manifest_pair = parse_manifest(manifest_source)?;
 
-        Self::from_manifest_pair(manifest_pair)
+        Ok(Self::from_manifest_pair(manifest_pair)?)
     }
 
     pub fn from_manifest_pair(manifest_pair: Pair)
-        -> Result<Self, Error>
+        -> Result<Self, manifest_parser::Error>
     {
         let dependencies = get_dependencies(manifest_pair.clone())?;
 

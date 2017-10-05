@@ -2,8 +2,9 @@ use std;
 use reqwest;
 use toml;
 
-use pm_lib::manifest;
 use pm_lib::index;
+
+use manifest_parser;
 
 quick_error! {
     #[derive(Debug)]
@@ -41,9 +42,8 @@ quick_error! {
             description(err.description())
             from()
         }
-        FromManifestError(err: manifest::Error) {
-            cause(err)
-            description(err.description())
+        ManifestParseError(err: manifest_parser::Error) {
+            display("{}", err)
             from()
         }
         FromIndexError(err: index::Error) {
