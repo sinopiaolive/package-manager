@@ -19,7 +19,6 @@ pub type Pair<'a> = pest::iterators::Pair<Rule, pest::inputs::StrInput<'a>>;
 pub type Pairs<'a> = pest::iterators::Pairs<Rule, pest::inputs::StrInput<'a>>;
 
 
-
 // Parse a manifest into just the dependencies. Faster than parse_into_release.
 pub fn parse_into_dependencies<'a>(manifest_source: &'a str)
     -> Result<DependencySet, Error<'a>>
@@ -123,40 +122,21 @@ pub fn get_optional_field<'a>(
     None
 }
 
-pub fn get_optional_string_field<'a>(
-    object_pair: Pair<'a>, field_name: &'static str)
-    -> Result<(Option<String>, Option<Pair<'a>>), Error<'a>>
-{
-    // option.map would be more concise, but closures break the "?"
-    // operator.
-    if let Some(field_value_pair) = get_optional_field(object_pair, field_name) {
-        let (field_string, field_pair) = get_string(field_value_pair)?;
-        Ok((Some(field_string), Some(field_pair)))
-    } else {
-        Ok((None, None))
-    }
-}
-
 pub fn get_optional_list_field<'a>(
     object_pair: Pair<'a>, field_name: &'static str)
-    -> Result<Vec<(String, Pair<'a>)>, Error<'a>>
+    -> Result<Vec<Pair<'a>>, Error<'a>>
 {
-    let mut string_pair_tuples = vec![];
-    if let Some(list_value_pair) = get_optional_field(object_pair.clone(), field_name) {
-        let (list, list_pair) = get_list(list_value_pair)?;
-        for item_value_pair in list {
-            let (string, pair) = get_string(item_value_pair)?;
-            string_pair_tuples.push((string, pair));
-        }
-    }
-    Ok(string_pair_tuples)
+    get_optional_field(object_pair.clone(), field_name)
+        .map_or(Ok(vec![]), |list_value_pair| {
+            let (list, list_pair) = get_list(list_value_pair)?;
+            Ok(list)
+        })
 }
 
-
-pub fn get_string<'a>(value_pair: Pair<'a>) -> Result<(String, Pair<'a>), Error<'a>> {
+pub fn get_string<'a>(value_pair: Pair<'a>) -> Result<String, Error<'a>> {
     for string_value_pair in children(value_pair.clone(), Rule::string_value) {
         let s = parse_string(string_value_pair.clone())?;
-        return Ok((s, string_value_pair));
+        return Ok(s);
     }
     Err(pest::Error::CustomErrorSpan {
         message: "Expected string".to_string(),

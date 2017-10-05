@@ -70,8 +70,8 @@ impl Release {
         ])?;
 
         let name = {
-            let (name_string, name_pair)
-                = get_string(get_field(object_pair.clone(), "name")?)?;
+            let name_pair = get_field(object_pair.clone(), "name")?;
+            let name_string = get_string(name_pair.clone())?;
             PackageName::from_str(&name_string).ok_or_else(||
                 pest::Error::CustomErrorSpan {
                     message: "Invalid package name".to_string(),
@@ -81,8 +81,8 @@ impl Release {
         };
 
         let version = {
-            let (version_string, version_pair)
-                = get_string(get_field(object_pair.clone(), "version")?)?;
+            let version_pair = get_field(object_pair.clone(), "version")?;
+            let version_string = get_string(version_pair.clone())?;
             Version::from_str(&version_string).ok_or_else(||
                 pest::Error::CustomErrorSpan {
                     message: "Invalid version number".to_string(),
@@ -91,17 +91,17 @@ impl Release {
             )?
         };
 
-        let (description, description_pair)
-            = get_optional_string_field(object_pair.clone(), "description")?;
-        let (homepage, homepage_pair)
-            = get_optional_string_field(object_pair.clone(), "homepage")?;
-        let (bugs, bugs_pair)
-            = get_optional_string_field(object_pair.clone(), "bugs")?;
+        let description = get_optional_field(object_pair.clone(), "description")
+            .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))?;
+        let homepage = get_optional_field(object_pair.clone(), "homepage")
+            .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))?;
+        let bugs = get_optional_field(object_pair.clone(), "bugs")
+            .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))?;
 
         let authors = get_optional_list_field(object_pair.clone(), "authors")?
-            .into_iter().map(|(s, s_pair)| s).collect();
+            .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
         let keywords = get_optional_list_field(object_pair.clone(), "keywords")?
-            .into_iter().map(|(s, s_pair)| s).collect();
+            .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
 
         let release = Release {
             name: name,
