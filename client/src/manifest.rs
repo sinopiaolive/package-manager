@@ -11,7 +11,7 @@ use error::Error;
 // The Manifest struct represents a parsed manifest file.
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Release {
+pub struct Manifest {
     pub name: PackageName,
     pub version: Version,
 
@@ -32,7 +32,7 @@ pub struct Release {
     pub files: Vec<PathBuf>,
 }
 
-impl Release {
+impl Manifest {
     pub fn from_str(manifest_source: String)
         -> Result<Self, Error>
     {
@@ -105,7 +105,7 @@ impl Release {
         let keywords = get_optional_list_field(object_pair.clone(), "keywords")?
             .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
 
-        let release = Release {
+        Ok(Manifest {
             name: name,
             version: version,
 
@@ -122,9 +122,7 @@ impl Release {
 
             readme_contents: "README contents go here".to_string(),
             files: vec![],
-        };
-
-        Ok(release)
+        })
     }
 }
 
@@ -133,7 +131,7 @@ pub fn test_reader() {
     // let pairs = ManifestParser::parse_str(Rule::manifest_eof, " \n pm 1.0 // yay \n\n\ndependencies { \njs/left-pad: ^1.2.3 // foo\n}").unwrap_or_else(|e| panic!("{}", e));
     // print_pairs(pairs, 0);
 
-    println!("release: {:?}", Release::from_str(r#"
+    println!("release: {:?}", Manifest::from_str(r#"
         pm 1.0
         dependencies {
             js/left-pad: ^1.2.3 // foo
