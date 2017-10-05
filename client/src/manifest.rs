@@ -31,16 +31,16 @@ pub struct Release {
 }
 
 impl Release {
-    pub fn from_str<'a>(manifest_source: &'a str)
-        -> Result<Self, Error<'a>>
+    pub fn from_str(manifest_source: String)
+        -> Result<Self, Error>
     {
         let manifest_pair = parse_manifest(manifest_source)?;
 
         Self::from_manifest_pair(manifest_pair)
     }
 
-    pub fn from_manifest_pair<'a>(manifest_pair: Pair<'a>)
-        -> Result<Self, Error<'a>>
+    pub fn from_manifest_pair(manifest_pair: Pair)
+        -> Result<Self, Error>
     {
         let dependencies = get_dependencies(manifest_pair.clone())?;
 
@@ -142,10 +142,10 @@ pub fn test_reader() {
             name: "js/foo"
             version: "0.0.0"
         }
-    "#).unwrap_or_else(|e| panic!("{}", e)));
+    "#.to_string()).unwrap_or_else(|e| panic!("{}", e)));
 }
 
-fn print_pairs<'a>(pairs: ::pest::iterators::Pairs<Rule, ::pest::inputs::StrInput<'a>>, indent: usize) {
+fn print_pairs(pairs: ::pest::iterators::Pairs<Rule, ::pest::inputs::StringInput>, indent: usize) {
     let i = " ".repeat(indent);
     for pair in pairs {
         println!("{}{:?}: {:?}", i, pair.as_rule(), pair.clone().into_span().as_str());

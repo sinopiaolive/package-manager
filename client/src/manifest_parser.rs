@@ -13,34 +13,25 @@ const _GRAMMAR: &'static str = include_str!("grammar.pest");
 #[grammar = "grammar.pest"]
 pub struct ManifestParser;
 
-pub type Error<'a> = pest::Error<Rule, pest::inputs::StrInput<'a>>;
+pub type Error = pest::Error<Rule, pest::inputs::StringInput>;
 
-pub type Pair<'a> = pest::iterators::Pair<Rule, pest::inputs::StrInput<'a>>;
-pub type Pairs<'a> = pest::iterators::Pairs<Rule, pest::inputs::StrInput<'a>>;
+pub type Pair = pest::iterators::Pair<Rule, pest::inputs::StringInput>;
+pub type Pairs = pest::iterators::Pairs<Rule, pest::inputs::StringInput>;
 
 
-// Parse a manifest into just the dependencies. Faster than parse_into_release.
-pub fn parse_into_dependencies<'a>(manifest_source: &'a str)
-    -> Result<DependencySet, Error<'a>>
+pub fn parse_manifest(manifest_source: String)
+    -> Result<Pair, Error>
 {
-    let manifest_pair = parse_manifest(manifest_source)?;
-
-    get_dependencies(manifest_pair)
-}
-
-
-pub fn parse_manifest<'a>(manifest_source: &'a str)
-    -> Result<Pair<'a>, Error<'a>>
-{
-    let pairs = ManifestParser::parse_str(Rule::manifest_eof, manifest_source)?;
+    let parser_input = ::std::rc::Rc::new(::pest::inputs::StringInput::new(manifest_source));
+    let pairs = ManifestParser::parse(Rule::manifest_eof, parser_input)?;
 
     let manifest_eof_pair = find_rule_in_pairs(pairs, Rule::manifest_eof);
     let manifest_pair = find_rule(manifest_eof_pair, Rule::manifest);
     Ok(manifest_pair)
 }
 
-pub fn get_dependencies<'a>(manifest_pair: Pair<'a>)
-    -> Result<DependencySet, Error<'a>>
+pub fn get_dependencies(manifest_pair: Pair)
+    -> Result<DependencySet, Error>
 {
     let (maybe_dependencies_section_pair, _) =
         find_section_pairs(manifest_pair)?;
@@ -65,8 +56,8 @@ pub fn get_dependencies<'a>(manifest_pair: Pair<'a>)
 }
 
 // Check that there are no unexpected or duplicate fields.
-pub fn check_object_fields<'a>(object_pair: Pair<'a>, fields: &'static [&'static str])
-    -> Result<(), Error<'a>>
+pub fn check_object_fields(object_pair: Pair, fields: &'static [&'static str])
+    -> Result<(), Error>
 {
     let mut seen = vec![false; fields.len()];
     'pair_loop: for object_entry_pair in children(object_pair, Rule::object_entry) {
@@ -94,10 +85,10 @@ pub fn check_object_fields<'a>(object_pair: Pair<'a>, fields: &'static [&'static
 }
 
 // Return a value pair or an error if the field is missing.
-pub fn get_field<'a>(
-    object_pair: Pair<'a>,
+pub fn get_field(
+    object_pair: Pair,
     field_name: &'static str)
-    -> Result<Pair<'a>, Error<'a>>
+    -> Result<Pair, Error>
 {
     get_optional_field(object_pair.clone(), field_name)
         .ok_or_else(||
@@ -110,9 +101,9 @@ pub fn get_field<'a>(
         )
 }
 
-pub fn get_optional_field<'a>(
-    object_pair: Pair<'a>, field_name: &'static str)
-    -> Option<Pair<'a>>
+pub fn get_optional_field(
+    object_pair: Pair, field_name: &'static str)
+    -> Option<Pair>
 {
     for object_entry_pair in children(object_pair, Rule::object_entry) {
         if find_rule(object_entry_pair.clone(), Rule::keyword).as_str() == field_name {
@@ -122,9 +113,9 @@ pub fn get_optional_field<'a>(
     None
 }
 
-pub fn get_optional_list_field<'a>(
-    object_pair: Pair<'a>, field_name: &'static str)
-    -> Result<Vec<Pair<'a>>, Error<'a>>
+pub fn get_optional_list_field(
+    object_pair: Pair, field_name: &'static str)
+    -> Result<Vec<Pair>, Error>
 {
     get_optional_field(object_pair.clone(), field_name)
         .map_or(Ok(vec![]), |list_value_pair| {
@@ -133,7 +124,7 @@ pub fn get_optional_list_field<'a>(
         })
 }
 
-pub fn get_string<'a>(value_pair: Pair<'a>) -> Result<String, Error<'a>> {
+pub fn get_string(value_pair: Pair) -> Result<String, Error> {
     for string_value_pair in children(value_pair.clone(), Rule::string_value) {
         let s = parse_string(string_value_pair.clone())?;
         return Ok(s);
@@ -144,7 +135,7 @@ pub fn get_string<'a>(value_pair: Pair<'a>) -> Result<String, Error<'a>> {
     })
 }
 
-pub fn get_list<'a>(value_pair: Pair<'a>) -> Result<(Vec<Pair<'a>>, Pair<'a>), Error<'a>> {
+pub fn get_list(value_pair: Pair) -> Result<(Vec<Pair>, Pair), Error> {
     for list_value_pair in children(value_pair.clone(), Rule::list_value) {
         let v = children(list_value_pair.clone(), Rule::value);
         return Ok((v, list_value_pair));
@@ -155,7 +146,7 @@ pub fn get_list<'a>(value_pair: Pair<'a>) -> Result<(Vec<Pair<'a>>, Pair<'a>), E
     })
 }
 
-pub fn parse_string<'a>(string_value_pair: Pair<'a>) -> Result<String, Error<'a>> {
+pub fn parse_string(string_value_pair: Pair) -> Result<String, Error> {
     let mut s = "".to_string();
     for pair in string_value_pair.into_inner() {
         let c = match pair.as_rule() {
@@ -187,10 +178,10 @@ pub fn parse_string<'a>(string_value_pair: Pair<'a>) -> Result<String, Error<'a>
     Ok(s)
 }
 
-pub fn find_section_pairs<'a>(manifest_pair: Pair<'a>)
-    -> Result<(Option<Pair<'a>>, Option<Pair<'a>>), Error<'a>> {
-    let mut maybe_dependencies_section_pair: Option<Pair<'a>> = None;
-    let mut maybe_metadata_section_pair: Option<Pair<'a>> = None;
+pub fn find_section_pairs(manifest_pair: Pair)
+    -> Result<(Option<Pair>, Option<Pair>), Error> {
+    let mut maybe_dependencies_section_pair: Option<Pair> = None;
+    let mut maybe_metadata_section_pair: Option<Pair> = None;
     for pair in children(manifest_pair, Rule::manifest_entry) {
         for pair in pair.into_inner() { // only 1 child
             if pair.as_rule() == Rule::dependencies_section {
@@ -217,10 +208,10 @@ pub fn find_section_pairs<'a>(manifest_pair: Pair<'a>)
     Ok((maybe_dependencies_section_pair, maybe_metadata_section_pair))
 }
 
-pub fn get_dependency<'a>(
-    package_name_pair: Pair<'a>,
-    vc_pair: Pair<'a>)
-    -> Result<(PackageName, VersionConstraint), Error<'a>> {
+pub fn get_dependency(
+    package_name_pair: Pair,
+    vc_pair: Pair)
+    -> Result<(PackageName, VersionConstraint), Error> {
     let package_name = PackageName::from_str(package_name_pair.as_str()).ok_or_else(||
         pest::Error::CustomErrorSpan {
             message: "Invalid package name".to_string(),
@@ -254,20 +245,20 @@ pub fn get_dependency<'a>(
 }
 
 
-pub fn children<'a>(pair: Pair, rule: Rule) -> Vec<Pair> {
+pub fn children(pair: Pair, rule: Rule) -> Vec<Pair> {
     children_of_pairs(pair.into_inner(), rule)
 }
 
-pub fn children_of_pairs<'a>(pairs: Pairs, rule: Rule) -> Vec<Pair> {
+pub fn children_of_pairs(pairs: Pairs, rule: Rule) -> Vec<Pair> {
     pairs.filter(|pair| pair.as_rule() == rule).collect()
 }
 
-pub fn find_rule<'a>(pair: Pair<'a>, rule: Rule) -> Pair<'a> {
+pub fn find_rule(pair: Pair, rule: Rule) -> Pair {
     let pairs = pair.into_inner();
     find_rule_in_pairs(pairs, rule)
 }
 
-pub fn find_rule_in_pairs<'a>(mut pairs: Pairs<'a>, rule: Rule) -> Pair<'a> {
+pub fn find_rule_in_pairs(mut pairs: Pairs, rule: Rule) -> Pair {
     pairs.find(|pair| pair.as_rule() == rule)
         .expect(&format!("No child matching rule {:?}", rule)) // TODO closure me
 }
