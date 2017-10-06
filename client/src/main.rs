@@ -32,6 +32,7 @@ mod path;
 mod config;
 mod registry;
 mod manifest;
+mod project;
 #[allow(dead_code)] // TODO please remove this when the solver is actually being used
 #[macro_use]
 mod solver;
@@ -43,7 +44,7 @@ use std::env;
 use docopt::Docopt;
 use serde::de::Deserialize;
 use error::Error;
-use pm_lib::manifest::find_project_dir;
+use project::find_project_dir;
 
 const USAGE: &'static str = "Your package manager.
 
