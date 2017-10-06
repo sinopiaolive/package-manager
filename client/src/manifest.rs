@@ -134,13 +134,13 @@ pub fn test_reader() {
     println!("release: {:?}", Manifest::from_str(r#"
         pm 1.0
         dependencies {
-            js/left-pad: ^1.2.3 // foo
+            js/left-pad ^1.2.3 // foo
             // bar
-            js/right-pad: >=4.5.6 <5.0.0
+            js/right-pad >=4.5.6 <5.0.0
         }
         package {
-            name: "js/foo"
-            version: "0.0.0"
+            name "js/foo"
+            version "0.0.0"
         }
     "#.to_string()).unwrap_or_else(|e| panic!("{}", e)));
 }

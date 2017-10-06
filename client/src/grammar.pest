@@ -60,12 +60,10 @@ object = {
     ~ maybe_ws ~ "}"
 }
 
-// e.g. "  js/left-pad: ^1.2.3  // for text handling"
+// e.g. "  js/left-pad ^1.2.3  // for text handling"
 dependency = {
     maybe_ws
     ~ package_name
-    ~ maybe_ws
-    ~ colon
     ~ maybe_ws
     ~ version_constraint
     ~ maybe_ws
@@ -82,8 +80,6 @@ package_name = @{
 package_name_component = {
     ('a'..'z' | 'A'..'Z' | '0'..'9' | "_" | "-")+
 }
-
-colon = { ":" }
 
 version_constraint = {
     version_constraint_component
@@ -107,8 +103,6 @@ version = @{
 object_entry = {
     maybe_ws
     ~ keyword
-    ~ maybe_ws
-    ~ colon
     ~ maybe_ws
     ~ value
     ~ maybe_ws
