@@ -24,6 +24,7 @@ extern crate pest;
 extern crate pest_derive;
 extern crate colored;
 extern crate term_size;
+extern crate glob;
 #[cfg(test)]
 extern crate test;
 
@@ -38,6 +39,7 @@ mod project;
 mod solver;
 #[allow(dead_code)]
 mod manifest_parser;
+mod files;
 
 use std::process;
 use std::env;

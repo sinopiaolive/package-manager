@@ -117,11 +117,20 @@ pub fn get_optional_list_field(
     object_pair: Pair, field_name: &'static str)
     -> Result<Vec<Pair>, Error>
 {
-    get_optional_field(object_pair.clone(), field_name)
+    get_optional_field(object_pair, field_name)
         .map_or(Ok(vec![]), |list_value_pair| {
             let (list, list_pair) = get_list(list_value_pair)?;
             Ok(list)
         })
+}
+
+pub fn get_optional_string_field(object_pair: Pair, field_name: &'static str)
+    -> Result<Option<String>, Error>
+{
+    // This helper function is tiny, but inlining it without type annotation
+    // confuses the compiler.
+    get_optional_field(object_pair, field_name)
+        .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))
 }
 
 pub fn get_string(value_pair: Pair) -> Result<String, Error> {

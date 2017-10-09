@@ -1,7 +1,10 @@
+#![allow(dead_code)]
+
 use std;
 use reqwest;
 use toml;
 
+use files::GlobError;
 use pm_lib::index;
 
 use manifest_parser;
@@ -42,7 +45,13 @@ quick_error! {
             description(err.description())
             from()
         }
-        ManifestParseError(err: manifest_parser::Error) {
+        ManifestParser(err: manifest_parser::Error) {
+            // pest::Error is not a std::error::Error, so no cause(err).
+            display("{}", err)
+            from()
+        }
+        Glob(err: GlobError) {
+            cause(err)
             display("{}", err)
             from()
         }

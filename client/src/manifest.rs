@@ -1,10 +1,11 @@
-#![allow(dead_code,unused_variables,unused_assignments)]
+#![allow(dead_code)]
 
 use std::path::PathBuf;
 use pest;
+use files::FileCollection;
 use pm_lib::manifest::{PackageName, DependencySet};
 use pm_lib::version::Version;
-use manifest_parser::{self, Pair, Rule, parse_manifest, get_dependencies, find_section_pairs, find_rule, get_field, check_object_fields, get_string, get_optional_field, get_optional_list_field};
+use manifest_parser::{Pair, Rule, parse_manifest, get_dependencies, find_section_pairs, find_rule, get_field, check_object_fields, get_string, get_optional_list_field, get_optional_string_field};
 
 use error::Error;
 
@@ -42,11 +43,11 @@ impl Manifest {
     }
 
     pub fn from_manifest_pair(manifest_pair: Pair)
-        -> Result<Self, manifest_parser::Error>
+        -> Result<Self, Error>
     {
         let dependencies = get_dependencies(manifest_pair.clone())?;
 
-        let (maybe_dependencies_section_pair, maybe_metadata_section_pair) =
+        let (_maybe_dependencies_section_pair, maybe_metadata_section_pair) =
             find_section_pairs(manifest_pair.clone())?;
 
         let metadata_section_pair = maybe_metadata_section_pair.ok_or_else(||
@@ -69,6 +70,8 @@ impl Manifest {
 
             "license",
             "license_file",
+
+            "files",
         ])?;
 
         let name = {
@@ -93,17 +96,35 @@ impl Manifest {
             )?
         };
 
-        let description = get_optional_field(object_pair.clone(), "description")
-            .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))?;
-        let homepage = get_optional_field(object_pair.clone(), "homepage")
-            .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))?;
-        let bugs = get_optional_field(object_pair.clone(), "bugs")
-            .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))?;
+        let description = get_optional_string_field(object_pair.clone(), "description")?;
+        let homepage = get_optional_string_field(object_pair.clone(), "homepage")?;
+        let bugs = get_optional_string_field(object_pair.clone(), "bugs")?;
 
         let authors = get_optional_list_field(object_pair.clone(), "authors")?
             .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
         let keywords = get_optional_list_field(object_pair.clone(), "keywords")?
             .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
+
+        // TODO we need a real root here, not cwd. We may want to instantiate
+        // FileCollection elsewhere.
+        let root = ::std::env::current_dir()?;
+        let mut file_collection = FileCollection::new(root.clone())?;
+        for glob_pair in get_optional_list_field(object_pair.clone(), "files")?.into_iter() {
+            let glob = get_string(glob_pair.clone())?;
+            match file_collection.process_glob(&glob) {
+                Err(glob_error) => {
+                    // We should try to preserve the structure here rather than
+                    // stringifying it.
+                    Err(pest::Error::CustomErrorSpan {
+                        message: format!("{}", glob_error).to_string(),
+                        span: glob_pair.clone().into_span(),
+                    })?;
+                },
+                Ok(()) => { },
+            }
+        }
+        let files: Vec<PathBuf> = file_collection.get_selected_files().into_iter()
+            .map(|path_string| PathBuf::from(path_string)).collect();
 
         Ok(Manifest {
             name: name,
@@ -121,7 +142,7 @@ impl Manifest {
             license_files: vec![],
 
             readme_contents: "README contents go here".to_string(),
-            files: vec![],
+            files: files,
         })
     }
 }
@@ -141,6 +162,7 @@ pub fn test_reader() {
         package {
             name "js/foo"
             version "0.0.0"
+            files [ "**/src/**/*.rs" "!**/src/*.rs" ]
         }
     "#.to_string()).unwrap_or_else(|e| panic!("{}", e)));
 }
