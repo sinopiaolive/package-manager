@@ -104,30 +104,35 @@ registries [
 ]
 
 dependencies {
-  js/left-pad: ^2.0.0
-  js/right-pad: ^2.0.0
-  js/tokio: ^2.0.0
-  js/abc: >=1.5.0 <3.0.0
+  js/left-pad ^2.0.0
+  js/right-pad ^2.0.0
+  js/tokio ^2.0.0
 
-  js/mocha: ^1.2.3 group="dev" // this is used for the whizbo
-  js/debugger: ^1.2.3 group="dev" group="test"
+  js/mocha ^1.2.3 dev
+  js/debugger ^1.2.3 dev
 
-  js/foo: git="https://github.com/joliss/foo"
-  js/bar: path="C:\\Program Files\\bar"
-  js/up-pad: ^2.0.0
+  js/foo git="https://github.com/joliss/foo"
+  js/bar path="C:\\Program Files\\bar"
+  js/up-pad ^2.0.0
 }
 
 package {
-  name: "mypkg"
-  version: "1.0.0"
-  description: "The description."
-  license_file: [ "license/GPL" "license/MIT" ]
-  keywords: []
-  license: "MIT"
-  files: [
-    "foo"
-    "**/*.js"
-  ]
+  name "mypkg"
+  version "1.0.0"
+
+  authors [ "Bodil Stokke <bodil@bodil.org>" ]
+  description "The description."
+  license_file [ "license/GPL" "license/MIT" ]
+  license "MIT"
+  keywords []
+
+  files {
+    scm "git"
+    include [ "**/*.js" ]
+    exclude [ "test/**/*.js" ]
+  }
+
+  registry "internal.google.com"
 }
 ```
 
