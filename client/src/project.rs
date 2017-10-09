@@ -30,9 +30,10 @@ pub fn find_project_dir() -> Result<PathBuf, Error> {
 
 pub fn read_manifest() -> Result<Manifest, Error> {
     let manifest_path = find_manifest_path()?;
-    let data = File::open(manifest_path).and_then(|mut f| {
+    let root = manifest_path.parent().unwrap_or(Path::new(&"."));
+    let data = File::open(manifest_path.clone()).and_then(|mut f| {
         let mut s = String::new();
         f.read_to_string(&mut s).map(|_| s)
     })?;
-    Ok(Manifest::from_str(data)?)
+    Ok(Manifest::from_str(data, root)?)
 }

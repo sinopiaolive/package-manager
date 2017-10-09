@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::path::PathBuf;
+use std::path::{Path,PathBuf};
 use pest;
 use files::FileCollection;
 use pm_lib::manifest::{PackageName, DependencySet};
@@ -34,15 +34,15 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn from_str(manifest_source: String)
+    pub fn from_str(manifest_source: String, root: &Path)
         -> Result<Self, Error>
     {
         let manifest_pair = parse_manifest(manifest_source)?;
 
-        Ok(Self::from_manifest_pair(manifest_pair)?)
+        Ok(Self::from_manifest_pair(manifest_pair, root)?)
     }
 
-    pub fn from_manifest_pair(manifest_pair: Pair)
+    pub fn from_manifest_pair(manifest_pair: Pair, root: &Path)
         -> Result<Self, Error>
     {
         let dependencies = get_dependencies(manifest_pair.clone())?;
@@ -105,10 +105,7 @@ impl Manifest {
         let keywords = get_optional_list_field(object_pair.clone(), "keywords")?
             .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
 
-        // TODO we need a real root here, not cwd. We may want to instantiate
-        // FileCollection elsewhere.
-        let root = ::std::env::current_dir()?;
-        let mut file_collection = FileCollection::new(root.clone())?;
+        let mut file_collection = FileCollection::new(root.to_path_buf())?;
         for glob_pair in get_optional_list_field(object_pair.clone(), "files")?.into_iter() {
             let glob = get_string(glob_pair.clone())?;
             match file_collection.process_glob(&glob) {
@@ -164,7 +161,7 @@ pub fn test_reader() {
             version "0.0.0"
             files [ "**/src/**/*.rs" "!**/src/*.rs" ]
         }
-    "#.to_string()).unwrap_or_else(|e| panic!("{}", e)));
+    "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e)));
 }
 
 fn print_pairs(pairs: ::pest::iterators::Pairs<Rule, ::pest::inputs::StringInput>, indent: usize) {
