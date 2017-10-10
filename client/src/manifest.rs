@@ -19,17 +19,17 @@ pub struct Manifest {
     pub dependencies: DependencySet,
 
     pub authors: Vec<String>,
-    pub description: Option<String>,
+    pub description: String,
     pub homepage: Option<String>,
+    pub repository: Option<String>,
     pub bugs: Option<String>,
-    // We should infer the repository.
-    //pub repository: Option<String>,
     pub keywords: Vec<String>,
 
     pub license: Option<String>,
-    pub license_files: Vec<PathBuf>,
+    pub license_file: Option<String>,
 
-    pub readme_contents: String,
+    pub readme_file: Option<String>,
+    pub readme_file_contents: Option<String>,
     pub files: Vec<PathBuf>,
 }
 
@@ -65,8 +65,8 @@ impl Manifest {
             "description",
             "keywords",
             "homepage",
-            "bugs",
             "repository",
+            "bugs",
 
             "license",
             "license_file",
@@ -96,8 +96,10 @@ impl Manifest {
             )?
         };
 
-        let description = get_optional_string_field(object_pair.clone(), "description")?;
+        let description = get_string(get_field(object_pair.clone(), "description")?)?;
+
         let homepage = get_optional_string_field(object_pair.clone(), "homepage")?;
+        let repository = get_optional_string_field(object_pair.clone(), "repository")?;
         let bugs = get_optional_string_field(object_pair.clone(), "bugs")?;
 
         let authors = get_optional_list_field(object_pair.clone(), "authors")?
@@ -132,13 +134,16 @@ impl Manifest {
             authors: authors,
             description: description,
             homepage: homepage,
+            repository: repository,
             bugs: bugs,
             keywords: keywords,
 
             license: None,
-            license_files: vec![],
+            license_file: None,
 
-            readme_contents: "README contents go here".to_string(),
+            readme_file: None,
+            readme_file_contents: None,
+
             files: files,
         })
     }
@@ -159,6 +164,7 @@ pub fn test_reader() {
         package {
             name "js/foo"
             version "0.0.0"
+            description "The foo package."
             files [ "**/src/**/*.rs" "!**/src/*.rs" ]
         }
     "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e)));
