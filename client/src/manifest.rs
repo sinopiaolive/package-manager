@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::path::{Path,PathBuf};
+use std::path::Path;
 use pest;
 use files::FileCollection;
 use pm_lib::manifest::{PackageName, DependencySet};
@@ -30,7 +30,7 @@ pub struct Manifest {
 
     pub readme_file: Option<String>,
     pub readme_file_contents: Option<String>,
-    pub files: Vec<PathBuf>,
+    pub files: Vec<String>,
 }
 
 impl Manifest {
@@ -122,8 +122,7 @@ impl Manifest {
                 Ok(()) => { },
             }
         }
-        let files: Vec<PathBuf> = file_collection.get_selected_files().into_iter()
-            .map(|path_string| PathBuf::from(path_string)).collect();
+        let files = file_collection.get_selected_files();
 
         Ok(Manifest {
             name: name,
