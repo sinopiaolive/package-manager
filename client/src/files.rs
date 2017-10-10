@@ -10,7 +10,7 @@ use error::Error;
 pub struct FileCollection {
     pub root: PathBuf,
     pub files_on_disk: BTreeSet<String>,
-    // pub directories_on_disk: BTreeSet<String>,
+    pub directories_on_disk: BTreeSet<String>,
 
     // This needs to be a HashSet because BTreeSet doesn't have a .retain
     // method. When we iterate, we need to make sure to avoid non-deterministic
@@ -21,11 +21,11 @@ pub struct FileCollection {
 impl FileCollection {
     pub fn new(root: PathBuf) -> Result<Self, Error>
     {
-        let (files, _directories) = walk_dir(&root)?;
+        let (files, directories) = walk_dir(&root)?;
         Ok(FileCollection {
             root: root,
             files_on_disk: files,
-            // directories_on_disk: directories,
+            directories_on_disk: directories,
             selected_files: HashSet::new(),
         })
     }
@@ -118,11 +118,21 @@ impl FileCollection {
             });
         }
         if !did_match {
-            // For improved usability, we may want more specific errors
-            //
-            // * if a positive glob matches one of self.directories_on_disk,
-            //   (we can suggest `{}/**`), and
-            // * if a glob matches case-insensitively.
+            // Produce a helpful error if the glob matches a directory (but no
+            // files).
+            if !negate {
+                for dir in self.directories_on_disk.iter() {
+                    if pattern.matches_with(&dir, &match_options) ||
+                        pattern.matches_with(&format!("{}/", dir), &match_options)
+                    {
+                        return Err(GlobError::Directory);
+                    }
+                }
+            }
+
+            // We may also want to provide a more helpful error message if a
+            // glob only matches case-insensitively.
+
             return Err(GlobError::NotFound);
         }
         Ok(())
@@ -178,6 +188,7 @@ pub enum GlobError {
     Empty,
     PatternError(PatternError), // anything caught by the glob library
 
+    Directory,
     NotFound,
 }
 
@@ -191,6 +202,7 @@ impl ::std::error::Error for GlobError {
             GlobError::Empty => r#"Expected file path or glob pattern"#,
             GlobError::PatternError(_) => r#"Invalid glob syntax"#,
 
+            GlobError::Directory => r#"Expected file, found directory"#,
             GlobError::NotFound => r#"File(s) not found"#,
         }
     }
@@ -218,12 +230,32 @@ mod test {
         let mut fc = FileCollection {
             root: PathBuf::from("dummy"),
             files_on_disk: files.iter().map(|s| s.to_string()).collect(),
+            directories_on_disk: generate_directories(files),
             selected_files: HashSet::new(),
         };
         for glob in globs {
             fc.process_glob(glob)?;
         }
         Ok(fc.get_selected_files().into_iter().collect())
+    }
+
+    fn generate_directories(files: &[&str]) -> BTreeSet<String> {
+        let mut directories = BTreeSet::new();
+        for file in files {
+            let mut slice: &str = file;
+            loop {
+                match slice.rfind('/') {
+                    Some(i) => {
+                        slice = &slice[..i];
+                    }
+                    None => {
+                        break;
+                    }
+                }
+                directories.insert(slice.to_string());
+            }
+        }
+        directories
     }
 
     fn assert_matches(globs: &[&str], yes: &[&str], no: &[&str]) {
@@ -307,7 +339,15 @@ mod test {
         #[test]
         fn include_directory() {
             match fc(&["src"], &["src/foo.rs"]) {
-                Err(GlobError::NotFound) => {},
+                Err(GlobError::Directory) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+        }
+
+        #[test]
+        fn include_directory_trailing_slash() {
+            match fc(&["src/"], &["src/foo.rs"]) {
+                Err(GlobError::Directory) => {},
                 r @ _ => panic!("{:?}", r),
             }
         }
