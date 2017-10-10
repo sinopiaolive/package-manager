@@ -73,3 +73,15 @@ where
         .map_err(|e| Error::Custom(format!("{}", e)))
         .map(|v| Arc::new(v))
 }
+
+
+#[cfg(test)]
+mod unit_test {
+    use super::*;
+    use test::Bencher;
+
+    #[bench] #[ignore]
+    fn read_cargo_index(_b: &mut Bencher) {
+        read_index(::std::path::Path::new("../client/test/cargo.rmp")).unwrap();
+    }
+}
