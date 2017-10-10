@@ -10,7 +10,7 @@ use error::Error;
 pub struct FileCollection {
     pub root: PathBuf,
     pub files_on_disk: BTreeSet<String>,
-    pub directories_on_disk: BTreeSet<String>,
+    // pub directories_on_disk: BTreeSet<String>,
 
     // This needs to be a HashSet because BTreeSet doesn't have a .retain
     // method. When we iterate, we need to make sure to avoid non-deterministic
@@ -21,11 +21,11 @@ pub struct FileCollection {
 impl FileCollection {
     pub fn new(root: PathBuf) -> Result<Self, Error>
     {
-        let (files, directories) = walk_dir(&root)?;
+        let (files, _directories) = walk_dir(&root)?;
         Ok(FileCollection {
             root: root,
             files_on_disk: files,
-            directories_on_disk: directories,
+            // directories_on_disk: directories,
             selected_files: HashSet::new(),
         })
     }
@@ -43,9 +43,9 @@ impl FileCollection {
     pub fn parse_glob(&self, maybe_negative_glob: &str)
         -> Result<(bool, Pattern), GlobError>
     {
-        // The various checks we perform here are purely for usability to avoid
-        // accidentally having globs that cannot match anything.
-        if maybe_negative_glob.is_empty() {
+        // The various checks here are purely to provide better error messages
+        // than "file not found" for various syntax errors.
+        if maybe_negative_glob == "" || maybe_negative_glob == "!" {
             return Err(GlobError::Empty);
         }
         let (negate, glob)
@@ -93,7 +93,7 @@ impl FileCollection {
             }
         } else {
             self.selected_files.retain(|file| {
-                // Given file a/b/c, check if the glob matches a/b/c, a/b or a
+                // Given file x/y, check if the glob matches x/y, x/ or x
                 // to enable excluding entire directories.
                 let mut slice: &str = &file;
                 loop {
@@ -101,14 +101,16 @@ impl FileCollection {
                         did_match = true;
                         break false;
                     } else {
-                        let mut it = slice.rsplitn(2, '/');
-                        it.next();
-                        match it.next() {
-                            Some(s) => {
-                                slice = s;
-                            }
-                            None => {
-                                break true;
+                        if *slice.as_bytes().last().unwrap() == b'/' {
+                            slice = &slice[..(slice.len()-1)];
+                        } else {
+                            match slice.rfind('/') {
+                                Some(i) => {
+                                    slice = &slice[..(i+1)]
+                                }
+                                None => {
+                                    break true;
+                                }
                             }
                         }
                     }
@@ -186,7 +188,7 @@ impl ::std::error::Error for GlobError {
             GlobError::Backslash => r#"Unexpected backslash (\). Use forward slashes (/) as path separators instead."#,
             GlobError::Caret => r#"[^...] syntax is not supported. Use [!...] instead."#,
             GlobError::Absolute => r#"Expected relative path"#,
-            GlobError::Empty => r#"Expected glob pattern, found empty string"#,
+            GlobError::Empty => r#"Expected file path or glob pattern"#,
             GlobError::PatternError(_) => r#"Invalid glob syntax"#,
 
             GlobError::NotFound => r#"File(s) not found"#,
@@ -204,5 +206,179 @@ impl ::std::error::Error for GlobError {
 impl fmt::Display for GlobError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.description())
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn fc(globs: &[&str], files: &[&str]) -> Result<Vec<String>, GlobError> {
+        let mut fc = FileCollection {
+            root: PathBuf::from("dummy"),
+            files_on_disk: files.iter().map(|s| s.to_string()).collect(),
+            selected_files: HashSet::new(),
+        };
+        for glob in globs {
+            fc.process_glob(glob)?;
+        }
+        Ok(fc.get_selected_files().into_iter().collect())
+    }
+
+    fn assert_matches(globs: &[&str], yes: &[&str], no: &[&str]) {
+        let mut files = yes.to_vec();
+        files.extend_from_slice(no);
+        assert_eq!(
+            fc(globs, &files).unwrap(),
+            yes.iter().map(|s| s.to_string()).collect::<Vec<String>>()
+        );
+    }
+
+    mod process_glob {
+        use super::*;
+
+        #[test]
+        fn invalid_globs() {
+            match fc(&[""], &[]) {
+                Err(GlobError::Empty) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+            match fc(&["!"], &[]) {
+                Err(GlobError::Empty) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+            match fc(&["foo\\bar"], &[]) {
+                Err(GlobError::Backslash) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+
+            match fc(&["/foo"], &[]) {
+                Err(GlobError::Absolute) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+            match fc(&["c:/foo"], &[]) {
+                Err(GlobError::Absolute) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+
+            // We're reserving these in case we want to support them in the
+            // future.
+            match fc(&["foo{"], &[]) {
+                Err(GlobError::Braces) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+            match fc(&["foo}"], &[]) {
+                Err(GlobError::Braces) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+            match fc(&["[^.]"], &[]) {
+                Err(GlobError::Caret) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+
+            match fc(&["***"], &[]) {
+                Err(GlobError::PatternError(_)) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+        }
+
+        #[test]
+        fn not_found() {
+            match fc(&["missing"], &["foo"]) {
+                Err(GlobError::NotFound) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+            match fc(&["!not_yet_selected"], &["not_yet_selected"]) {
+                Err(GlobError::NotFound) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+        }
+
+        #[test]
+        fn include_and_exclude() {
+            assert_matches(
+                &["src/**", "!src/vendor/*", "src/vendor/foo.rs"],
+                &["src/a.rs", "src/b.rs", "src/vendor/foo.rs"],
+                &["src/vendor/bar.rs", "test/test.rs"]
+            );
+        }
+
+        #[test]
+        fn include_directory() {
+            match fc(&["src"], &["src/foo.rs"]) {
+                Err(GlobError::NotFound) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+        }
+
+        #[test]
+        fn exclude_directory() {
+            assert_matches(
+                &["**", "!test"],
+                &["src/foo.rs"],
+                &["test/foo.rs"],
+            );
+        }
+
+        #[test]
+        fn exclude_directory_trailing_slash() {
+            assert_matches(
+                &["**", "!test/"],
+                &["src/foo.rs"],
+                &["test/foo.rs"]
+            );
+        }
+
+        mod star_behavior {
+            use super::*;
+
+            #[test]
+            fn single_star() {
+                assert_matches(
+                    &["a/*/foo.rs"],
+                    &["a/b/foo.rs"],
+                    &["a/b/c/foo.rs", "a/foo.rs", "a/.dot/foo.rs"]
+                );
+            }
+
+            #[test]
+            fn double_star() {
+                assert_matches(
+                    &["a/**/foo.rs"],
+                    &["a/b/c/foo.rs", "a/b/foo.rs", "a/foo.rs"],
+                    &["a/.dot/foo.rs", "a/b/.dot/foo.rs"]
+                );
+            }
+
+            #[test]
+            fn trailing_double_star() {
+                assert_matches(
+                    &["**"],
+                    &["a/b/foo.rs", "foo.rs"],
+                    &[".foo.rs", ".a/b/foo.rs", "a/b/.foo.rs"]
+                );
+            }
+
+            #[test]
+            fn negated_trailing_double_star() {
+                // !a/** excludes a/.dot because it matches the a/ directory,
+                // excluding it entirely. People may come to rely on this so we
+                // test it explicitly here.
+                assert_matches(
+                    &["a/*", "a/.dot/.foo.rs", "!a/**"],
+                    &[],
+                    &["a/foo.rs", "a/.dot/.foo.rs"]
+                );
+            }
+        }
+
+        #[test]
+        fn test_case_sensitive() {
+            match fc(&["jquery.js"], &["jQuery.js"]) {
+                Err(GlobError::NotFound) => {},
+                r @ _ => panic!("{:?}", r),
+            }
+        }
     }
 }
