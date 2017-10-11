@@ -31,12 +31,12 @@ impl FileCollection {
     }
 
     // For use by SCM providers.
-    pub fn add_file(&mut self, file: String) -> Result<(), ()> {
+    pub fn add_file(&mut self, file: String) -> Result<(), Error> {
         if self.files_on_disk.contains(&file) {
             self.selected_files.insert(file);
             Ok(())
         } else {
-            Err(())
+            Err(Error::Message(format!("File is committed to SCM but missing in working copy: {}", &file)))
         }
     }
 
@@ -409,6 +409,16 @@ mod test {
                     &["a/*", "a/.dot/.foo.rs", "!a/**"],
                     &[],
                     &["a/foo.rs", "a/.dot/.foo.rs"]
+                );
+            }
+
+            #[test]
+            fn negated_double_star() {
+                // Edge case: !** does not exclude the root directory.
+                assert_matches(
+                    &[".dot", "foo", "!**"],
+                    &[".dot"],
+                    &["foo"]
                 );
             }
         }

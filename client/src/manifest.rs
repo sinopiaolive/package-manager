@@ -3,6 +3,7 @@
 use std::path::Path;
 use pest;
 use files::FileCollection;
+use git::GitScmProvider;
 use pm_lib::manifest::{PackageName, DependencySet};
 use pm_lib::version::Version;
 use manifest_parser::{Pair, Rule, parse_manifest, get_dependencies, find_section_pairs, find_rule, get_field, check_object_fields, get_string, get_optional_list_field, get_optional_string_field};
@@ -108,6 +109,10 @@ impl Manifest {
             .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
 
         let mut file_collection = FileCollection::new(root.to_path_buf())?;
+        let git_scm_provider = GitScmProvider::new(root)?;
+        for committed_file in git_scm_provider.ls_files()? {
+            file_collection.add_file(committed_file)?;
+        }
         for glob_pair in get_optional_list_field(object_pair.clone(), "files")?.into_iter() {
             let glob = get_string(glob_pair.clone())?;
             match file_collection.process_glob(&glob) {

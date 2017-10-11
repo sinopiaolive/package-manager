@@ -1,9 +1,16 @@
-## Database Setup
+## Installing Dependencies
 
 Install Postgres:
 
 * Ubuntu: `sudo apt-get install postgresql-9.5 libpq5 libpq-dev`
 * Mac: `brew install postgresql`
+
+Install cmake for building git2-rs:
+
+* Ubuntu: `sudo apt-get install cmake`
+* Mac: `brew install cmake`
+
+## Database Setup
 
 Configure your Postgres server to [trust connections from
 localhost](https://gist.github.com/p1nox/4953113).

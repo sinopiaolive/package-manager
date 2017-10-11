@@ -31,5 +31,9 @@ toml = "0.4"
 url = "1.5"
 webbrowser = "0.2"
 
+[dependencies.git2]
+version = "0.6.8"
+default-features = false # no https, ssh, curl
+
 [dependencies.pm_lib]
 path = "../lib"

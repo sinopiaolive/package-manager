@@ -25,6 +25,7 @@ extern crate pest_derive;
 extern crate colored;
 extern crate term_size;
 extern crate glob;
+extern crate git2;
 #[cfg(test)]
 extern crate test;
 
@@ -39,6 +40,7 @@ mod project;
 mod solver;
 #[allow(dead_code)]
 mod manifest_parser;
+mod git;
 mod files;
 
 use std::process;
@@ -118,6 +120,7 @@ fn change_to_project_dir() -> Result {
 
 fn main() {
     // manifest::test_reader();
+    // git::test_git();
     // process::exit(0);
 
     let args: Args = Docopt::new(USAGE)

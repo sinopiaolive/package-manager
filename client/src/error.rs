@@ -5,6 +5,7 @@ use reqwest;
 use toml;
 
 use files::GlobError;
+use git2;
 use pm_lib::index;
 
 use manifest_parser;
@@ -51,6 +52,11 @@ quick_error! {
             from()
         }
         Glob(err: GlobError) {
+            cause(err)
+            display("{}", err)
+            from()
+        }
+        Git(err: git2::Error) {
             cause(err)
             display("{}", err)
             from()
