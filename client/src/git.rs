@@ -16,15 +16,14 @@ impl GitScmProvider {
         let absolute_package_root = canonicalize(package_root)?;
         let repo = Repository::discover(&absolute_package_root)?;
         let repo_workdir = match repo.workdir() {
-            None => return Err(Error::Message("Failed to get base directory of Git repository.".to_string())),
+            None => return Err(Error::from(GitError::BaseDir)),
             Some(p) => p,
         }.to_path_buf();
         let relative_package_root
             = match absolute_package_root.strip_prefix(&repo_workdir) {
                 Ok(p) => p,
-                Err(_) => return Err(Error::Message(format!(
-                        "Git repository root {} is not a parent directory of {}",
-                        repo_workdir.display(), absolute_package_root.display())))
+                Err(_) => return Err(Error::from(GitError::RepoNotParent(
+                    repo_workdir.to_string_lossy().to_string(), absolute_package_root.to_string_lossy().to_string())))
             };
         Ok(GitScmProvider {
             relative_package_root: relative_package_root.to_path_buf(),
@@ -46,7 +45,7 @@ impl GitScmProvider {
         let mut files = Vec::new();
         for entry in tree.iter() {
             let name = match entry.name() {
-                None => return Err(Error::Message("File name returned by Git is not valid UTF-8".to_string())),
+                None => return Err(Error::from(GitError::Utf8)),
                 Some(n) => n
             };
             let relative_path = prefix.to_string() + name;
@@ -58,16 +57,36 @@ impl GitScmProvider {
                     let object = entry.to_object(&self.repo)?;
                     let subtree = match object.into_tree() {
                         Ok(t) => t,
-                        Err(_) => return Err(Error::Message("Git returned an unexpected object type".to_string()))
+                        Err(_) => return Err(Error::from(GitError::ObjectType))
                     };
                     files.extend(self.ls_files_inner(subtree, &(relative_path + "/"))?);
                 }
-                _ => return Err(Error::Message("Git return an unexpected object type".to_string()))
+                _ => return Err(Error::from(GitError::ObjectType))
             }
         }
         Ok(files)
     }
 }
+
+
+quick_error! {
+    #[derive(Debug)]
+    pub enum GitError {
+        Utf8 {
+            description("Git returned a filename that is not valid UTF-8")
+        }
+        BaseDir {
+            description("Failed to get base directory of Git repository.")
+        }
+        RepoNotParent(repo_root: String, package_root: String) {
+            display("Git found a repo at {}, which is not a parent directory of {}", repo_root, package_root)
+        }
+        ObjectType {
+            description("Git returned an unexpected object type")
+        }
+    }
+}
+
 
 pub fn test_git() {
     println!("{:?}", GitScmProvider::new(&Path::new(".")).unwrap().ls_files());

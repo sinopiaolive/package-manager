@@ -5,6 +5,7 @@ use reqwest;
 use toml;
 
 use files::GlobError;
+use git::GitError;
 use git2;
 use pm_lib::index;
 
@@ -56,7 +57,12 @@ quick_error! {
             display("{}", err)
             from()
         }
-        Git(err: git2::Error) {
+        Libgit2(err: git2::Error) {
+            cause(err)
+            display("{}", err)
+            from()
+        }
+        Git(err: GitError) {
             cause(err)
             display("{}", err)
             from()
