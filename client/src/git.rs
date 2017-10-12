@@ -37,7 +37,15 @@ impl GitScmProvider {
         let tree = head.tree()?;
         let mut files = self.ls_files_inner(tree, "")?;
         files.sort();
-        Ok(files)
+        Ok(files.into_iter().filter_map(|file|
+            if Path::new(&file).starts_with(&self.relative_package_root) {
+                Some(Path::new(&file).strip_prefix(&self.relative_package_root)
+                    .expect("Path::strip_prefix should succeed if Path::starts_with is true")
+                    .to_str().expect("stripping a prefix should not break UTF-8 well-formedness").to_string())
+            } else {
+                None
+            }
+        ).collect())
     }
 
     fn ls_files_inner(&self, tree: Tree, prefix: &str) -> Result<Vec<String>, Error> {
