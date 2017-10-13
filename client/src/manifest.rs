@@ -120,10 +120,10 @@ impl Manifest {
                 Err(glob_error) => {
                     // We should try to preserve the structure here rather than
                     // stringifying it.
-                    Err(pest::Error::CustomErrorSpan {
+                    return Err(Error::from(pest::Error::CustomErrorSpan {
                         message: format!("{}", glob_error).to_string(),
                         span: glob_pair.clone().into_span(),
-                    })?;
+                    }));
                 },
                 Ok(()) => { },
             }
