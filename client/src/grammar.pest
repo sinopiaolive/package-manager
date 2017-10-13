@@ -48,13 +48,13 @@ dependencies_closing_line = {
 }
 
 metadata_section = {
-    maybe_ws ~ "package" ~ maybe_ws ~ object ~ maybe_ws ~ comment_?
+    maybe_ws ~ "package" ~ maybe_ws ~ block ~ maybe_ws ~ comment_?
 }
 
-object = {
+block = {
     "{" ~ maybe_ws ~ comment_? ~ newline
     ~ (
-        (object_entry | blank_line)
+        (block_entry | blank_line)
         ~ newline
     )*
     ~ maybe_ws ~ "}"
@@ -100,7 +100,7 @@ version = @{
 }
 
 
-object_entry = {
+block_entry = {
     maybe_ws
     ~ keyword
     ~ maybe_ws

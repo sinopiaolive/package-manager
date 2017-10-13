@@ -6,7 +6,7 @@ use files::FileCollection;
 use git::GitScmProvider;
 use pm_lib::manifest::{PackageName, DependencySet};
 use pm_lib::version::Version;
-use manifest_parser::{Pair, Rule, parse_manifest, get_dependencies, find_section_pairs, find_rule, get_field, check_object_fields, get_string, get_optional_list_field, get_optional_string_field};
+use manifest_parser::{Pair, Rule, parse_manifest, get_dependencies, find_section_pairs, find_rule, get_field, check_block_fields, get_string, get_optional_list_field, get_optional_string_field};
 
 use error::Error;
 
@@ -58,8 +58,8 @@ impl Manifest {
             }
         )?;
 
-        let object_pair = find_rule(metadata_section_pair, Rule::object);
-        check_object_fields(object_pair.clone(), &[
+        let block_pair = find_rule(metadata_section_pair, Rule::block);
+        check_block_fields(block_pair.clone(), &[
             "name",
             "version",
 
@@ -76,7 +76,7 @@ impl Manifest {
         ])?;
 
         let name = {
-            let name_pair = get_field(object_pair.clone(), "name")?;
+            let name_pair = get_field(block_pair.clone(), "name")?;
             let name_string = get_string(name_pair.clone())?;
             PackageName::from_str(&name_string).ok_or_else(||
                 pest::Error::CustomErrorSpan {
@@ -87,7 +87,7 @@ impl Manifest {
         };
 
         let version = {
-            let version_pair = get_field(object_pair.clone(), "version")?;
+            let version_pair = get_field(block_pair.clone(), "version")?;
             let version_string = get_string(version_pair.clone())?;
             Version::from_str(&version_string).ok_or_else(||
                 pest::Error::CustomErrorSpan {
@@ -97,15 +97,15 @@ impl Manifest {
             )?
         };
 
-        let description = get_string(get_field(object_pair.clone(), "description")?)?;
+        let description = get_string(get_field(block_pair.clone(), "description")?)?;
 
-        let homepage = get_optional_string_field(object_pair.clone(), "homepage")?;
-        let repository = get_optional_string_field(object_pair.clone(), "repository")?;
-        let bugs = get_optional_string_field(object_pair.clone(), "bugs")?;
+        let homepage = get_optional_string_field(block_pair.clone(), "homepage")?;
+        let repository = get_optional_string_field(block_pair.clone(), "repository")?;
+        let bugs = get_optional_string_field(block_pair.clone(), "bugs")?;
 
-        let authors = get_optional_list_field(object_pair.clone(), "authors")?
+        let authors = get_optional_list_field(block_pair.clone(), "authors")?
             .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
-        let keywords = get_optional_list_field(object_pair.clone(), "keywords")?
+        let keywords = get_optional_list_field(block_pair.clone(), "keywords")?
             .into_iter().map(|item_pair| get_string(item_pair)).collect::<Result<_, _>>()?;
 
         let mut file_collection = FileCollection::new(root.to_path_buf())?;
@@ -114,7 +114,7 @@ impl Manifest {
         for committed_file in git_scm_provider.ls_files()? {
             file_collection.add_file(committed_file)?;
         }
-        for glob_pair in get_optional_list_field(object_pair.clone(), "files")?.into_iter() {
+        for glob_pair in get_optional_list_field(block_pair.clone(), "files")?.into_iter() {
             let glob = get_string(glob_pair.clone())?;
             match file_collection.process_glob(&glob) {
                 Err(glob_error) => {

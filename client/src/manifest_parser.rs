@@ -56,12 +56,12 @@ pub fn get_dependencies(manifest_pair: Pair)
 }
 
 // Check that there are no unexpected or duplicate fields.
-pub fn check_object_fields(object_pair: Pair, fields: &'static [&'static str])
+pub fn check_block_fields(block_pair: Pair, fields: &'static [&'static str])
     -> Result<(), Error>
 {
     let mut seen = vec![false; fields.len()];
-    'pair_loop: for object_entry_pair in children(object_pair, Rule::object_entry) {
-        let keyword_pair = find_rule(object_entry_pair.clone(), Rule::keyword);
+    'pair_loop: for block_entry_pair in children(block_pair, Rule::block_entry) {
+        let keyword_pair = find_rule(block_entry_pair.clone(), Rule::keyword);
         let keyword = keyword_pair.as_str();
         for i in 0..fields.len() {
             if keyword == fields[i] {
@@ -86,50 +86,50 @@ pub fn check_object_fields(object_pair: Pair, fields: &'static [&'static str])
 
 // Return a value pair or an error if the field is missing.
 pub fn get_field(
-    object_pair: Pair,
+    block_pair: Pair,
     field_name: &'static str)
     -> Result<Pair, Error>
 {
-    get_optional_field(object_pair.clone(), field_name)
+    get_optional_field(block_pair.clone(), field_name)
         .ok_or_else(||
             pest::Error::CustomErrorSpan {
                 message: format!("Missing field: {}", field_name).to_string(),
                 // We probably want to report this on the line following the
                 // opening brace instead.
-                span: object_pair.into_span(),
+                span: block_pair.into_span(),
             }
         )
 }
 
 pub fn get_optional_field(
-    object_pair: Pair, field_name: &'static str)
+    block_pair: Pair, field_name: &'static str)
     -> Option<Pair>
 {
-    for object_entry_pair in children(object_pair, Rule::object_entry) {
-        if find_rule(object_entry_pair.clone(), Rule::keyword).as_str() == field_name {
-            return Some(find_rule(object_entry_pair, Rule::value));
+    for block_entry_pair in children(block_pair, Rule::block_entry) {
+        if find_rule(block_entry_pair.clone(), Rule::keyword).as_str() == field_name {
+            return Some(find_rule(block_entry_pair, Rule::value));
         }
     }
     None
 }
 
 pub fn get_optional_list_field(
-    object_pair: Pair, field_name: &'static str)
+    block_pair: Pair, field_name: &'static str)
     -> Result<Vec<Pair>, Error>
 {
-    get_optional_field(object_pair, field_name)
+    get_optional_field(block_pair, field_name)
         .map_or(Ok(vec![]), |list_value_pair| {
             let (list, list_pair) = get_list(list_value_pair)?;
             Ok(list)
         })
 }
 
-pub fn get_optional_string_field(object_pair: Pair, field_name: &'static str)
+pub fn get_optional_string_field(block_pair: Pair, field_name: &'static str)
     -> Result<Option<String>, Error>
 {
     // This helper function is tiny, but inlining it without type annotation
     // confuses the compiler.
-    get_optional_field(object_pair, field_name)
+    get_optional_field(block_pair, field_name)
         .map_or(Ok(None), |pair| Ok(Some(get_string(pair)?)))
 }
 
