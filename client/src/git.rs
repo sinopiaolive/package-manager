@@ -34,18 +34,26 @@ impl GitScmProvider {
     pub fn ls_files(&self) -> Result<Vec<String>, Error> {
         let head_sha = self.repo.refname_to_id("HEAD")?;
         let head = self.repo.find_commit(head_sha)?;
-        let tree = head.tree()?;
+        let mut tree = head.tree()?;
+        for component in self.relative_package_root.iter() {
+            let component_str = match component.to_str() {
+                Some(s) => s,
+                None => return Err(Error::from(GitError::Utf8))
+            };
+            let subtree = match tree.get_name(component_str) {
+                None => return Ok(vec![]),
+                Some(tree_entry) => {
+                    match tree_entry.to_object(&self.repo)?.into_tree() {
+                        Err(_object) => return Ok(vec![]),
+                        Ok(subtree) => subtree
+                    }
+                }
+            };
+            tree = subtree;
+        }
         let mut files = self.ls_files_inner(tree, "")?;
         files.sort();
-        Ok(files.into_iter().filter_map(|file|
-            if Path::new(&file).starts_with(&self.relative_package_root) {
-                Some(Path::new(&file).strip_prefix(&self.relative_package_root)
-                    .expect("Path::strip_prefix should succeed if Path::starts_with is true")
-                    .to_str().expect("stripping a prefix should not break UTF-8 well-formedness").to_string())
-            } else {
-                None
-            }
-        ).collect())
+        Ok(files)
     }
 
     fn ls_files_inner(&self, tree: Tree, prefix: &str) -> Result<Vec<String>, Error> {
@@ -81,7 +89,7 @@ quick_error! {
     #[derive(Debug)]
     pub enum GitError {
         Utf8 {
-            description("Git returned a filename that is not valid UTF-8")
+            description("Git encountered a filename that is not valid UTF-8")
         }
         BaseDir {
             description("Failed to get base directory of Git repository.")
