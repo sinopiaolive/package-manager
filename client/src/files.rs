@@ -36,7 +36,7 @@ impl FileCollection {
             self.selected_files.insert(file);
             Ok(())
         } else {
-            Err(Error::Message(format!("File is committed to SCM but missing in working copy: {}", &file)))
+            Err(Error::Message(format!("File is committed to SCM but missing in working tree: {}", &file)))
         }
     }
 
@@ -192,7 +192,7 @@ pub enum GlobError {
     NotFound,
 }
 
-impl ::std::error::Error for GlobError {
+impl StdError for GlobError {
     fn description(&self) -> &str {
         match *self {
             GlobError::Braces => r#"Unexpected curly brace"#,
