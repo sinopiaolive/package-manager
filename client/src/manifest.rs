@@ -58,7 +58,7 @@ impl Manifest {
             }
         )?;
 
-        let block_pair = find_rule(metadata_section_pair, Rule::block);
+        let block_pair = find_rule(metadata_section_pair, Rule::block_value);
         check_block_fields(block_pair.clone(), &[
             "name",
             "version",

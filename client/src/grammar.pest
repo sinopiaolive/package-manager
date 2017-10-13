@@ -48,10 +48,10 @@ dependencies_closing_line = {
 }
 
 metadata_section = {
-    maybe_ws ~ "package" ~ maybe_ws ~ block ~ maybe_ws ~ comment_?
+    maybe_ws ~ "package" ~ maybe_ws ~ block_value ~ maybe_ws ~ comment_?
 }
 
-block = {
+block_value = {
     "{" ~ maybe_ws ~ comment_? ~ newline
     ~ (
         (block_entry | blank_line)
@@ -113,7 +113,7 @@ keyword = @{ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")+ }
 
 
 value = {
-    string_value | list_value
+    string_value | list_value | block_value
 }
 
 string_value = {
