@@ -3,7 +3,8 @@
 use pest;
 use pest::Parser;
 
-use pm_lib::manifest::{PackageName, DependencySet};
+use pm_lib::package::PackageName;
+use pm_lib::index::Dependencies;
 use pm_lib::constraint::VersionConstraint;
 
 // Ensure this file recompiles when the grammar is modified.
@@ -31,12 +32,12 @@ pub fn parse_manifest(manifest_source: String)
 }
 
 pub fn get_dependencies(manifest_pair: Pair)
-    -> Result<DependencySet, Error>
+    -> Result<Dependencies, Error>
 {
     let (maybe_dependencies_section_pair, _) =
         find_section_pairs(manifest_pair)?;
 
-    let mut depset = DependencySet::new();
+    let mut depset = Dependencies::new();
     if let Some(dependencies_section_pair) = maybe_dependencies_section_pair {
         for pair in children(dependencies_section_pair, Rule::dependency) {
             let package_name_pair = find_rule(pair.clone(), Rule::package_name);

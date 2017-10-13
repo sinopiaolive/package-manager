@@ -1,7 +1,7 @@
 #![allow(unused_macros)]
 
 use version::Version;
-use manifest::PackageName;
+use package::PackageName;
 use constraint::VersionConstraint;
 
 
@@ -15,9 +15,14 @@ pub fn range(s: &str) -> VersionConstraint {
 }
 
 pub fn pkg(s: &str) -> PackageName {
-    let pkg = PackageName::from_str(s).unwrap();
+    let segments = s.split("/").count();
+    let pkg = if segments == 1 {
+        PackageName::from_str(&format!("test/{}", s))
+    } else {
+        PackageName::from_str(s)
+    }.unwrap();
     PackageName {
-        namespace: Some(pkg.namespace.unwrap_or("test".to_string())),
+        namespace: pkg.namespace,
         name: pkg.name,
     }
 }

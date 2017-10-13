@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use pm_lib::constraint::VersionConstraint;
-use pm_lib::manifest::PackageName;
+use pm_lib::package::PackageName;
 use pm_lib::index::{Index, Dependencies};
 use solver::path::Path;
 use solver::failure;

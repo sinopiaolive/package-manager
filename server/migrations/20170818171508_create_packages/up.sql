@@ -27,10 +27,11 @@ CREATE TABLE package_releases (
   publish_time TIMESTAMP NOT NULL DEFAULT NOW(),
   artifact_url TEXT NOT NULL,
   description TEXT NOT NULL,
-  licence TEXT,
-  licence_file TEXT,
+  license TEXT,
+  license_file TEXT,
   keywords TEXT[] NOT NULL DEFAULT '{}',
   manifest TEXT NOT NULL,
+  readme_filename TEXT,
   readme TEXT,
   deprecated BOOLEAN NOT NULL DEFAULT FALSE,
   deprecated_by TEXT,
@@ -45,5 +46,5 @@ CREATE TABLE package_releases (
 
 CREATE INDEX package_releases_by_package_id ON package_releases (namespace, name);
 CREATE INDEX package_releases_by_keyword ON package_releases (keywords);
-CREATE INDEX package_releases_by_licence ON package_releases (licence);
+CREATE INDEX package_releases_by_license ON package_releases (license);
 CREATE INDEX package_releases_by_publisher ON package_releases (publisher);

@@ -18,10 +18,10 @@ macro_rules! solution(
 );
 
 macro_rules! deps {
-    () => { ::std::collections::HashMap::new() };
+    () => { ::std::collections::BTreeMap::new() };
 
     ( $( $dep:ident => $constraint:expr ),* ) => {{
-        let mut deps = ::std::collections::HashMap::new();
+        let mut deps = ::std::collections::BTreeMap::new();
         $({
             let constraint = ::pm_lib::constraint::VersionConstraint::from_str($constraint).unwrap();
             deps.insert(::pm_lib::test_helpers::pkg(stringify!($dep)), constraint);

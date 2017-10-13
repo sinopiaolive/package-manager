@@ -1,7 +1,7 @@
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::path::Path;
 use std::sync::Arc;
 use rmp_serde::{self, encode};
@@ -9,7 +9,7 @@ use serde_json;
 
 use version::Version;
 use constraint::VersionConstraint;
-use manifest::PackageName;
+use package::PackageName;
 
 
 
@@ -40,7 +40,7 @@ quick_error! {
 
 pub type Index = HashMap<PackageName, Package>;
 pub type Package = HashMap<Version, Dependencies>;
-pub type Dependencies = HashMap<PackageName, VersionConstraint>;
+pub type Dependencies = BTreeMap<PackageName, VersionConstraint>;
 
 pub fn read_index(path: &Path) -> Result<Arc<Index>, Error> {
     let mut f = File::open(path)?;

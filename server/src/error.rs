@@ -1,5 +1,6 @@
 use std::env;
 use serde_json;
+use rmp_serde;
 use reqwest;
 use data_encoding;
 use url;
@@ -7,6 +8,8 @@ use rocket::http::Status;
 use rocket::response::{Response, Responder};
 use rocket::request::Request;
 use diesel;
+
+use user::User;
 
 quick_error! {
     #[derive(Debug)]
@@ -27,6 +30,11 @@ quick_error! {
             from()
         }
         JSON(err: serde_json::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
+        MessagePack(err: rmp_serde::decode::Error) {
             cause(err)
             description(err.description())
             from()
@@ -71,6 +79,21 @@ quick_error! {
         }
         UnknownUser(name: String) {
             description(name)
+        }
+        UnknownPackage(namespace: String, name: String) {
+            display("No such package: {}/{}", namespace, name)
+        }
+        UnknownFile(namespace: String, name: String) {
+            display("No such file: {}/{}", namespace, name)
+        }
+        AccessDenied(namespace: String, name: String, user: User) {
+            display("User {} is not an owner of {}/{}", user, name, namespace)
+        }
+        InvalidManifest(reason: &'static str) {
+            display("Invalid manifest: {}", reason)
+        }
+        InvalidArtifact(reason: &'static str) {
+            display("Invalid upload artifact: {}", reason)
         }
     }
 }

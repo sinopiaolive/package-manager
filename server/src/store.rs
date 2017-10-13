@@ -1,5 +1,6 @@
 use std::env;
 use std::time::SystemTime;
+use std::str::FromStr;
 
 use diesel;
 use diesel::prelude::*;
@@ -11,8 +12,10 @@ use data_encoding::BASE64;
 
 use error::{Res, Error};
 use user::{User, UserRecord};
+use package::{Package, PackageOwner, Release};
+use file::File;
 
-use schema::{users, login_sessions};
+use schema::{users, login_sessions, packages, package_owners, package_releases, files};
 
 #[allow(dead_code)]
 #[derive(Queryable)]
@@ -103,5 +106,108 @@ impl Store {
             None => Err(Error::UnknownUser(user.to_string())),
             Some(user) => Ok(user),
         }
+    }
+
+    pub fn get_package(&self, namespace: &str, name: &str) -> Res<Package> {
+        let db = self.db()?;
+        let results = packages::table
+            .filter(packages::namespace.eq(&namespace).and(
+                packages::name.eq(&name),
+            ))
+            .load(&db)?;
+        match results.into_iter().next() {
+            None => Err(Error::UnknownPackage(namespace.to_owned(), name.to_owned())),
+            Some(pkg) => Ok(pkg),
+        }
+    }
+
+    pub fn insert_package(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
+        let db = self.db()?;
+        match diesel::insert(&Package {
+            namespace: namespace.to_owned(),
+            name: name.to_owned(),
+            deleted: None,
+            deleted_on: None,
+        }).into(packages::table)
+            .execute(&db) {
+            Ok(_) => self.add_package_owner(namespace, name, owner),
+            Err(_) => Ok(()),
+        }
+    }
+
+    pub fn get_package_owners(&self, namespace: &str, name: &str) -> Res<Vec<User>> {
+        let db = self.db()?;
+        let results: Vec<PackageOwner> = package_owners::table
+            .filter(package_owners::namespace.eq(namespace).and(
+                package_owners::name.eq(name),
+            ))
+            .load(&db)?;
+        results.iter().map(|o| User::from_str(&o.user_id)).collect()
+    }
+
+    pub fn add_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
+        let db = self.db()?;
+        diesel::insert(&PackageOwner {
+            namespace: namespace.to_owned(),
+            name: name.to_owned(),
+            user_id: owner.to_string(),
+            added_time: SystemTime::now(),
+        }).into(package_owners::table)
+            .execute(&db)?;
+        Ok(())
+    }
+
+    pub fn remove_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
+        let db = self.db()?;
+        diesel::delete(package_owners::table.filter(
+            package_owners::namespace.eq(namespace).and(
+                package_owners::name.eq(name).and(
+                    package_owners::user_id.eq(
+                        &owner.to_string(),
+                    ),
+                ),
+            ),
+        )).execute(&db)?;
+        Ok(())
+    }
+
+    pub fn get_releases(&self, namespace: &str, name: &str) -> Res<Vec<Release>> {
+        let db = self.db()?;
+        Ok(package_releases::table
+            .filter(package_releases::namespace.eq(namespace).and(
+                package_releases::name.eq(name),
+            ))
+            .load(&db)?)
+    }
+
+    pub fn add_release(&self, release: &Release) -> Res<()> {
+        let db = self.db()?;
+        diesel::insert(release)
+            .into(package_releases::table)
+            .execute(&db)?;
+        Ok(())
+    }
+
+    pub fn get_file(&self, namespace: &str, name: &str) -> Res<File> {
+        let db = self.db()?;
+        let results: Vec<File> = files::table
+            .filter(files::namespace.eq(namespace).and(files::name.eq(name)))
+            .load(&db)?;
+        match results.into_iter().next() {
+            None => Err(Error::UnknownFile(namespace.to_string(), name.to_string())),
+            Some(file) => Ok(file),
+        }
+    }
+
+    pub fn add_file(&self, namespace: &str, name: &str, data: &[u8]) -> Res<()> {
+        let db = self.db()?;
+        diesel::insert(&File {
+            namespace: namespace.to_owned(),
+            name: name.to_owned(),
+            data: data.to_owned(),
+            uploaded_on: SystemTime::now(),
+        }).into(files::table)
+            .execute(&db)?;
+        Ok(())
     }
 }

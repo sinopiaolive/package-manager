@@ -3,6 +3,7 @@
 use std;
 use reqwest;
 use toml;
+use rmp_serde;
 
 use files::GlobError;
 use git::GitError;
@@ -47,15 +48,18 @@ quick_error! {
             description(err.description())
             from()
         }
+        MessagePack(err: rmp_serde::encode::Error) {
+            cause(err)
+            description(err.description())
+            from()
+        }
         ManifestParser(err: manifest_parser::Error) {
-            // pest::Error is not a std::error::Error, so no cause(err).
-            display("{}", err)
+            display("While processing the manifest:\n{}", err)
             from()
         }
         Glob(err: GlobError) {
             cause(err)
             display("{}", err)
-            from()
         }
         Libgit2(err: git2::Error) {
             cause(err)

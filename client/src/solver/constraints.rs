@@ -1,4 +1,4 @@
-use pm_lib::manifest::PackageName;
+use pm_lib::package::PackageName;
 use solver::path::Path;
 use im::map::Map;
 use std::fmt;

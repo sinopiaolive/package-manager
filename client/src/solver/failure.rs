@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use pm_lib::manifest::PackageName;
+use pm_lib::package::PackageName;
 use solver::constraints::Constraint;
 use solver::path::Path;
 use pm_lib::constraint::VersionConstraint;

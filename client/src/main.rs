@@ -6,6 +6,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate rmp_serde;
 extern crate pm_lib;
 extern crate toml;
 #[macro_use]
@@ -26,6 +27,8 @@ extern crate colored;
 extern crate term_size;
 extern crate glob;
 extern crate git2;
+extern crate tar;
+extern crate brotli;
 #[cfg(test)]
 extern crate test;
 
@@ -35,7 +38,8 @@ mod config;
 mod registry;
 mod manifest;
 mod project;
-#[allow(dead_code)] // TODO please remove this when the solver is actually being used
+#[allow(dead_code)]
+// TODO please remove this when the solver is actually being used
 #[macro_use]
 mod solver;
 #[allow(dead_code)]
@@ -44,11 +48,9 @@ mod git;
 mod files;
 
 use std::process;
-use std::env;
 use docopt::Docopt;
 use serde::de::Deserialize;
 use error::Error;
-use project::find_project_dir;
 
 const USAGE: &'static str = "Your package manager.
 
@@ -76,7 +78,7 @@ macro_rules! each_subcommand {
         $mac!(login);
         $mac!(test);
         $mac!(search);
-        // add more like this here
+        $mac!(publish);
     }
 }
 
@@ -111,11 +113,6 @@ fn run_shell_command(cmd: &str, args: &Vec<String>) -> Result {
     Ok(()) // FIXME: report subprocess result properly
 }
 
-fn change_to_project_dir() -> Result {
-    let path = find_project_dir()?;
-    Ok(env::set_current_dir(path)?)
-}
-
 
 
 fn main() {
@@ -134,13 +131,6 @@ fn main() {
         print!("{}", USAGE);
         process::exit(1)
     } else {
-        match change_to_project_dir() {
-            Ok(_) => (),
-            Err(e) => {
-                println!("ERROR: {}", e);
-                process::exit(1)
-            }
-        }
         match attempt_builtin_command(&args.arg_command)
             .or_else(|| {
                 Some(run_shell_command(&args.arg_command, &args.arg_args))

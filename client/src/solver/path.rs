@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::ops::Index;
 use std::fmt;
 use std::slice::Iter;
-use pm_lib::manifest::PackageName;
+use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 
 /// A dependency chain of packages.

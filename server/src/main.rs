@@ -1,3 +1,4 @@
+#![recursion_limit = "128"]
 #![feature(plugin, custom_derive, conservative_impl_trait)]
 #![plugin(rocket_codegen)]
 #![allow(resolve_trait_on_defaulted_unit)]
@@ -7,6 +8,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate rmp_serde;
 extern crate rocket_contrib;
 #[macro_use]
 extern crate quick_error;
@@ -20,6 +22,8 @@ extern crate diesel;
 extern crate diesel_codegen;
 extern crate pm_lib;
 extern crate im;
+extern crate tar;
+extern crate brotli;
 
 mod error;
 mod schema;
@@ -28,16 +32,20 @@ mod user;
 mod auth;
 mod package;
 mod search;
+mod upload;
+mod file;
 mod github;
 mod gitlab;
 
 #[cfg(test)]
 mod test;
 
+use std::io::Cursor;
+
 use rocket::request::{Request, FromRequest};
-use rocket::response::Redirect;
-use rocket::{Outcome, State};
-use rocket::http::Status;
+use rocket::response::{Redirect, Response, content};
+use rocket::{Outcome, State, Data};
+use rocket::http::{Status, ContentType};
 use rocket_contrib::Json;
 
 use url::Url;
@@ -98,8 +106,8 @@ h1 {
 .pad { padding: 1em; }
 ";
 
-fn html_doc(content: &str) -> String {
-    format!(
+fn html_doc(content: &str) -> content::Html<String> {
+    content::Html(format!(
         "<!doctype html>
 <html>
   <head>
@@ -113,7 +121,7 @@ fn html_doc(content: &str) -> String {
 ",
         STYLES,
         content
-    )
+    ))
 }
 
 
@@ -179,16 +187,42 @@ fn test(auth: Authenticate, store: State<Store>) -> Res<String> {
 #[derive(FromForm)]
 struct SearchQuery {
     ns: String,
-    q: String
+    q: String,
+}
+
+#[get("/files/<namespace>/<name>")]
+fn files(store: State<Store>, namespace: String, name: String) -> Res<Response> {
+    match store.get_file(&namespace, &name) {
+        Err(_) => Err(Error::Status(Status::NotFound)),
+        Ok(file) => {
+            Response::build()
+                .status(Status::Ok)
+                .header(ContentType::new("application", "brotli"))
+                .sized_body(Cursor::new(file.data))
+                .ok()
+        }
+    }
 }
 
 #[get("/search?<query>")]
 fn search(query: SearchQuery, store: State<Store>) -> Res<Json<Vec<search::SearchResult>>> {
-    Ok(Json(search::search(&store, &query.ns, query.q.split_whitespace().map(str::to_string).collect())?))
+    Ok(Json(search::search(
+        &store,
+        &query.ns,
+        query.q.split_whitespace().map(str::to_string).collect(),
+    )?))
+}
+
+#[post("/publish", data = "<data>")]
+fn publish(data: Data, auth: Authenticate, store: State<Store>) -> Res<Json<upload::Receipt>> {
+    let token = auth.validate(&store)?;
+    Ok(Json(
+        upload::process_upload(&store, &token.user, data.open())?,
+    ))
 }
 
 #[get("/")]
-fn index() -> Res<String> {
+fn index() -> Res<content::Html<String>> {
     Ok(html_doc(
         "
 <p class=\"pad\">
@@ -205,7 +239,7 @@ struct Login {
 }
 
 #[get("/login_client?<login>")]
-fn login_client(store: State<Store>, login: Login) -> Res<String> {
+fn login_client(store: State<Store>, login: Login) -> Res<content::Html<String>> {
     store.register_login(&login.token, &login.callback)?;
     let github_url = format!(
         "https://github.com/login/oauth/authorize?scope=user:email&client_id={}&state={}",
@@ -279,7 +313,16 @@ fn main() {
         .manage(store)
         .mount(
             "/",
-            routes![index, test, search, login_client, github_callback, gitlab_callback],
+            routes![
+                index,
+                test,
+                search,
+                publish,
+                files,
+                login_client,
+                github_callback,
+                gitlab_callback,
+            ],
         )
         .launch();
 }

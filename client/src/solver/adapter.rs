@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec::Vec;
 use pm_lib::constraint::VersionConstraint;
-use pm_lib::manifest::PackageName;
+use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 use pm_lib::index::{Index, Dependencies};
 use solver::failure::Failure;

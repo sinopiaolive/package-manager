@@ -9,7 +9,7 @@ use error::Error;
 use manifest::Manifest;
 
 fn find_manifest(path: &Path) -> Option<PathBuf> {
-    let manifest = path.join("manifest.toml");
+    let manifest = path.join("manifest");
     if manifest.exists() {
         Some(manifest)
     } else {

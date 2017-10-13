@@ -175,6 +175,7 @@ impl Ord for Version {
 }
 
 
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 #[serde(deny_unknown_fields)]
 pub enum VersionIdentifier {
@@ -207,6 +208,7 @@ impl Ord for VersionIdentifier {
         }
     }
 }
+
 
 
 /// Increment the first non-zero component, drop the rest.
@@ -315,7 +317,10 @@ mod unit_test {
     #[bench]
     fn convert_version_identifier_bench(b: &mut Bencher) {
         b.iter(|| {
-            (convert_version_identifier("3"), convert_version_identifier("beta"))
+            (
+                convert_version_identifier("3"),
+                convert_version_identifier("beta"),
+            )
         });
     }
 

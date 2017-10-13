@@ -47,15 +47,25 @@ table! {
         publish_time -> Timestamp,
         artifact_url -> Text,
         description -> Text,
-        licence -> Nullable<Text>,
-        licence_file -> Nullable<Text>,
+        license -> Nullable<Text>,
+        license_file -> Nullable<Text>,
         keywords -> Array<Text>,
         manifest -> Text,
+        readme_filename -> Nullable<Text>,
         readme -> Nullable<Text>,
         deprecated -> Bool,
         deprecated_by -> Nullable<Text>,
         deprecated_on -> Nullable<Timestamp>,
         deleted -> Nullable<Text>,
         deleted_on -> Nullable<Timestamp>,
+    }
+}
+
+table! {
+    files (namespace, name) {
+        namespace -> Text,
+        name -> Text,
+        data -> Binary,
+        uploaded_on -> Timestamp,
     }
 }
