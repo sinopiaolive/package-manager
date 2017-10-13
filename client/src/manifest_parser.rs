@@ -61,14 +61,14 @@ pub fn check_block_fields(block_pair: Pair, fields: &'static [&'static str])
 {
     let mut seen = vec![false; fields.len()];
     'pair_loop: for block_entry_pair in children(block_pair, Rule::block_entry) {
-        let bareword_pair = find_rule(block_entry_pair.clone(), Rule::bareword);
-        let bareword = bareword_pair.as_str();
+        let symbol_pair = find_rule(block_entry_pair.clone(), Rule::symbol);
+        let symbol = symbol_pair.as_str();
         for i in 0..fields.len() {
-            if bareword == fields[i] {
+            if symbol == fields[i] {
                 if seen[i] {
                     return Err(pest::Error::CustomErrorSpan {
                         message: "Duplicate field".to_string(),
-                        span: bareword_pair.clone().into_span(),
+                        span: symbol_pair.clone().into_span(),
                     })
                 } else {
                     seen[i] = true;
@@ -78,7 +78,7 @@ pub fn check_block_fields(block_pair: Pair, fields: &'static [&'static str])
         }
         return Err(pest::Error::CustomErrorSpan {
             message: "Unexpected field".to_string(),
-            span: bareword_pair.clone().into_span(),
+            span: symbol_pair.clone().into_span(),
         });
     }
     Ok(())
@@ -106,7 +106,7 @@ pub fn get_optional_field(
     -> Option<Pair>
 {
     for block_entry_pair in children(block_pair, Rule::block_entry) {
-        if find_rule(block_entry_pair.clone(), Rule::bareword).as_str() == field_name {
+        if find_rule(block_entry_pair.clone(), Rule::symbol).as_str() == field_name {
             return Some(find_rule(block_entry_pair, Rule::value));
         }
     }

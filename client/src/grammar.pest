@@ -102,14 +102,14 @@ version = @{
 
 block_entry = {
     maybe_ws
-    ~ bareword
+    ~ symbol
     ~ maybe_ws
     ~ value
     ~ maybe_ws
     ~ comment_?
 }
 
-bareword = @{ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")+ }
+symbol = @{ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")+ }
 
 
 value = {
