@@ -110,6 +110,7 @@ impl Manifest {
 
         let mut file_collection = FileCollection::new(root.to_path_buf())?;
         let git_scm_provider = GitScmProvider::new(root)?;
+        // git_scm_provider.check_repo_is_pristine()?;
         for committed_file in git_scm_provider.ls_files()? {
             file_collection.add_file(committed_file)?;
         }

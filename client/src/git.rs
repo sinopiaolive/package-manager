@@ -2,7 +2,7 @@
 
 use std::path::{Path,PathBuf};
 use std::fs::canonicalize;
-use git2::{Repository,Tree};
+use git2::{Repository,RepositoryState,StatusOptions,Tree};
 use git2;
 use error::Error;
 
@@ -31,6 +31,44 @@ impl GitScmProvider {
         })
     }
 
+    pub fn check_repo_is_pristine(&self) -> Result<(), Error> {
+        self.check_state_is_clean()?;
+        self.check_no_submodules()?;
+        self.check_status_is_empty()?;
+        Ok(())
+    }
+
+    pub fn check_state_is_clean(&self) -> Result<(), Error> {
+        if self.repo.state() == RepositoryState::Clean {
+            Ok(())
+        } else {
+            Err(Error::from(GitError::NotCleanState))
+        }
+    }
+
+    pub fn check_status_is_empty(&self) -> Result<(), Error> {
+        let mut status_options = StatusOptions::new();
+        status_options
+            .include_untracked(true)
+            .exclude_submodules(true)
+            .pathspec(&self.relative_package_root)
+            .disable_pathspec_match(true);
+        let statuses = self.repo.statuses(Some(&mut status_options))?;
+        if statuses.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::from(GitError::NonEmptyStatus))
+        }
+    }
+
+    pub fn check_no_submodules(&self) -> Result<(), Error> {
+        if self.repo.submodules()?.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::from(GitError::SubmodulesPresent))
+        }
+    }
+
     pub fn ls_files(&self) -> Result<Vec<String>, Error> {
         let head_sha = self.repo.refname_to_id("HEAD")?;
         let head = self.repo.find_commit(head_sha)?;
@@ -57,7 +95,6 @@ impl GitScmProvider {
     }
 
     fn ls_files_inner(&self, tree: Tree, prefix: &str) -> Result<Vec<String>, Error> {
-        // TODO: Exclude (or throw error on) submodules
         let mut files = Vec::new();
         for entry in tree.iter() {
             let name = match entry.name() {
@@ -99,6 +136,16 @@ quick_error! {
         }
         ObjectType {
             description("Git returned an unexpected object type")
+        }
+
+        NotCleanState {
+            description("A Git operation such as a merge or a rebase is in progress in your working tree")
+        }
+        NonEmptyStatus {
+            description("The command `git status` shows modified or untracked files. Commit them to Git or add them to .gitignore before running this.")
+        }
+        SubmodulesPresent {
+            description("Git repositories with submodules are currently unsupported")
         }
     }
 }
