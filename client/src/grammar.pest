@@ -31,12 +31,7 @@ blank_line = @{ maybe_ws ~ comment_? }
 pm_version_tag = { maybe_ws ~ "pm" ~ ws ~ "1.0" ~ maybe_ws ~ comment_? }
 
 dependencies_section = {
-    dependencies_opening_line ~ newline
-    ~ (
-        (dependency | blank_line)
-        ~ newline
-    )*
-    ~ dependencies_closing_line
+    maybe_ws ~ "dependencies" ~ maybe_ws ~ block ~ maybe_ws ~ comment_?
 }
 
 dependencies_opening_line = {
@@ -48,45 +43,19 @@ dependencies_closing_line = {
 }
 
 metadata_section = {
-    maybe_ws ~ "package" ~ maybe_ws ~ block_value ~ maybe_ws ~ comment_?
+    maybe_ws ~ "package" ~ maybe_ws ~ block ~ maybe_ws ~ comment_?
 }
 
-block_value = {
+block = {
     "{" ~ maybe_ws ~ comment_? ~ newline
-    ~ (
-        (block_entry | blank_line)
-        ~ newline
-    )*
+    ~ block_entry*
     ~ maybe_ws ~ "}"
 }
 
-// e.g. "  js/left-pad ^1.2.3  // for text handling"
-dependency = {
-    maybe_ws
-    ~ package_name
-    ~ maybe_ws
-    ~ version_constraint
-    ~ maybe_ws
-    ~ comment_?
-}
+block_entry = {
+    (field | blank_line)
+    ~ newline
 
-package_name = @{
-    package_name_component // namespace
-    ~ "/"
-    ~ package_name_component // name
-}
-
-// Note: These rules are permissive and require further validation in the Rust code.
-package_name_component = {
-    ('a'..'z' | 'A'..'Z' | '0'..'9' | "_" | "-")+
-}
-
-version_constraint = {
-    version_constraint_component
-    ~ (
-        ws
-        ~ version_constraint_component
-    )?
 }
 
 version_constraint_component = {
@@ -100,23 +69,46 @@ version = @{
 }
 
 
-block_entry = {
+field = {
     maybe_ws
     ~ symbol
     ~ maybe_ws
-    ~ value
-    ~ maybe_ws
+    ~ arguments
     ~ comment_?
 }
 
-symbol = @{ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")+ }
-
-
-value = {
-    string_value | list_value | block_value
+symbol = @{
+    !("/")
+    ~ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_" | "-" | "/" )+
 }
 
-string_value = {
+arguments = {
+    positional_arguments
+    ~ options
+    ~ (block ~ maybe_ws)?
+}
+
+positional_arguments = {
+    (positional_argument ~ maybe_ws)*
+}
+
+options = {
+    (option ~ maybe_ws)*
+}
+
+option = {
+    "TODO"
+}
+
+positional_argument = {
+    string
+    | list
+    | version_constraint_component
+}
+
+list_item = { string | list | block }
+
+string = {
     "\""
     ~ (
         literal_character
@@ -163,14 +155,14 @@ whitespace_with_newline = {
     (ws_char | (comment_? ~ newline))
 }
 
-list_value = {
+list = {
     "["
     ~ whitespace_with_newline*
     ~ (
-        value
+        list_item
         ~ (
             whitespace_with_newline+
-            ~ value
+            ~ list_item
         )*
     )?
     ~ whitespace_with_newline*

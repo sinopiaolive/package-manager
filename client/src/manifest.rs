@@ -6,11 +6,12 @@ use files::FileCollection;
 use git::GitScmProvider;
 use pm_lib::manifest::License;
 use pm_lib::package::PackageName;
+use pm_lib::constraint::VersionConstraint;
 use pm_lib::version::Version;
 use pm_lib::index::Dependencies;
-use manifest_parser::{Pair, Rule, parse_manifest, get_dependencies, find_section_pairs, find_rule,
-                      get_field, check_block_fields, get_string, get_optional_list_field,
-                      get_optional_string_field};
+use manifest_parser::{Pair, Rule, Arguments, parse_manifest, find_section_pairs, find_rule, children,
+                      get_fields, get_field, check_block_fields, get_single_argument,
+                      get_string, get_optional_list_field, get_optional_string_field};
 
 use error::Error;
 
@@ -46,10 +47,10 @@ impl Manifest {
     pub fn from_manifest_pair(manifest_pair: Pair, root: &Path) -> Result<Self, Error> {
         let dependencies = get_dependencies(manifest_pair.clone())?;
 
-        let (_maybe_dependencies_section_pair, maybe_metadata_section_pair) =
+        let (_maybe_dependencies_block_pair, maybe_metadata_block_pair) =
             find_section_pairs(manifest_pair.clone())?;
 
-        let metadata_section_pair = maybe_metadata_section_pair.ok_or_else(|| {
+        let block_pair = maybe_metadata_block_pair.ok_or_else(|| {
             pest::Error::CustomErrorPos {
                 message: "A `package { ... }` section is required to publish this package"
                     .to_string(),
@@ -57,7 +58,6 @@ impl Manifest {
             }
         })?;
 
-        let block_pair = find_rule(metadata_section_pair, Rule::block_value);
         check_block_fields(
             block_pair.clone(),
             &[
@@ -78,7 +78,8 @@ impl Manifest {
         )?;
 
         let name = {
-            let name_pair = get_field(block_pair.clone(), "name")?;
+            let name_pair = get_single_argument(get_field(block_pair.clone(), "name")?)?;
+
             let name_string = get_string(name_pair.clone())?;
             PackageName::from_str(&name_string).ok_or_else(|| {
                 pest::Error::CustomErrorSpan {
@@ -89,7 +90,7 @@ impl Manifest {
         };
 
         let version = {
-            let version_pair = get_field(block_pair.clone(), "version")?;
+            let version_pair = get_single_argument(get_field(block_pair.clone(), "version")?)?;
             let version_string = get_string(version_pair.clone())?;
             Version::from_str(&version_string).ok_or_else(|| {
                 pest::Error::CustomErrorSpan {
@@ -99,7 +100,7 @@ impl Manifest {
             })?
         };
 
-        let description = get_string(get_field(block_pair.clone(), "description")?)?;
+        let description = get_string(get_single_argument(get_field(block_pair.clone(), "description")?)?)?;
 
         let homepage = get_optional_string_field(block_pair.clone(), "homepage")?;
         let repository = get_optional_string_field(block_pair.clone(), "repository")?;
@@ -177,6 +178,69 @@ impl Manifest {
 }
 
 
+pub fn get_dependencies(manifest_pair: Pair)
+    -> Result<Dependencies, Error>
+{
+    let (maybe_dependencies_block_pair, _) =
+        find_section_pairs(manifest_pair)?;
+
+    let mut depset = Dependencies::new();
+    if let Some(dependencies_block_pair) = maybe_dependencies_block_pair {
+        for (package_name_pair, arguments_pair) in get_fields(dependencies_block_pair) {
+            let arguments = Arguments::from_pair(arguments_pair, 0, 2)?;
+            let (package_name, version_constraint) =
+                make_dependency(package_name_pair.clone(), arguments.positional_arguments)?;
+            if depset.contains_key(&package_name) {
+                return Err(Error::from(pest::Error::CustomErrorSpan {
+                    message: "Duplicate dependency".to_string(),
+                    span: package_name_pair.into_span(),
+                }));
+            }
+            depset.insert(package_name, version_constraint);
+        }
+    }
+    Ok(depset)
+}
+
+pub fn make_dependency(
+    package_name_pair: Pair,
+    vcc_pairs: Vec<Pair>)
+    -> Result<(PackageName, VersionConstraint), Error> {
+    let package_name = PackageName::from_str(package_name_pair.as_str()).ok_or_else(||
+        pest::Error::CustomErrorSpan {
+            message: "Invalid package name".to_string(),
+            span: package_name_pair.into_span(),
+        }
+    )?;
+
+    let version_constraint = match vcc_pairs.len() {
+        0 => {
+            VersionConstraint::from_str("*")
+        }
+        1 => {
+            let vc_component = vcc_pairs[0].clone();
+            VersionConstraint::from_str(vc_component.into_span().as_str())
+        }
+        2 => {
+            let vcc1 = vcc_pairs[0].clone(); // e.g. ">=2.0.0"
+            let vcc2 = vcc_pairs[1].clone(); // e.g. "<4.0.0"
+            VersionConstraint::from_str(&format!(
+                "{} {}", vcc1.into_span().as_str(), vcc2.into_span().as_str()))
+        }
+        _ => unreachable!()
+    }.ok_or_else(||
+        Error::from(pest::Error::CustomErrorPos {
+            // More error detail would make this much more user-friendly.
+            message: "Invalid version constraint".to_string(),
+            pos: vcc_pairs[0].clone().into_span().start_pos(),
+        })
+    )?;
+
+    Ok((package_name, version_constraint))
+}
+
+
+
 pub fn test_reader() {
     println!(
         "release: {:?}",
@@ -189,9 +253,10 @@ pub fn test_reader() {
         }
         package {
             name "js/foo"
-            version "0.0.0"
+            version "1.2.3"
             description "The foo package."
-            files [ "**/src/**/*.rs" "!**/src/*.rs" ]
+            license "MIT"
+            files [ "!test/**" ]
         }
     "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e))
     );
