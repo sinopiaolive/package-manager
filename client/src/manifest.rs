@@ -61,7 +61,7 @@ impl Manifest {
                     pos: manifest_pair.clone().into_span().end_pos(),
                 }
             })?;
-        let block_pair = Arguments::from_pair(package_arguments_pair, 0, 0, Some(true))?
+        let block_pair = Arguments::from_pair(package_arguments_pair, 0, 0, &[], Some(true))?
             .block.expect("validated block presence");
 
         check_block_fields(
@@ -202,7 +202,7 @@ pub fn get_dependencies(manifest_pair: Pair)
 {
     let mut depset = Dependencies::new();
     for (package_name_pair, arguments_pair) in get_optional_block_field(manifest_pair, "dependencies")? {
-        let arguments = Arguments::from_pair(arguments_pair, 0, 2, Some(false))?;
+        let arguments = Arguments::from_pair(arguments_pair, 0, 2, &[], Some(false))?;
         let (package_name, version_constraint) =
             make_dependency(package_name_pair.clone(), arguments.positional_arguments)?;
         if depset.contains_key(&package_name) {

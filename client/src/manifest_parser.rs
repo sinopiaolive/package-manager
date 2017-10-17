@@ -26,19 +26,38 @@ pub fn parse_manifest(manifest_source: String)
     Ok(manifest_pair)
 }
 
-// Check that there are no unexpected or duplicate fields.
+/// Check that there are no unexpected or duplicate fields.
 pub fn check_block_fields(block_pair: Pair, fields: &'static [&'static str])
     -> Result<(), Error>
 {
-    let mut seen = vec![false; fields.len()];
-    'pair_loop: for (symbol_pair, _arguments_pair) in get_fields(block_pair) {
-        let symbol = symbol_pair.as_str();
-        for i in 0..fields.len() {
-            if symbol == fields[i] {
+    let symbol_pairs = get_fields(block_pair).into_iter().map(|(symbol_pair, _arguments_pair)| symbol_pair).collect::<Vec<_>>();
+    check_keys(&symbol_pairs, "field", fields)
+}
+
+/// Check that there are no unexpected or duplicate options.
+pub fn check_option_names(options_pair: Pair, names: &'static [&'static str])
+    -> Result<(), Error>
+{
+    let name_pairs = children(options_pair, Rule::option)
+        .into_iter().map(|option_pair| find_rule(option_pair, Rule::option_name))
+        .collect::<Vec<_>>();
+    check_keys(&name_pairs, "option", names)
+}
+
+// Helper function for block and option checking. `element_type` is "field" or
+// "option".
+fn check_keys(name_pairs: &[Pair], element_type: &'static str, names: &'static [&'static str])
+    -> Result<(), Error>
+{
+    let mut seen = vec![false; names.len()];
+    'pair_loop: for name_pair in name_pairs {
+        let name = name_pair.as_str();
+        for i in 0..names.len() {
+            if name == names[i] {
                 if seen[i] {
                     return Err(pest::Error::CustomErrorSpan {
-                        message: "Duplicate field".to_string(),
-                        span: symbol_pair.clone().into_span(),
+                        message: format!("Duplicate {}", element_type),
+                        span: name_pair.clone().into_span(),
                     })
                 } else {
                     seen[i] = true;
@@ -47,11 +66,39 @@ pub fn check_block_fields(block_pair: Pair, fields: &'static [&'static str])
             }
         }
         return Err(pest::Error::CustomErrorSpan {
-            message: "Unexpected field".to_string(),
-            span: symbol_pair.clone().into_span(),
+            message: format!("Unexpected {}", element_type),
+            span: name_pair.clone().into_span(),
         });
     }
     Ok(())
+}
+
+pub fn get_option(options_pair: Pair, name: &'static str)
+    -> Option<Pair>
+{
+    for option_pair in children(options_pair, Rule::option) {
+        if find_rule(option_pair.clone(), Rule::option_name).as_str() == name {
+            return Some(option_pair)
+        }
+    }
+    None
+}
+
+pub fn get_flag_option(options_pair: Pair, name: &'static str)
+    -> Result<bool, Error>
+{
+    if let Some(option_pair) = get_option(options_pair, name) {
+        if find_optional_rule(option_pair.clone(), Rule::option_value).is_some() {
+            Err(pest::Error::CustomErrorSpan {
+                message: "Unexpected value".to_string(),
+                span: find_rule(option_pair, Rule::equal).into_span(),
+            })
+        } else {
+            Ok(true)
+        }
+    } else {
+        Ok(false)
+    }
 }
 
 // Return an arguments pair or an error if the field is missing.
@@ -86,8 +133,7 @@ pub fn get_optional_field(
 pub struct Arguments {
     pub positional_arguments_pair: Pair,
     pub positional_arguments: Vec<Pair>,
-    // pub options_pair: Pair,
-    // pub options: ...
+    pub options: Pair,
     pub block: Option<Pair>
 }
 
@@ -96,7 +142,7 @@ impl Arguments {
     pub fn get_single(arguments_pair: Pair)
         -> Result<Pair, Error>
     {
-        let arguments = Arguments::from_pair(arguments_pair, 1, 1, Some(false))?;
+        let arguments = Arguments::from_pair(arguments_pair, 1, 1, &[], Some(false))?;
         Ok(arguments.positional_arguments[0].clone())
     }
 
@@ -106,8 +152,9 @@ impl Arguments {
     pub fn from_pair(
         arguments_pair: Pair,
         min_positional_arguments: usize, max_positional_arguments: usize,
+        expect_options: &'static [&'static str],
         expect_block: Option<bool>
-        ) -> Result<Self, Error>
+        ) -> Result<Arguments, Error>
     {
         let positional_arguments_pair = find_rule(arguments_pair.clone(), Rule::positional_arguments);
         let positional_arguments = children(positional_arguments_pair.clone(), Rule::positional_argument);
@@ -137,6 +184,9 @@ impl Arguments {
             }
         }
 
+        let options_pair = find_rule(arguments_pair.clone(), Rule::options);
+        check_option_names(options_pair.clone(), expect_options)?;
+
         let maybe_block = find_optional_rule(arguments_pair.clone(), Rule::block);
         match expect_block {
             None => { }
@@ -161,6 +211,7 @@ impl Arguments {
         Ok(Arguments {
             positional_arguments_pair,
             positional_arguments,
+            options: options_pair,
             block: maybe_block,
         })
     }
@@ -172,7 +223,7 @@ pub fn get_optional_block_field(
 {
     get_optional_field(block_pair, field_name)
         .map_or(Ok(vec![]), |arguments_pair| {
-            let arguments = Arguments::from_pair(arguments_pair, 0, 0, Some(true))?;
+            let arguments = Arguments::from_pair(arguments_pair, 0, 0, &[], Some(true))?;
             Ok(get_fields(arguments.block.expect("validated block presence")))
         })
 }

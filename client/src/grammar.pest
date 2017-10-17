@@ -89,7 +89,26 @@ options = {
 }
 
 option = {
-    "TODO implement option"
+    option_name
+    ~ (
+        maybe_ws
+        ~ equal
+        ~ maybe_ws
+        ~ option_value
+    )?
+}
+
+option_name = @{
+    !('0'..'9')
+    ~ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")+
+}
+
+option_value = {
+    string | list
+}
+
+equal = {
+    "="
 }
 
 positional_argument = {
