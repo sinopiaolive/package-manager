@@ -12,51 +12,43 @@ maybe_ws = @{ ws_char* }
 comment_ = @{ "//" ~ non_control_char* }
 
 
-manifest = {
-    (blank_line ~ newline)*
-    ~ pm_version_tag
-    ~ (newline ~ manifest_entry)*
-}
-
-manifest_entry = { metadata_section | dependencies_section | blank_line }
 
 manifest_eof = { manifest ~ eof }
 
-blank_line = @{ maybe_ws ~ comment_? }
-
-
-// We want to do a two-pass parse here. In the first pass, gobble up anything
-// that looks like a version and report errors. In the second pass, parse the
-// rest.
-pm_version_tag = { maybe_ws ~ "pm" ~ ws ~ "1.0" ~ maybe_ws ~ comment_? }
-
-dependencies_section = {
-    maybe_ws ~ "dependencies" ~ maybe_ws ~ block ~ maybe_ws ~ comment_?
-}
-
-dependencies_opening_line = {
-    maybe_ws ~ "dependencies" ~ maybe_ws ~ "{" ~ maybe_ws ~ comment_?
-}
-
-dependencies_closing_line = {
-    maybe_ws ~ "}" ~ maybe_ws ~ comment_?
-}
-
-metadata_section = {
-    maybe_ws ~ "package" ~ maybe_ws ~ block ~ maybe_ws ~ comment_?
+manifest = {
+    fields_not_newline_terminated
 }
 
 block = {
     "{" ~ maybe_ws ~ comment_? ~ newline
-    ~ block_entry*
+    ~ fields_newline_terminated
     ~ maybe_ws ~ "}"
 }
 
-block_entry = {
+fields_not_newline_terminated = {
+    // Note that since blank_line matches "", this rule matches ""
     (field | blank_line)
-    ~ newline
-
+    ~ (
+        newline
+        ~ (field | blank_line)
+    )*
 }
+
+fields_newline_terminated = {
+    (
+        (field | blank_line) ~ newline
+    )*
+}
+
+fields = {
+    (field | blank_line)
+    ~ (
+        newline
+        ~ (field | blank_line)
+    )*
+}
+
+blank_line = @{ maybe_ws ~ comment_? }
 
 version_constraint_component = {
     ("^" | ">=" | "<" | "")
@@ -97,7 +89,7 @@ options = {
 }
 
 option = {
-    "TODO"
+    "TODO implement option"
 }
 
 positional_argument = {

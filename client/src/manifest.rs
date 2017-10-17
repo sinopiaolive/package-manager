@@ -9,9 +9,13 @@ use pm_lib::package::PackageName;
 use pm_lib::constraint::VersionConstraint;
 use pm_lib::version::Version;
 use pm_lib::index::Dependencies;
-use manifest_parser::{Pair, Rule, Arguments, parse_manifest, find_section_pairs, find_rule, children,
-                      get_fields, get_field, check_block_fields, get_single_argument,
-                      get_string, get_optional_list_field, get_optional_string_field};
+use manifest_parser::{
+    Pair, Rule, Arguments,
+    parse_manifest,
+    get_field, check_block_fields,
+    get_optional_field, get_optional_block_field, get_optional_list_field, get_optional_string_field,
+    get_string,
+};
 
 use error::Error;
 
@@ -39,7 +43,7 @@ pub struct Manifest {
 
 impl Manifest {
     pub fn from_str(manifest_source: String, root: &Path) -> Result<Self, Error> {
-        let manifest_pair = parse_manifest(manifest_source)?;
+        let manifest_pair = parse_and_check_manifest(manifest_source)?;
 
         Ok(Self::from_manifest_pair(manifest_pair, root)?)
     }
@@ -47,16 +51,18 @@ impl Manifest {
     pub fn from_manifest_pair(manifest_pair: Pair, root: &Path) -> Result<Self, Error> {
         let dependencies = get_dependencies(manifest_pair.clone())?;
 
-        let (_maybe_dependencies_block_pair, maybe_metadata_block_pair) =
-            find_section_pairs(manifest_pair.clone())?;
-
-        let block_pair = maybe_metadata_block_pair.ok_or_else(|| {
-            pest::Error::CustomErrorPos {
-                message: "A `package { ... }` section is required to publish this package"
-                    .to_string(),
-                pos: manifest_pair.clone().into_span().end_pos(),
-            }
-        })?;
+        let package_arguments_pair = get_optional_field(manifest_pair.clone(), "package")
+            .ok_or_else(|| {
+                // We use get_optional_field and .ok_or_else to produce a
+                // clearer error message.
+                pest::Error::CustomErrorPos {
+                    message: "A `package { ... }` section is required to publish this package"
+                        .to_string(),
+                    pos: manifest_pair.clone().into_span().end_pos(),
+                }
+            })?;
+        let block_pair = Arguments::from_pair(package_arguments_pair, 0, 0, Some(true))?
+            .block.expect("validated block presence");
 
         check_block_fields(
             block_pair.clone(),
@@ -78,7 +84,7 @@ impl Manifest {
         )?;
 
         let name = {
-            let name_pair = get_single_argument(get_field(block_pair.clone(), "name")?)?;
+            let name_pair = Arguments::get_single(get_field(block_pair.clone(), "name")?)?;
 
             let name_string = get_string(name_pair.clone())?;
             PackageName::from_str(&name_string).ok_or_else(|| {
@@ -90,7 +96,7 @@ impl Manifest {
         };
 
         let version = {
-            let version_pair = get_single_argument(get_field(block_pair.clone(), "version")?)?;
+            let version_pair = Arguments::get_single(get_field(block_pair.clone(), "version")?)?;
             let version_string = get_string(version_pair.clone())?;
             Version::from_str(&version_string).ok_or_else(|| {
                 pest::Error::CustomErrorSpan {
@@ -100,7 +106,7 @@ impl Manifest {
             })?
         };
 
-        let description = get_string(get_single_argument(get_field(block_pair.clone(), "description")?)?)?;
+        let description = get_string(Arguments::get_single(get_field(block_pair.clone(), "description")?)?)?;
 
         let homepage = get_optional_string_field(block_pair.clone(), "homepage")?;
         let repository = get_optional_string_field(block_pair.clone(), "repository")?;
@@ -146,7 +152,7 @@ impl Manifest {
                     // We should try to preserve the structure here rather than
                     // stringifying it.
                     return Err(Error::from(pest::Error::CustomErrorSpan {
-                        message: format!("{}", glob_error).to_string(),
+                        message: format!("{}", glob_error),
                         span: glob_pair.clone().into_span(),
                     }));
                 }
@@ -177,27 +183,35 @@ impl Manifest {
     }
 }
 
+pub fn parse_and_check_manifest(manifest_source: String)
+    -> Result<Pair, Error>
+{
+    let manifest_pair = parse_manifest(manifest_source)?;
+
+    check_block_fields(manifest_pair.clone(), &[
+        "pm", // TODO do something with this version tag (if present)
+        "dependencies",
+        "package"
+    ])?;
+
+    Ok(manifest_pair)
+}
 
 pub fn get_dependencies(manifest_pair: Pair)
     -> Result<Dependencies, Error>
 {
-    let (maybe_dependencies_block_pair, _) =
-        find_section_pairs(manifest_pair)?;
-
     let mut depset = Dependencies::new();
-    if let Some(dependencies_block_pair) = maybe_dependencies_block_pair {
-        for (package_name_pair, arguments_pair) in get_fields(dependencies_block_pair) {
-            let arguments = Arguments::from_pair(arguments_pair, 0, 2)?;
-            let (package_name, version_constraint) =
-                make_dependency(package_name_pair.clone(), arguments.positional_arguments)?;
-            if depset.contains_key(&package_name) {
-                return Err(Error::from(pest::Error::CustomErrorSpan {
-                    message: "Duplicate dependency".to_string(),
-                    span: package_name_pair.into_span(),
-                }));
-            }
-            depset.insert(package_name, version_constraint);
+    for (package_name_pair, arguments_pair) in get_optional_block_field(manifest_pair, "dependencies")? {
+        let arguments = Arguments::from_pair(arguments_pair, 0, 2, Some(false))?;
+        let (package_name, version_constraint) =
+            make_dependency(package_name_pair.clone(), arguments.positional_arguments)?;
+        if depset.contains_key(&package_name) {
+            return Err(Error::from(pest::Error::CustomErrorSpan {
+                message: "Duplicate dependency".to_string(),
+                span: package_name_pair.into_span(),
+            }));
         }
+        depset.insert(package_name, version_constraint);
     }
     Ok(depset)
 }
@@ -245,20 +259,19 @@ pub fn test_reader() {
     println!(
         "release: {:?}",
         Manifest::from_str(r#"
-        pm 1.0
-        dependencies {
-            js/left-pad ^1.2.3 // foo
-            // bar
-            js/right-pad >=4.5.6 <5.0.0
-        }
-        package {
-            name "js/foo"
-            version "1.2.3"
-            description "The foo package."
-            license "MIT"
-            files [ "!test/**" ]
-        }
-    "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e))
+            dependencies {
+                js/left-pad ^1.2.3 // foo
+                // bar
+                js/right-pad >=4.5.6 <5.0.0
+            }
+            package {
+                name "js/foo"
+                version "1.2.3"
+                description "The foo package."
+                license "MIT"
+                files [ "!test/**" ]
+            } // commment
+        "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e))
     );
 }
 

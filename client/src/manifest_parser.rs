@@ -20,9 +20,8 @@ pub fn parse_manifest(manifest_source: String)
     -> Result<Pair, Error>
 {
     let parser_input = ::std::rc::Rc::new(::pest::inputs::StringInput::new(manifest_source));
-    let pairs = ManifestParser::parse(Rule::manifest_eof, parser_input)?;
-
-    let manifest_eof_pair = find_rule_in_pairs(pairs, Rule::manifest_eof);
+    let mut pairs = ManifestParser::parse(Rule::manifest_eof, parser_input)?;
+    let manifest_eof_pair = pairs.next().expect("returns exactly one pair");
     let manifest_pair = find_rule(manifest_eof_pair, Rule::manifest);
     Ok(manifest_pair)
 }
@@ -64,7 +63,7 @@ pub fn get_field(
     get_optional_field(block_pair.clone(), field_name)
         .ok_or_else(||
             pest::Error::CustomErrorSpan {
-                message: format!("Missing field: {}", field_name).to_string(),
+                message: format!("Missing field: {}", field_name),
                 // We probably want to report this on the line following the
                 // opening brace instead.
                 span: block_pair.into_span(),
@@ -84,35 +83,40 @@ pub fn get_optional_field(
     None
 }
 
-pub fn get_single_argument(arguments_pair: Pair)
-    -> Result<Pair, Error>
-{
-    let arguments = Arguments::from_pair(arguments_pair, 1, 1)?;
-    Ok(arguments.positional_arguments[0].clone())
-}
-
 pub struct Arguments {
     pub positional_arguments_pair: Pair,
     pub positional_arguments: Vec<Pair>,
     // pub options_pair: Pair,
     // pub options: ...
-    // pub block: Option<Pair>
+    pub block: Option<Pair>
 }
 
 impl Arguments {
+    /// Get a single positional argument.
+    pub fn get_single(arguments_pair: Pair)
+        -> Result<Pair, Error>
+    {
+        let arguments = Arguments::from_pair(arguments_pair, 1, 1, Some(false))?;
+        Ok(arguments.positional_arguments[0].clone())
+    }
+
+    /// Create an `Arguments` instance from `arguments_pair`, validating that
+    /// the right number of arguments is supplied. If `expect_block` is `None`,
+    /// the block is optional.
     pub fn from_pair(
         arguments_pair: Pair,
         min_positional_arguments: usize, max_positional_arguments: usize,
+        expect_block: Option<bool>
         ) -> Result<Self, Error>
     {
-        let positional_arguments_pair = find_rule(arguments_pair, Rule::positional_arguments);
+        let positional_arguments_pair = find_rule(arguments_pair.clone(), Rule::positional_arguments);
         let positional_arguments = children(positional_arguments_pair.clone(), Rule::positional_argument);
 
         if min_positional_arguments == max_positional_arguments {
             if positional_arguments.len() != min_positional_arguments {
                 return Err(Error::from(pest::Error::CustomErrorSpan {
                     message: format!("Expected {} argument(s), found {}",
-                        min_positional_arguments, positional_arguments.len()).to_string(),
+                        min_positional_arguments, positional_arguments.len()),
                     span: positional_arguments_pair.into_span()
                 }));
             }
@@ -120,24 +124,57 @@ impl Arguments {
             if !(positional_arguments.len() >= min_positional_arguments) {
                 return Err(Error::from(pest::Error::CustomErrorSpan {
                     message: format!("Expected at least {} argument(s), found {}",
-                        min_positional_arguments, positional_arguments.len()).to_string(),
+                        min_positional_arguments, positional_arguments.len()),
                     span: positional_arguments_pair.into_span()
                 }));
             }
             if !(positional_arguments.len() <= max_positional_arguments) {
                 return Err(Error::from(pest::Error::CustomErrorSpan {
                     message: format!("Expected at most {} argument(s), found {}",
-                        min_positional_arguments, positional_arguments.len()).to_string(),
+                        min_positional_arguments, positional_arguments.len()),
                     span: positional_arguments_pair.into_span(),
                 }));
             }
         }
 
+        let maybe_block = find_optional_rule(arguments_pair.clone(), Rule::block);
+        match expect_block {
+            None => { }
+            Some(true) => {
+                if maybe_block.is_none() {
+                    return Err(Error::from(pest::Error::CustomErrorPos {
+                        message: "Expected `{`".to_string(),
+                        pos: arguments_pair.into_span().end_pos(),
+                    }));
+                }
+            },
+            Some(false) => {
+                if let Some(block) = maybe_block {
+                    return Err(Error::from(pest::Error::CustomErrorSpan {
+                        message: "Unexpected block".to_string(),
+                        span: block.into_span(),
+                    }));
+                }
+            },
+        }
+
         Ok(Arguments {
             positional_arguments_pair,
             positional_arguments,
+            block: maybe_block,
         })
     }
+}
+
+pub fn get_optional_block_field(
+    block_pair: Pair, field_name: &'static str)
+    -> Result<Vec<(Pair, Pair)>, Error>
+{
+    get_optional_field(block_pair, field_name)
+        .map_or(Ok(vec![]), |arguments_pair| {
+            let arguments = Arguments::from_pair(arguments_pair, 0, 0, Some(true))?;
+            Ok(get_fields(arguments.block.expect("validated block presence")))
+        })
 }
 
 pub fn get_optional_list_field(
@@ -146,7 +183,7 @@ pub fn get_optional_list_field(
 {
     get_optional_field(block_pair, field_name)
         .map_or(Ok(vec![]), |arguments_pair| {
-            let argument_pair = get_single_argument(arguments_pair)?;
+            let argument_pair = Arguments::get_single(arguments_pair)?;
             Ok(get_list(argument_pair)?)
         })
 }
@@ -156,22 +193,20 @@ pub fn get_optional_string_field(block_pair: Pair, field_name: &'static str)
 {
     get_optional_field(block_pair, field_name)
         .map_or(Ok(None), |arguments_pair| {
-            let argument_pair = get_single_argument(arguments_pair)?;
+            let argument_pair = Arguments::get_single(arguments_pair)?;
             Ok(Some(get_string(argument_pair)?))
         })
 }
 
 pub fn get_fields(block_pair: Pair) -> Vec<(Pair, Pair)> {
-    let mut v = Vec::new();
-    for block_entry in children(block_pair, Rule::block_entry) {
-        if let Some(field) = maybe_find_rule(block_entry, Rule::field) {
-            v.push((
-                find_rule(field.clone(), Rule::symbol),
-                find_rule(field.clone(), Rule::arguments)
-            ));
-        }
-    }
-    v
+    let fields_pair = find_optional_rule(block_pair.clone(), Rule::fields_newline_terminated)
+        .unwrap_or_else(|| find_rule(block_pair.clone(), Rule::fields_not_newline_terminated));
+    children(fields_pair, Rule::field).into_iter().map(|field|
+        (
+            find_rule(field.clone(), Rule::symbol),
+            find_rule(field.clone(), Rule::arguments)
+        )
+    ).collect()
 }
 
 pub fn get_string(pair: Pair) -> Result<String, Error> {
@@ -239,37 +274,6 @@ pub fn parse_string(string_pair: Pair) -> Result<String, Error> {
     Ok(s)
 }
 
-pub fn find_section_pairs(manifest_pair: Pair)
-    -> Result<(Option<Pair>, Option<Pair>), Error> {
-    let mut maybe_dependencies_block_pair: Option<Pair> = None;
-    let mut maybe_metadata_block_pair: Option<Pair> = None;
-    for pair in children(manifest_pair, Rule::manifest_entry) {
-        for pair in pair.into_inner() { // only 1 child
-            if pair.as_rule() == Rule::dependencies_section {
-                if maybe_dependencies_block_pair.is_some() {
-                    return Err(pest::Error::CustomErrorSpan {
-                        message: "Duplicate \"dependencies\" section".to_string(),
-                        span: pair.into_span(),
-                    })
-                } else {
-                    maybe_dependencies_block_pair = Some(find_rule(pair, Rule::block));
-                }
-            } else if pair.as_rule() == Rule::metadata_section {
-                if maybe_metadata_block_pair.is_some() {
-                    return Err(pest::Error::CustomErrorSpan {
-                        message: "Duplicate \"package\" section".to_string(),
-                        span: pair.into_span(),
-                    })
-                } else {
-                    maybe_metadata_block_pair = Some(find_rule(pair, Rule::block));
-                }
-            }
-        }
-    }
-    Ok((maybe_dependencies_block_pair, maybe_metadata_block_pair))
-}
-
-
 pub fn children(pair: Pair, rule: Rule) -> Vec<Pair> {
     children_of_pairs(pair.into_inner(), rule)
 }
@@ -279,21 +283,14 @@ pub fn children_of_pairs(pairs: Pairs, rule: Rule) -> Vec<Pair> {
 }
 
 pub fn find_rule(pair: Pair, rule: Rule) -> Pair {
-    let pairs = pair.into_inner();
-    find_rule_in_pairs(pairs, rule)
-}
-
-pub fn maybe_find_rule(pair: Pair, rule: Rule) -> Option<Pair> {
-    let pairs = pair.into_inner();
-    maybe_find_rule_in_pairs(pairs, rule)
-}
-
-pub fn find_rule_in_pairs(mut pairs: Pairs, rule: Rule) -> Pair {
-    maybe_find_rule_in_pairs(pairs, rule)
-        .expect(&format!("No child matching rule {:?}", rule)) // TODO closure me
+    find_optional_rule(pair, rule)
+        .unwrap_or_else(||
+            // Closure makes error message formatting lazy.
+            panic!("No child matches rule {:?}", rule)
+        )
 
 }
 
-pub fn maybe_find_rule_in_pairs(mut pairs: Pairs, rule: Rule) -> Option<Pair> {
-    pairs.find(|pair| pair.as_rule() == rule)
+pub fn find_optional_rule(pair: Pair, rule: Rule) -> Option<Pair> {
+    pair.into_inner().find(|child_pair| child_pair.as_rule() == rule)
 }
