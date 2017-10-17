@@ -7,6 +7,8 @@ use diesel::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::expression::dsl::now;
 use diesel::pg::expression::extensions::MicroIntervalDsl;
+use diesel::result::Error::DatabaseError;
+use diesel::result::DatabaseErrorKind::UniqueViolation;
 
 use data_encoding::BASE64;
 
@@ -182,10 +184,17 @@ impl Store {
 
     pub fn add_release(&self, release: &Release) -> Res<()> {
         let db = self.db()?;
-        diesel::insert(release)
+        match diesel::insert(release)
             .into(package_releases::table)
-            .execute(&db)?;
-        Ok(())
+            .execute(&db) {
+            Ok(_) => Ok(()),
+            Err(DatabaseError(UniqueViolation, _)) => Err(Error::ReleaseAlreadyExists(
+                release.namespace.clone(),
+                release.name.clone(),
+                release.version.clone(),
+            )),
+            Err(e) => Err(Error::from(e)),
+        }
     }
 
     pub fn get_file(&self, namespace: &str, name: &str) -> Res<File> {

@@ -1,5 +1,5 @@
 #![allow(unused_features)]
-#![feature(plugin,test)]
+#![feature(specialization, plugin, test)]
 
 extern crate docopt;
 extern crate serde;
@@ -23,12 +23,12 @@ extern crate futures;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
-extern crate colored;
-extern crate term_size;
 extern crate glob;
 extern crate git2;
 extern crate tar;
 extern crate brotli;
+extern crate console;
+extern crate indicatif;
 #[cfg(test)]
 extern crate test;
 
@@ -46,6 +46,7 @@ mod solver;
 mod manifest_parser;
 mod git;
 mod files;
+mod io;
 
 use std::process;
 use docopt::Docopt;

@@ -16,9 +16,9 @@ pub struct Args {}
 
 
 pub fn execute(_args: Args) -> Result<(), Error> {
-    match registry::get_auth("test", map!{}) {
+    match registry::get_auth::<String>("test", map!{})? {
         Ok(_) => println!("You are logged in with a valid auth token."),
-        Err(msg) => println!("Registry response: {}", msg)
+        Err(msg) => println!("Registry response: {}", msg),
     };
     Ok(())
 }

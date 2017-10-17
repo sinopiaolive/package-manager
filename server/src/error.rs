@@ -1,10 +1,11 @@
 use std::env;
+use std::io::Cursor;
 use serde_json;
 use rmp_serde;
 use reqwest;
 use data_encoding;
 use url;
-use rocket::http::Status;
+use rocket::http::{Status, ContentType};
 use rocket::response::{Response, Responder};
 use rocket::request::Request;
 use diesel;
@@ -95,7 +96,15 @@ quick_error! {
         InvalidArtifact(reason: &'static str) {
             display("Invalid upload artifact: {}", reason)
         }
+        ReleaseAlreadyExists(namespace: String, name: String, version: String) {
+            display("This release already exists: {}/{}-{}", namespace, name, version)
+        }
     }
+}
+
+#[derive(Serialize)]
+struct ServerError {
+    message: String,
 }
 
 impl<'a> Responder<'a> for Error {
@@ -104,8 +113,18 @@ impl<'a> Responder<'a> for Error {
             Error::Status(code) => Err(code),
             // TODO real logging?
             _ => {
-                println!("error: {:?}", &self);
-                Err(Status::InternalServerError)
+                println!("error: {:?}", self);
+                let data = serde_json::to_vec(&ServerError { message: format!("{}", self) })
+                    .unwrap_or(
+                        "{message:\"an error occurred but I couldn't serialise it for you\"}"
+                            .as_bytes()
+                            .to_owned(),
+                    );
+                Response::build()
+                    .status(Status::InternalServerError)
+                    .header(ContentType::JSON)
+                    .sized_body(Cursor::new(data))
+                    .ok()
             }
         }
     }
