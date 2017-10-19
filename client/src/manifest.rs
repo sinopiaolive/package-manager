@@ -12,7 +12,7 @@ use pm_lib::index::Dependencies;
 use manifest_parser::{
     Pair, Rule, Arguments,
     parse_manifest,
-    get_field, check_block_fields,
+    get_fields, get_field, check_block_fields,
     get_optional_field, get_optional_block_field, get_optional_list_field, get_optional_string_field,
     get_string,
 };
@@ -137,29 +137,8 @@ impl Manifest {
             }
         };
 
-        let mut file_collection = FileCollection::new(root.to_path_buf())?;
-        let git_scm_provider = GitScmProvider::new(root)?;
-        // git_scm_provider.check_repo_is_pristine()?;
-        for committed_file in git_scm_provider.ls_files()? {
-            file_collection.add_file(committed_file)?;
-        }
-        for glob_pair in get_optional_list_field(block_pair.clone(), "files")?
-            .into_iter()
-        {
-            let glob = get_string(glob_pair.clone())?;
-            match file_collection.process_glob(&glob) {
-                Err(glob_error) => {
-                    // We should try to preserve the structure here rather than
-                    // stringifying it.
-                    return Err(Error::from(pest::Error::CustomErrorSpan {
-                        message: format!("{}", glob_error),
-                        span: glob_pair.clone().into_span(),
-                    }));
-                }
-                Ok(()) => { }
-            }
-        }
-        let files = file_collection.get_selected_files();
+        let files_block = Arguments::get_block(get_field(block_pair.clone(), "files")?)?;
+        let files = evaluate_files_block(files_block, root)?;
 
         Ok(Manifest {
             name: name,
@@ -253,6 +232,60 @@ pub fn make_dependency(
     Ok((package_name, version_constraint))
 }
 
+pub fn evaluate_files_block(files_block_pair: Pair, root: &Path)
+    -> Result<Vec<String>, Error>
+{
+    let mut file_collection = FileCollection::new(root.to_path_buf())?;
+    for (symbol_pair, arguments_pair) in get_fields(files_block_pair) {
+        match symbol_pair.as_str() {
+            "git" => {
+                Arguments::from_pair(arguments_pair, 0, 0, &[], Some(false))?;
+                let git_scm_provider = GitScmProvider::new(root)?;
+                git_scm_provider.check_repo_is_pristine()?;
+                for committed_file in git_scm_provider.ls_files()? {
+                    file_collection.add_file(committed_file)?;
+                }
+            }
+            "add" => {
+                let glob_pair = Arguments::get_single(arguments_pair)?;
+                let glob = get_string(glob_pair.clone())?;
+
+                match file_collection.add(&glob) {
+                    Err(glob_error) => {
+                        // We should try to preserve the structure here rather than
+                        // stringifying it.
+                        return Err(Error::from(pest::Error::CustomErrorSpan {
+                            message: format!("{}", glob_error),
+                            span: glob_pair.into_span(),
+                        }));
+                    }
+                    Ok(()) => { }
+                }
+            }
+            "ignore" => {
+                let glob_pair = Arguments::get_single(arguments_pair)?;
+                let glob = get_string(glob_pair.clone())?;
+
+                match file_collection.remove(&glob) {
+                    Err(glob_error) => {
+                        return Err(Error::from(pest::Error::CustomErrorSpan {
+                            message: format!("{}", glob_error),
+                            span: glob_pair.into_span(),
+                        }));
+                    }
+                    Ok(()) => { }
+                }
+            }
+            _ => {
+                return Err(Error::from(pest::Error::CustomErrorSpan {
+                    message: "Expected `add`, `ignore` or `git`".to_string(),
+                    span: symbol_pair.into_span(),
+                }));
+            }
+        }
+    }
+    Ok(file_collection.get_selected_files())
+}
 
 
 pub fn test_reader() {
@@ -269,7 +302,11 @@ pub fn test_reader() {
                 version "1.2.3"
                 description "The foo package."
                 license "MIT"
-                files [ "!test/**" ]
+                files {
+                    // git
+                    add "**/*.rs"
+                    // ignore "test/**"
+                }
             } // commment
         "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e))
     );

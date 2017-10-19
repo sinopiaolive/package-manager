@@ -138,12 +138,20 @@ pub struct Arguments {
 }
 
 impl Arguments {
-    /// Get a single positional argument.
+    /// Get a single positional argument (without any other arguments).
     pub fn get_single(arguments_pair: Pair)
         -> Result<Pair, Error>
     {
         let arguments = Arguments::from_pair(arguments_pair, 1, 1, &[], Some(false))?;
         Ok(arguments.positional_arguments[0].clone())
+    }
+
+    /// Get a block (without any other arguments).
+    pub fn get_block(arguments_pair: Pair)
+        -> Result<Pair, Error>
+    {
+        let arguments = Arguments::from_pair(arguments_pair, 0, 0, &[], Some(true))?;
+        Ok(arguments.block.expect("validated block presence"))
     }
 
     /// Create an `Arguments` instance from `arguments_pair`, validating that
@@ -159,6 +167,10 @@ impl Arguments {
         let positional_arguments_pair = find_rule(arguments_pair.clone(), Rule::positional_arguments);
         let positional_arguments = children(positional_arguments_pair.clone(), Rule::positional_argument);
 
+        // TODO: Rework into going argument-by-argument, then reporting:
+        // Expected argument
+        // Unexpected argument
+        // Expected block
         if min_positional_arguments == max_positional_arguments {
             if positional_arguments.len() != min_positional_arguments {
                 return Err(Error::from(pest::Error::CustomErrorSpan {

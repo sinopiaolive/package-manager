@@ -126,9 +126,9 @@ package {
 
   files {
     git
-    add "src/generated/*.rs"
-    add "src/generated/*.rs"
-    ignore "vendor"
+    add "src/**/*.rs"
+    add "vendor/**/*.rs"
+    ignore "vendor/foo"
   }
 
   registry "internal.google.com"
