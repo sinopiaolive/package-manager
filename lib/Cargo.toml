@@ -1,16 +1,19 @@
 [package]
-authors = ["Bodil Stokke <bodil@bodil.org>", "Jo Liss <joliss42@gmail.com>"]
+authors = [
+    "Bodil Stokke <bodil@bodil.org>",
+    "Jo Liss <joliss42@gmail.com>",
+]
 name = "pm_lib"
 version = "0.0.0"
+
+[dependencies]
+nom = "2.2.1"
+quick-error = "1.2.1"
+rmp-serde = "0.13.7"
+serde = "1.0.15"
+serde_derive = "1.0.15"
+serde_json = "1.0.4"
 
 [lib]
 name = "pm_lib"
 path = "src/lib.rs"
-
-[dependencies]
-serde = "1.0"
-serde_derive = "1.0"
-nom = "2.2"
-quick-error = "1.2"
-rmp-serde = "0.13.3"
-serde_json = "1.0"

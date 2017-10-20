@@ -56,7 +56,7 @@ pub struct Gitlab {
 
 impl Gitlab {
     pub fn new() -> Res<Self> {
-        Ok(Gitlab { http: reqwest::Client::new()? })
+        Ok(Gitlab { http: reqwest::Client::new() })
     }
 
     #[allow(dead_code)]
@@ -66,10 +66,10 @@ impl Gitlab {
         B: DeserializeOwned,
     {
         Ok(self.http
-            .post(&format!("https://gitlab.com/api/v4/{}", url))?
+            .post(&format!("https://gitlab.com/api/v4/{}", url))
             .header(Accept(vec![qitem(APPLICATION_JSON)]))
             .header(Authorization(format!("Bearer {}", token)))
-            .form(payload)?
+            .form(payload)
             .send()?
             .json()?)
     }
@@ -79,7 +79,7 @@ impl Gitlab {
         B: DeserializeOwned,
     {
         Ok(self.http
-            .get(&format!("https://gitlab.com/api/v4/{}", url))?
+            .get(&format!("https://gitlab.com/api/v4/{}", url))
             .header(Accept(vec![qitem(APPLICATION_JSON)]))
             .header(Authorization(format!("Bearer {}", token)))
             .send()?
@@ -88,7 +88,7 @@ impl Gitlab {
 
     pub fn validate_callback(&self, code: &str) -> Res<OAuthToken> {
         Ok(self.http
-            .post("https://gitlab.com/oauth/token")?
+            .post("https://gitlab.com/oauth/token")
             .header(Accept(vec![qitem(APPLICATION_JSON)]))
             .form(&OAuthResponse {
                 client_id: GITLAB_CLIENT_ID.to_string(),
@@ -96,7 +96,7 @@ impl Gitlab {
                 code: code.to_string(),
                 grant_type: "authorization_code".to_string(),
                 redirect_uri: "http://localhost:8000/gitlab/callback".to_string(),
-            })?
+            })
             .send()?
             .json()?)
     }

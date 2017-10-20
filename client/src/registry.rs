@@ -47,11 +47,11 @@ where
     }
     let args_str = ser.finish();
 
-    let http = reqwest::Client::new()?;
+    let http = reqwest::Client::new();
     let mut req = http.request(
         method,
         &format!("http://localhost:8000/{}?{}", url, args_str),
-    )?;
+    );
     if auth {
         req.header(Authorization(format!("Bearer {}", read_auth()?)));
     }

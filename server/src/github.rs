@@ -61,7 +61,7 @@ pub struct Github {
 
 impl Github {
     pub fn new() -> Res<Self> {
-        Ok(Github { http: reqwest::Client::new()? })
+        Ok(Github { http: reqwest::Client::new() })
     }
 
     #[allow(dead_code)]
@@ -71,10 +71,10 @@ impl Github {
         B: DeserializeOwned,
     {
         Ok(self.http
-            .post(&format!("https://api.github.com/{}", url))?
+            .post(&format!("https://api.github.com/{}", url))
             .header(Accept(vec![qitem(APPLICATION_JSON)]))
             .header(Authorization(format!("token {}", token)))
-            .form(payload)?
+            .form(payload)
             .send()?
             .json()?)
     }
@@ -84,7 +84,7 @@ impl Github {
         B: DeserializeOwned,
     {
         Ok(self.http
-            .get(&format!("https://api.github.com/{}", url))?
+            .get(&format!("https://api.github.com/{}", url))
             .header(Accept(vec![qitem(APPLICATION_JSON)]))
             .header(Authorization(format!("token {}", token)))
             .send()?
@@ -95,7 +95,7 @@ impl Github {
     fn get_string(&self, url: &str, token: &str) -> Res<String> {
         let mut s = String::new();
         let mut res = self.http
-            .get(&format!("https://api.github.com/{}", url))?
+            .get(&format!("https://api.github.com/{}", url))
             .header(Accept(vec![qitem(APPLICATION_JSON)]))
             .header(Authorization(format!("token {}", token)))
             .send()?;
@@ -105,13 +105,13 @@ impl Github {
 
     pub fn validate_callback(&self, code: &str) -> Res<OAuthToken> {
         Ok(self.http
-            .post("https://github.com/login/oauth/access_token")?
+            .post("https://github.com/login/oauth/access_token")
             .header(Accept(vec![qitem(APPLICATION_JSON)]))
             .form(&OAuthResponse {
                 client_id: GITHUB_CLIENT_ID.to_string(),
                 client_secret: env::var("GITHUB_SECRET")?,
                 code: code.to_string(),
-            })?
+            })
             .send()?
             .json()?)
     }
