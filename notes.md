@@ -144,6 +144,10 @@ package {
 
 ## Things to implement before releasing v1
 
+We want to get a usable and demo-able pre-1.0 version to solicit feedback -- it
+needs to be usable mainly as a vendoring tool -- then implement the remaining
+things for 1.0, after which we want to keep breakage to a minimum.
+
 * [ ] Enforce file name and path length limitations ([Naming Files, Paths, and Namespaces (Windows)](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx))
 
 * [ ] Package dependency on PM version (supplied by registry, not by package).
