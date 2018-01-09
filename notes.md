@@ -148,6 +148,11 @@ package {
 
 * [ ] Package dependency on PM version (supplied by registry, not by package).
 
+* [ ] Virtual dependencies / engines
+
+    * 1 version (compiler)
+    * n versions (browser)
+    * the Package Manager itself?
 
 ## Things to plan for before releasing v1
 
@@ -163,12 +168,6 @@ sure we don't back ourselves into a corner. These features include:
 
 * [ ] Nested npm-style dependencies
 
-* [ ] Virtual dependencies / engines
-
-    * 1 version (compiler)
-    * n versions (browser)
-    * the Package Manager itself?
-
 * [ ] Git URLs
 
 * [ ] Local paths
@@ -178,11 +177,5 @@ sure we don't back ourselves into a corner. These features include:
     * for workspaces
 
 * [ ] Overriding dependencies (e.g. [Cargo's `[patch]` and `[replace]`](http://doc.crates.io/specifying-dependencies.html#overriding-dependencies))
-
-* [ ] Extensions for build tools (`search_paths`)
-
-* [ ] Versioning the manifest format (like [`rubygems_version`](http://guides.rubygems.org/specification-reference/#rubygems_version)?)
-
-* [ ] Using the Package Manager for installing binaries
 
 * [ ] That compatibility thing Jo is writing a blog post about
