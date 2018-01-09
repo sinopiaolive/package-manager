@@ -125,10 +125,17 @@ package {
   keywords []
 
   files {
-    git
-    add "src/**/*.rs"
-    add "vendor/**/*.rs"
-    ignore "vendor/foo"
+    // Add all files tracked by Git:
+    add_committed
+    // Alternatively, add only some of the files tracked by Git:
+    //add_committed "src/"
+    //add_committed "data/*.json"
+
+    // Add some files not in Git:
+    //add "src/generated/**/*.rs"
+
+    // But do not include the following:
+    //remove "vendor/"
   }
 
   registry "internal.google.com"
