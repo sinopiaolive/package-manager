@@ -182,4 +182,10 @@ sure we don't back ourselves into a corner. These features include:
 
 * [ ] Overriding dependencies (e.g. [Cargo's `[patch]` and `[replace]`](http://doc.crates.io/specifying-dependencies.html#overriding-dependencies))
 
+* [ ] Namespaces like npm's
+  `@babel/everything-here-is-reserved-for-the-babel-project`
+
+* [ ] Jo wants to try Nix (it's user-local and really cool);
+  also Guix is a Nix clone with a better-documented API language
+
 * [ ] That compatibility thing Jo is writing a blog post about
