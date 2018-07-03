@@ -1,7 +1,6 @@
 #![recursion_limit = "128"]
-#![feature(plugin, custom_derive, conservative_impl_trait)]
+#![feature(plugin, custom_derive)]
 #![plugin(rocket_codegen)]
-#![allow(resolve_trait_on_defaulted_unit)]
 
 extern crate rocket;
 extern crate serde;
