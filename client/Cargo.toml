@@ -11,32 +11,32 @@ name = "pm"
 path = "src/main.rs"
 
 [dependencies]
-brotli = "1.0.8"
-console = "0.5.0"
-data-encoding = "2.0.0-rc.2"
-docopt = "0.8.1"
-futures = "0.1.16"
+brotli = "2.5.0"
+console = "0.6.1"
+data-encoding = "2.1.1"
+docopt = "1.0.0"
+futures = "0.1.21"
 glob = "0.2.11"
-hyper = "0.11.6"
-im = "7.0.0"
-indicatif = "0.8.0"
-pest = "1.0.0-beta.15"
-pest_derive = "1.0.0-beta.15"
-quick-error = "1.2.1"
-rand = "0.3.17"
-reqwest = "0.8.0"
+hyper = "0.11.27" # needs update
+im = "7.1.0" # needs update
+indicatif = "0.9.0"
+pest = "=1.0.0-beta.17" # needs update
+pest_derive = "=1.0.0-beta.17" # needs update
+quick-error = "1.2.2"
+rand = "0.4.2" # needs update
+reqwest = "0.8.6"
 rmp-serde = "0.13.7"
-serde = "1.0.15"
-serde_derive = "1.0.15"
-serde_json = "1.0.4"
-tar = "0.4.13"
-toml = "0.4.5"
-url = "1.5.1"
-webbrowser = "0.2.2"
+serde = "1.0.69"
+serde_derive = "1.0.69"
+serde_json = "1.0.22"
+tar = "0.4.16"
+toml = "0.4.6"
+url = "1.7.0"
+webbrowser = "0.3.1"
 
 [dependencies.git2]
 default-features = false
-version = "0.6.8"
+version = "0.7.1"
 
 [dependencies.pm_lib]
 path = "../lib"

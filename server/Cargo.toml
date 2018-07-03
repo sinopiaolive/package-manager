@@ -7,35 +7,35 @@ name = "pm_server"
 version = "0.0.0"
 
 [dependencies]
-brotli = "1.2.0"
-data-encoding = "2.0.0-rc.2"
-dotenv = "0.10.1"
-quick-error = "1.2.1"
-reqwest = "0.8.0"
+brotli = "2.5.0"
+data-encoding = "2.1.1"
+dotenv = "0.13.0"
+quick-error = "1.2.2"
+reqwest = "0.8.6"
 rmp-serde = "0.13.7"
 rocket = "0.3.14"
 rocket_codegen = "0.3.14"
 rocket_contrib = "0.3.14"
-serde = "1.0.15"
-serde_derive = "1.0.15"
-serde_json = "1.0.4"
-tar = "0.4.13"
-url = "1.5.1"
+serde = "1.0.69"
+serde_derive = "1.0.69"
+serde_json = "1.0.22"
+tar = "0.4.16"
+url = "1.7.0"
 
 [dependencies.diesel]
 features = [
     "postgres",
     "large-tables",
 ]
-version = "0.16.0"
+version = "0.16.0" # needs update
 
 [dependencies.diesel_codegen]
 features = ["postgres"]
-version = "0.16.0"
+version = "0.16.1" # needs update
 
 [dependencies.im]
 features = ["serde"]
-version = "7.0.0"
+version = "7.1.0" # needs update
 
 [dependencies.pm_lib]
 path = "../lib"
