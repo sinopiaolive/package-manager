@@ -1,5 +1,6 @@
 /target
 .env
+/server/diesel.toml
 
 # Profiling
 /flamegraph.svg
