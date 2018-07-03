@@ -21,6 +21,11 @@ if test "$1" = --help -o "$1" = ""; then
     echo
     echo 'Note that if you omit the --bench argument for a benchmark, it will'
     echo 'run the inner loop only once, resulting in inaccurate profiling data.'
+    echo
+    echo 'Remember to put this in your Cargo.toml to get debug symbols:'
+    echo
+    echo '[profile.release]'
+    echo 'debug = true'
     exit 0
 fi
 
