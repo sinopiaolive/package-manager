@@ -18,8 +18,11 @@ localhost](https://gist.github.com/p1nox/4953113).
 Create a Postgres user. For local development, `postgres` should suffice:
 
 ```sh
-$ createuser postgres
+$ createuser postgres --createdb
 ```
+
+The `--createdb` option grants the `postgres` user permission to create and drop
+databases.
 
 Create a `registry` database:
 
