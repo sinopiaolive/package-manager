@@ -62,11 +62,13 @@ pub fn execute(args: Args) -> Result<(), Error> {
     let mut artifact = vec![];
     let compress_progress = make_progress("Compressing:", tar.len(), args.flag_quiet);
 
+    let mut brotli_encoder_params = brotli::enc::BrotliEncoderInitParams();
+    brotli_encoder_params.quality = 9;
+    brotli_encoder_params.lgwin = 22; // log2 of window size
     brotli::BrotliCompress(
         &mut ProgressIO::reader_from(tar, |c, _| compress_progress.set_position(c as u64)),
         &mut artifact,
-        9,
-        22,
+        &brotli_encoder_params
     )?;
     compress_progress.finish_and_clear();
 
