@@ -18,7 +18,7 @@ docopt = "1.0.0"
 futures = "0.1.21"
 glob = "0.2.11"
 hyper = "0.11.27" # needs update
-im = "7.1.0" # needs update
+im = { git = "https://github.com/bodil/im-rs", rev = "6e3d933" }
 indicatif = "0.9.0"
 pest = "=1.0.0-beta.17" # needs update
 pest_derive = "=1.0.0-beta.17" # needs update

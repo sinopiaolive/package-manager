@@ -32,7 +32,7 @@ pub struct SearchResult {
 pub fn execute(args: Args) -> Result<(), Error> {
     match registry::get::<Vec<SearchResult>>(
         "search",
-        map!{"ns".to_string() => args.arg_namespace, "q".to_string() => args.arg_keyword.join(" ")},
+        ordmap!{"ns".to_string() => args.arg_namespace, "q".to_string() => args.arg_keyword.join(" ")},
     )? {
         Ok(ref results) if results.is_empty() => println!("No results found!"),
         Ok(ref results) => print_results(results),

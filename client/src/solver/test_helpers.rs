@@ -6,10 +6,10 @@ use pm_lib::index::Index;
 macro_rules! solution(
     { $($dep:ident => $version:expr),+ } => {
         {
-            let mut m = ::im::map::Map::new();
+            let mut m = ::im::ordmap::OrdMap::new();
             $(
                 let version = ::pm_lib::version::Version::from_str($version).unwrap();
-                m = m.insert(::std::sync::Arc::new(::pm_lib::test_helpers::pkg(stringify!($dep))),
+                m.insert(::std::sync::Arc::new(::pm_lib::test_helpers::pkg(stringify!($dep))),
                              ::std::sync::Arc::new(version));
             )+
             $crate::solver::Solution::wrap(m)

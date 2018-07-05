@@ -1,15 +1,15 @@
+use im::OrdMap as Map;
 use pm_lib::package::PackageName;
-use solver::path::Path;
-use im::map::Map;
-use std::fmt;
-use std::sync::Arc;
 use pm_lib::version::Version;
-use solver::solution::{PartialSolution, JustifiedVersion};
 use solver::failure::Failure;
 use solver::mappable::Mappable;
+use solver::path::Path;
+use solver::solution::{JustifiedVersion, PartialSolution};
+use std::fmt;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-pub struct Constraint(pub Map<Version, Path>);
+pub struct Constraint(pub Map<Arc<Version>, Path>);
 
 impl PartialEq for Constraint {
     fn eq(&self, other: &Self) -> bool {
@@ -32,7 +32,7 @@ impl Constraint {
         let mut out = Constraint::new();
         let mut modified = false;
         for (version, self_path) in self.iter() {
-            if let Some(ref other_path) = other.get(&version) {
+            if let Some(ref other_path) = other.get(version) {
                 // The version is included in both constraints, so we include it
                 // in the intersection. It is correct to pick either self_path
                 // or other_path to justify this version. To help us get good
@@ -40,10 +40,10 @@ impl Constraint {
                 // equal in length, the path from the narrower constraint. (This
                 // is the best we can do without looking up the original
                 // VersionConstraints on the registry.)
-                let path = if self_path.len() < other_path.len() ||
-                    (self_path.len() == other_path.len() && self.len() <= other.len())
+                let path = if self_path.len() < other_path.len()
+                    || (self_path.len() == other_path.len() && self.len() <= other.len())
                 {
-                    &self_path
+                    self_path
                 } else {
                     modified = true; // we changed a path
                     other_path
@@ -68,7 +68,7 @@ impl Constraint {
     pub fn or(&self, other: &Constraint) -> Constraint {
         let mut out = self.clone();
         for (version, other_path) in other.iter() {
-            out = match self.get(&version) {
+            out = match self.get(version) {
                 Some(ref self_path) if other_path.len() < self_path.len() => out,
                 _ => out.insert(version.clone(), other_path.clone()),
             }
@@ -78,7 +78,7 @@ impl Constraint {
 }
 
 impl Mappable for Constraint {
-    type K = Version;
+    type K = Arc<Version>;
     type V = Path;
 
     fn as_map(&self) -> &Map<Self::K, Self::V> {
@@ -133,7 +133,7 @@ impl Iterator for BreadthFirstIter {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct ConstraintSet(pub Map<PackageName, Constraint>);
+pub struct ConstraintSet(pub Map<Arc<PackageName>, Constraint>);
 
 impl ConstraintSet {
     pub fn new() -> ConstraintSet {
@@ -144,34 +144,35 @@ impl ConstraintSet {
         &self,
         cheap_conflict: &Option<Failure>,
     ) -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
-        let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> =
-            match cheap_conflict {
-                &Some(Failure::Conflict(ref conflict)) => {
-                    Box::new(
-                        BreadthFirstIter::new(&conflict.existing, &conflict.conflicting)
-                            .chain(::std::iter::once((
-                                conflict.package.clone(),
-                                Arc::new(Version::new(vec![], vec![], vec![])),
-                            ))),
-                    )
-                }
-                &Some(Failure::PackageMissing(ref pkg_missing)) => {
-                    Box::new(pkg_missing.path.iter().rev().cloned())
-                }
-                &Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
-                    Box::new(pkg_missing.path.iter().rev().cloned())
-                }
-                &None => Box::new(::std::iter::empty()),
-            };
+        let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> = match cheap_conflict
+        {
+            &Some(Failure::Conflict(ref conflict)) => Box::new(
+                BreadthFirstIter::new(&conflict.existing, &conflict.conflicting).chain(
+                    ::std::iter::once((
+                        conflict.package.clone(),
+                        Arc::new(Version::new(vec![], vec![], vec![])),
+                    )),
+                ),
+            ),
+            &Some(Failure::PackageMissing(ref pkg_missing)) => {
+                Box::new(pkg_missing.path.iter().rev().cloned())
+            }
+            &Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
+                Box::new(pkg_missing.path.iter().rev().cloned())
+            }
+            &None => Box::new(::std::iter::empty()),
+        };
         for (ref package, _) in path_iter {
             if let Some((constraint, cdr)) = self.uncons(package) {
-                return Some((cdr, package.clone(), (*constraint).clone()));
+                return Some((cdr, package.clone(), constraint.clone()));
             }
         }
         // Fall back to popping alphabetically.
-        match self.0.pop_min_with_key() {
+        match self.0.without_min_with_key() {
             (None, _) => None,
-            (Some((k, v)), cdr) => Some((ConstraintSet(cdr), k.clone(), (*v).clone())),
+            (Some((package, constraint)), cdr) => {
+                Some((ConstraintSet(cdr), package.clone(), constraint.clone()))
+            }
         }
     }
 
@@ -183,10 +184,10 @@ impl ConstraintSet {
         let mut out = self.clone();
         let mut modified = false;
         for (package, new_constraint) in new.iter() {
-            if contained_in(package.clone(), &new_constraint, solution)? {
+            if contained_in(package, &new_constraint, solution)? {
                 continue;
             }
-            out = match out.get(&package) {
+            out = match out.get(package) {
                 None => {
                     modified = true;
                     out.insert(package.clone(), new_constraint.clone())
@@ -205,7 +206,7 @@ impl ConstraintSet {
     pub fn or(&self, other: &ConstraintSet) -> ConstraintSet {
         let mut out = ConstraintSet::new();
         for (package, self_constraint) in self.iter() {
-            if let Some(other_constraint) = other.get(&package) {
+            if let Some(other_constraint) = other.get(package) {
                 out = out.insert(package.clone(), self_constraint.or(&other_constraint))
             }
         }
@@ -214,7 +215,7 @@ impl ConstraintSet {
 }
 
 impl Mappable for ConstraintSet {
-    type K = PackageName;
+    type K = Arc<PackageName>;
     type V = Constraint;
 
     fn as_map(&self) -> &Map<Self::K, Self::V> {
@@ -237,16 +238,17 @@ impl fmt::Debug for ConstraintSet {
 }
 
 fn contained_in(
-    package: Arc<PackageName>,
+    package: &Arc<PackageName>,
     constraint: &Constraint,
     solution: &PartialSolution,
 ) -> Result<bool, Failure> {
-    match solution.get(&package.clone()).map(|v| (*v).clone()) {
+    match solution.get(package).map(|v| (*v).clone()) {
         None => Ok(false),
         Some(JustifiedVersion {
-                 ref version,
-                 ref path,
-             }) if !constraint.contains_key(&version.clone()) => {
+            ref version,
+            ref path,
+        }) if !constraint.contains_key(&version.clone()) =>
+        {
             let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
             Err(Failure::conflict(
                 package.clone(),
@@ -266,9 +268,7 @@ mod test {
 
     #[test]
     fn constraint_merge() {
-        let c1 = constraint(
-            &[("1", &[("A", "1")]), ("1.0.1", &[("B", "2"), ("A", "2")])],
-        );
+        let c1 = constraint(&[("1", &[("A", "1")]), ("1.0.1", &[("B", "2"), ("A", "2")])]);
         let c2 = constraint(&[("1.0.1", &[("C", "1")]), ("1.0.2", &[("C", "2")])]);
         let expected = constraint(&[("1.0.1", &[("C", "1")])]);
         let merged = c1.and(&c2, Arc::new(pkg("X")));
@@ -315,21 +315,17 @@ mod test {
     #[test]
     fn constraint_set_merge() {
         let existing = constraint_set(&[("A", &[("1", &[])]), ("B", &[("1", &[]), ("2", &[])])]);
-        let new = constraint_set(
-            &[
-                ("B", &[("2", &[]), ("3", &[])]),
-                ("C", &[("1", &[])]),
-                ("S", &[("1", &[])]),
-            ],
-        );
+        let new = constraint_set(&[
+            ("B", &[("2", &[]), ("3", &[])]),
+            ("C", &[("1", &[])]),
+            ("S", &[("1", &[])]),
+        ]);
         let ps = partial_sln(&[("S", ("1", &[]))]);
-        let expected = constraint_set(
-            &[
-                ("A", &[("1", &[])]),
-                ("B", &[("2", &[])]),
-                ("C", &[("1", &[])]),
-            ],
-        );
+        let expected = constraint_set(&[
+            ("A", &[("1", &[])]),
+            ("B", &[("2", &[])]),
+            ("C", &[("1", &[])]),
+        ]);
         let merged = existing.and(&new, &ps);
         assert_eq!(merged, Ok((expected, true)));
     }
@@ -430,13 +426,11 @@ mod test {
 
     #[test]
     fn pop_interesting() {
-        let cset = constraint_set(
-            &[
-                ("C", &[("1", &[])]),
-                ("B", &[("1", &[])]),
-                ("A", &[("1", &[])]),
-            ],
-        );
+        let cset = constraint_set(&[
+            ("C", &[("1", &[])]),
+            ("B", &[("1", &[])]),
+            ("A", &[("1", &[])]),
+        ]);
 
         let null_constraint = constraint(&[("1", &[("null", "1")])]);
         assert_eq!(
@@ -452,9 +446,7 @@ mod test {
         assert_eq!(
             cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
-                constraint(
-                    &[("1", &[("null", "1"), ("A", "1"), ("C", "1")])],
-                ),
+                constraint(&[("1", &[("null", "1"), ("A", "1"), ("C", "1")])],),
                 null_constraint.clone(),
             ))).unwrap()
                 .1,

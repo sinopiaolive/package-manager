@@ -1,12 +1,11 @@
-use std::sync::Arc;
-use std::iter::{FromIterator, IntoIterator};
-use std::convert::From;
+use im::OrdMap as Map;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
-use solver::path::Path;
-use im::map::Map;
 use solver::mappable::Mappable;
-
+use solver::path::Path;
+use std::convert::From;
+use std::iter::{FromIterator, IntoIterator};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JustifiedVersion {
@@ -15,7 +14,7 @@ pub struct JustifiedVersion {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PartialSolution(pub Map<PackageName, JustifiedVersion>);
+pub struct PartialSolution(pub Map<Arc<PackageName>, JustifiedVersion>);
 
 impl PartialSolution {
     pub fn new() -> PartialSolution {
@@ -24,7 +23,7 @@ impl PartialSolution {
 }
 
 impl Mappable for PartialSolution {
-    type K = PackageName;
+    type K = Arc<PackageName>;
     type V = JustifiedVersion;
 
     fn as_map(&self) -> &Map<Self::K, Self::V> {
@@ -36,13 +35,12 @@ impl Mappable for PartialSolution {
     }
 }
 
-
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Solution(pub Map<PackageName, Version>);
+pub struct Solution(pub Map<Arc<PackageName>, Arc<Version>>);
 
 impl Mappable for Solution {
-    type K = PackageName;
-    type V = Version;
+    type K = Arc<PackageName>;
+    type V = Arc<Version>;
 
     fn as_map(&self) -> &Map<Self::K, Self::V> {
         &self.0
@@ -58,7 +56,7 @@ impl FromIterator<(Arc<PackageName>, Arc<Version>)> for Solution {
     where
         T: IntoIterator<Item = (Arc<PackageName>, Arc<Version>)>,
     {
-        Solution(Map::<PackageName, Version>::from_iter(iter))
+        Solution(Map::<Arc<PackageName>, Arc<Version>>::from_iter(iter))
     }
 }
 

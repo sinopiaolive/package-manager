@@ -1,6 +1,6 @@
-use std::sync::Arc;
-use im::map::{Map, Iter};
-use im::shared::Shared;
+use std::borrow::Borrow;
+
+use im::ordmap::{Iter, OrdMap as Map};
 
 pub trait Mappable
 where
@@ -12,30 +12,34 @@ where
     fn as_map(&self) -> &Map<Self::K, Self::V>;
     fn wrap(m: Map<Self::K, Self::V>) -> Self;
 
-    fn insert<RK, RV>(&self, key: RK, value: RV) -> Self
-    where
-        RK: Shared<Self::K>,
-        RV: Shared<Self::V>,
-    {
-        Self::wrap(self.as_map().insert(key, value))
+    fn insert(&self, key: Self::K, value: Self::V) -> Self {
+        Self::wrap(self.as_map().update(key, value))
     }
 
-    fn uncons(&self, key: &Self::K) -> Option<(Arc<Self::V>, Self)> {
-        match self.as_map().pop(key) {
+    fn uncons(&self, key: &Self::K) -> Option<(Self::V, Self)> {
+        match self.as_map().extract(key) {
             None => None,
             Some((v, map)) => Some((v, Self::wrap(map))),
         }
     }
 
-    fn get(&self, key: &Self::K) -> Option<Arc<Self::V>> {
+    fn get<BK>(&self, key: &BK) -> Option<&Self::V>
+    where
+        BK: Ord + ?Sized,
+        Self::K: Borrow<BK>,
+    {
         self.as_map().get(key)
     }
 
-    fn contains_key(&self, key: &Self::K) -> bool {
+    fn contains_key<BK>(&self, key: &BK) -> bool
+    where
+        BK: Ord + ?Sized,
+        Self::K: Borrow<BK>,
+    {
         self.as_map().contains_key(key)
     }
 
-    fn iter(&self) -> Iter<Self::K, Self::V> {
+    fn iter(&self) -> Iter<'_, (Self::K, Self::V)> {
         self.as_map().iter()
     }
 
@@ -47,7 +51,7 @@ where
         self.as_map().len()
     }
 
-    fn get_min(&self) -> Option<(Arc<Self::K>, Arc<Self::V>)> {
+    fn get_min(&self) -> Option<&(Self::K, Self::V)> {
         self.as_map().get_min()
     }
 }

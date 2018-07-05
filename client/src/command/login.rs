@@ -1,23 +1,23 @@
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 use std::iter::FromIterator;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use rand::prelude::random;
 use data_encoding::HEXUPPER;
-use url::{Url, form_urlencoded};
+use im::OrdMap as Map;
+use rand::prelude::random;
+use url::{form_urlencoded, Url};
 use webbrowser;
-use im::Map;
 
-use futures::{Async, Poll};
-use futures::task::{Task, current};
 use futures::future::{self, Future, FutureResult};
-use hyper::{self, StatusCode};
-use hyper::server::{Http, Service, Request, Response};
+use futures::task::{current, Task};
+use futures::{Async, Poll};
 use hyper::header::{ContentLength, ContentType};
+use hyper::server::{Http, Request, Response, Service};
+use hyper::{self, StatusCode};
 
+use config::{get_config, write_config, Auth, Config};
 use error::Error;
-use config::{Config, Auth, get_config, write_config};
 
 pub const USAGE: &'static str = "Login.
 
@@ -30,8 +30,6 @@ Options:
 
 #[derive(Debug, Deserialize)]
 pub struct Args {}
-
-
 
 const AUTHENTICATED_DOC: &'static str = "
 <html>
@@ -46,8 +44,6 @@ const AUTHENTICATED_DOC: &'static str = "
   </body>
 </html>
 ";
-
-
 
 #[derive(Clone)]
 struct Done<A> {
@@ -69,14 +65,12 @@ impl<A> Done<A> {
             _ => panic!("failed to acquire mutex!?"),
         }
         match self.task.lock() {
-            Ok(ref mutex) => {
-                match **mutex {
-                    Some(ref task) => {
-                        task.notify();
-                    }
-                    None => (),
+            Ok(ref mutex) => match **mutex {
+                Some(ref task) => {
+                    task.notify();
                 }
-            }
+                None => (),
+            },
             _ => panic!("failed to acquire mutex!?"),
         }
     }
@@ -113,8 +107,6 @@ impl<A> Future for Done<A> {
     }
 }
 
-
-
 fn bad_request() -> Response {
     Response::new()
         .with_status(StatusCode::BadRequest)
@@ -130,12 +122,17 @@ struct CallbackArgs {
 
 fn parse_callback_args(req: &Request) -> Option<CallbackArgs> {
     req.uri().query().and_then(|query| {
-        let q = Map::from_iter(form_urlencoded::parse(query.as_bytes()).into_owned());
-        match (q.get(&"state".to_string()), q.get(&"token".to_string())) {
-            (Some(ref state), Some(ref token)) if q.len() == 2 => Some(CallbackArgs {
-                state: state.to_string(),
-                token: token.to_string(),
-            }),
+        let mut q =
+            Map::<String, String>::from_iter(form_urlencoded::parse(query.as_bytes()).into_owned());
+        match (q.remove("state"), q.remove("token")) {
+            (Some(state), Some(token)) => if q.len() == 2 {
+                Some(CallbackArgs {
+                    state: state,
+                    token: token,
+                })
+            } else {
+                None
+            },
             _ => None,
         }
     })
@@ -199,9 +196,9 @@ pub fn execute(_: Args) -> Result<(), Error> {
 
     server.run_until(done.clone()).unwrap();
 
-    let token = done.get().expect(
-        "unable to get auth token from web server",
-    );
+    let token = done
+        .get()
+        .expect("unable to get auth token from web server");
 
     let config = get_config()?;
     write_config(&Config {

@@ -1,25 +1,25 @@
 use std::convert::From;
 
-use pm_lib::index::{Index, Dependencies};
+use pm_lib::index::{Dependencies, Index};
 
 #[cfg(test)]
 #[macro_use]
 mod test_helpers;
-mod path;
-mod constraints;
-mod failure;
-mod error;
-mod solution;
 mod adapter;
+mod constraints;
+mod error;
+mod failure;
 mod mappable;
+mod path;
+mod solution;
 
-pub use solver::constraints::{Constraint, ConstraintSet};
-pub use solver::failure::Failure;
-pub use solver::solution::{PartialSolution, Solution, JustifiedVersion};
 pub use solver::adapter::RegistryAdapter;
-pub use solver::path::Path;
+pub use solver::constraints::{Constraint, ConstraintSet};
 pub use solver::error::Error;
+pub use solver::failure::Failure;
 use solver::mappable::Mappable;
+pub use solver::path::Path;
+pub use solver::solution::{JustifiedVersion, PartialSolution, Solution};
 
 fn search(
     ra: &RegistryAdapter,
@@ -57,11 +57,8 @@ fn search(
                     },
                 );
                 let try_version = || {
-                    let constraint_set = ra.constraint_set_for(
-                        package.clone(),
-                        version.clone(),
-                        (*path).clone(),
-                    )?;
+                    let constraint_set =
+                        ra.constraint_set_for(package.clone(), version.clone(), (*path).clone())?;
                     let (new_deps, _) = stack_tail.and(&constraint_set, &new_solution)?;
                     Ok(search(ra.clone(), new_deps, &new_solution)?)
                 };
@@ -75,9 +72,7 @@ fn search(
                     Ok(out) => return Ok(out),
                 }
             }
-            Err(first_failure.expect(
-                "unreachable: constraint should never be empty",
-            ))
+            Err(first_failure.expect("unreachable: constraint should never be empty"))
         }
     }
 }
@@ -96,9 +91,9 @@ fn cheap_attempt(
         match stack.pop(&None) {
             None => return Ok(solution.clone()),
             Some((stack_tail, package, constraint)) => {
-                let (version, path) = constraint.get_min().expect(
-                    "unreachable: constraints should never be empty",
-                );
+                let (version, path) = constraint
+                    .get_min()
+                    .expect("unreachable: constraints should never be empty");
                 solution = solution.insert(
                     package.clone(),
                     JustifiedVersion {
@@ -106,11 +101,8 @@ fn cheap_attempt(
                         path: (*path).clone(),
                     },
                 );
-                let constraint_set = ra.constraint_set_for(
-                    package.clone(),
-                    version.clone(),
-                    (*path).clone(),
-                )?;
+                let constraint_set =
+                    ra.constraint_set_for(package.clone(), version.clone(), (*path).clone())?;
                 stack = stack_tail.and(&constraint_set, &solution)?.0;
             }
         }
@@ -121,7 +113,6 @@ pub fn solve(reg: &Index, deps: &Dependencies) -> Result<Solution, Error> {
     let ra = RegistryAdapter::new(reg);
     solve_inner(&ra, &deps).map_err(|failure| Error::from_failure(&reg, &deps, &ra, failure))
 }
-
 
 fn solve_inner(ra: &RegistryAdapter, deps: &Dependencies) -> Result<Solution, Failure> {
     let constraint_set = ra.constraint_set_from(deps)?;
@@ -167,7 +158,6 @@ fn infer_indirect_dependencies(
                         None => Some(cset),
                         Some(icset) => Some(icset.or(&cset)),
                     }
-
                 }
             }
         }
@@ -187,26 +177,24 @@ fn infer_indirect_dependencies(
     Ok((new_stack, modified))
 }
 
-
-
 #[cfg(test)]
 mod unit_test {
-    use super::*;
-    use pm_lib::test_helpers::{pkg, ver, range};
     use self::test_helpers::sample_registry;
-    use solver::test_helpers::{constraint_set, partial_sln, path};
-    use pm_lib::index::{Index, Package, Dependencies, read_index};
-    use test::Bencher;
-    use std::sync::Arc;
+    use super::*;
+    use pm_lib::index::{read_index, Dependencies, Index, Package};
+    use pm_lib::test_helpers::{pkg, range, ver};
     use solver::constraints::Constraint;
-    use solver::error::{Error, Conflict};
+    use solver::error::{Conflict, Error};
+    use solver::test_helpers::{constraint_set, partial_sln, path};
+    use std::sync::Arc;
+    use test::Bencher;
 
-    #[bench] #[ignore]
+    #[bench]
+    #[ignore]
     fn resolve_something_real(b: &mut Bencher) {
         let reg = read_index(::std::path::Path::new("test/cargo.rmp")).unwrap();
 
-        let problem =
-            deps!{
+        let problem = deps!{
             tokio_proto => "<1",
             hyper => "^0.11",
             url => "^1"
@@ -261,12 +249,12 @@ mod unit_test {
         });
     }
 
-    #[bench] #[ignore]
+    #[bench]
+    #[ignore]
     fn deep_conflict(b: &mut Bencher) {
         let reg = read_index(::std::path::Path::new("test/cargo.rmp")).unwrap();
 
-        let problem =
-            deps!{
+        let problem = deps!{
             rocket => "^0.2.8",
             hyper_rustls => "^0.8"
         };
@@ -284,7 +272,6 @@ mod unit_test {
             );
         });
     }
-
 
     #[test]
     fn find_best_solution_set() {
@@ -325,16 +312,17 @@ mod unit_test {
             Err(Failure::conflict(
                 Arc::new(pkg("right_pad")),
                 Constraint::new()
-                    .insert(ver("1.0.0"), path(&[("left_pad", "1.0.0")]))
-                    .insert(ver("1.0.1"), path(&[("left_pad", "1.0.0")])),
+                    .insert(Arc::new(ver("1.0.0")), path(&[("left_pad", "1.0.0")]))
+                    .insert(Arc::new(ver("1.0.1")), path(&[("left_pad", "1.0.0")])),
                 Constraint::new()
-                    .insert(ver("2.0.0"), path(&[("lol_pad", "1.0.0")]))
-                    .insert(ver("2.0.1"), path(&[("lol_pad", "1.0.0")])),
+                    .insert(Arc::new(ver("2.0.0")), path(&[("lol_pad", "1.0.0")]))
+                    .insert(Arc::new(ver("2.0.1")), path(&[("lol_pad", "1.0.0")])),
             ))
         );
     }
 
-    #[test] #[ignore]
+    #[test]
+    #[ignore]
     fn large_number_of_dependencies_does_not_cause_stack_overflow() {
         let n = 2000;
 
@@ -348,8 +336,7 @@ mod unit_test {
             package.insert(ver("1"), deps);
             reg.insert(pkg(&format!("P{}", i)), package);
         }
-        let problem =
-            deps!{
+        let problem = deps!{
             P0 => "^1"
         };
         solve(&reg, &problem).unwrap();
@@ -394,19 +381,17 @@ mod unit_test {
         let ra = RegistryAdapter::new(&reg);
         let stack = constraint_set(&[("X", &[("1", &[]), ("2", &[]), ("3", &[]), ("4", &[])])]);
         let ps = partial_sln(&[("S", ("1", &[]))]);
-        let expected = constraint_set(
-            &[
-                ("X", &[("1", &[]), ("2", &[]), ("3", &[]), ("4", &[])]),
-                (
-                    "B",
-                    &[
-                        ("1", &[("X", "1")]),
-                        ("2", &[("X", "1")]),
-                        ("3", &[("X", "2")]),
-                    ],
-                ),
-            ],
-        );
+        let expected = constraint_set(&[
+            ("X", &[("1", &[]), ("2", &[]), ("3", &[]), ("4", &[])]),
+            (
+                "B",
+                &[
+                    ("1", &[("X", "1")]),
+                    ("2", &[("X", "1")]),
+                    ("3", &[("X", "2")]),
+                ],
+            ),
+        ]);
         let (new_stack, modified) = infer_indirect_dependencies(&ra, stack.clone(), &ps).unwrap();
         assert_eq!(new_stack, expected);
         assert!(modified);

@@ -121,8 +121,8 @@ impl Conflict {
         let oc = vc_from_path(&conflicting_path);
         // Make exact version constraints in case the original ones overlap
         // ("narrow existing", "narrow conflicting"):
-        let ne = VersionConstraint::Exact((*existing_ver).clone());
-        let nc = VersionConstraint::Exact((*conflicting_ver).clone());
+        let ne = VersionConstraint::Exact((**existing_ver).clone());
+        let nc = VersionConstraint::Exact((**conflicting_ver).clone());
 
         let disjoint = |vc1: &VersionConstraint, vc2: &VersionConstraint| -> bool {
             // Turn version constraints into constraints
@@ -131,7 +131,7 @@ impl Conflict {
             let c2 = ra.constraint_for(conflict.package.clone(), Arc::new(vc2.clone()), Path::new())
                 .expect("we should not have gotten a conflict if there is a PackageMissing or UninhabitedConstraint error");
 
-            c1.as_map().keys().all(|ver| !c2.contains_key(&ver))
+            c1.as_map().keys().all(|ver| !c2.contains_key(ver))
         };
 
         // Use the original version constraints unless they overlap.

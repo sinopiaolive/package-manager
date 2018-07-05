@@ -90,7 +90,7 @@ pub fn execute(args: Args) -> Result<(), Error> {
     let body = ProgressIO::reader_from(payload, move |c, _| up.set_position(c as u64));
 
     let res = if !args.flag_dry_run {
-        post::<(), _>("publish", map![], body)?
+        post::<(), _>("publish", ordmap![], body)?
     } else {
         Ok(())
     };

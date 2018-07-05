@@ -1,11 +1,11 @@
-use std::fmt;
-use std::io::Read;
-use reqwest::{self, Method};
+use im::OrdMap as Map;
 use reqwest::header::Authorization;
 use reqwest::Body;
-use im::Map;
-use url::form_urlencoded::Serializer;
+use reqwest::{self, Method};
 use serde::Deserialize;
+use std::fmt;
+use std::io::Read;
+use url::form_urlencoded::Serializer;
 
 use config::get_config;
 use error::Error;
@@ -25,9 +25,9 @@ pub type Response<A> = Result<A, RegistryError>;
 
 fn read_auth() -> Result<String, Error> {
     let config = get_config()?;
-    config.auth.token.ok_or(Error::Message(
-        From::from("Please log in first using `pm login`."),
-    ))
+    config.auth.token.ok_or(Error::Message(From::from(
+        "Please log in first using `pm login`.",
+    )))
 }
 
 fn request<A, R>(
