@@ -1,17 +1,14 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
+use diesel::expression::sql;
+use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::types::Text;
-use diesel::pg::types::sql_types::Array;
-use diesel::expression::sql;
 
 use pm_lib::version::Version;
 
-use im::Map;
+use im::OrdMap as Map;
 
-use store::Store;
 use error::Error;
+use store::Store;
 
 #[derive(Queryable, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct SearchResult {
@@ -49,17 +46,15 @@ pub fn search(store: &Store, ns: &str, query: Vec<String>) -> Result<Vec<SearchR
 }
 
 fn group_by_semver(results: Vec<SearchResult>) -> Vec<SearchResult> {
-    let c = results.into_iter().fold(Map::new(), |map, res| {
-        map.insert_with(
-            res.name.clone(),
-            Map::singleton(
-                Version::from_str(&res.version).expect("illegal version string during search"),
-                res.clone(),
-            ),
-            |a, b| Arc::new(a.union(&b)),
-        )
-    });
-    c.into_iter()
-        .map(|(_, m)| m.get_min().unwrap().1.deref().clone())
+    let mut groups = Map::<String, Map<Version, SearchResult>>::new();
+    for result in results {
+        groups.entry(result.name.clone()).or_default().insert(
+            Version::from_str(&result.version).expect("illegal version string during search"),
+            result.clone(),
+        );
+    }
+    groups
+        .values()
+        .map(|m| m.get_min().unwrap().1.clone())
         .collect()
 }

@@ -521,20 +521,11 @@ dependencies = [
 
 [[package]]
 name = "im"
-version = "7.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "lazy_static 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc_version 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "im"
 version = "10.2.1-alpha.0"
 source = "git+https://github.com/bodil/im-rs?rev=6e3d933#6e3d933a36aa02e68905665faa013e19e1fe2cc8"
 dependencies = [
  "rustc_version 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -974,7 +965,7 @@ dependencies = [
  "diesel 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "diesel_codegen 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenv 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "im 7.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "im 10.2.1-alpha.0 (git+https://github.com/bodil/im-rs?rev=6e3d933)",
  "pm_lib 0.0.0",
  "quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.8.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1911,7 +1902,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum hyper-tls 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a5aa51f6ae9842239b0fac14af5f22123b8432b4cc774a44ff059fcba0f675ca"
 "checksum idna 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "014b298351066f1512874135335d62a789ffe78a9974f94b43ed5621951eaf7d"
 "checksum im 10.2.1-alpha.0 (git+https://github.com/bodil/im-rs?rev=6e3d933)" = "<none>"
-"checksum im 7.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "474e3217cc9891dbde7eb2a8afc32b4b0cbbd8adf4ecc4c6f0f97a703bff3d6d"
 "checksum indicatif 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a29b2fa6f00010c268bface64c18bb0310aaa70d46a195d5382d288c477fb016"
 "checksum iovec 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "dbe6e417e7d0975db6512b90796e8ce223145ac4e33c377e4a42882a0e88bb08"
 "checksum isatty 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "6c324313540cd4d7ba008d43dc6606a32a5579f13cc17b2804c13096f0a5c522"
