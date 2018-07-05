@@ -3,7 +3,7 @@ use std::iter::FromIterator;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use rand::{Rng, OsRng};
+use rand::prelude::random;
 use data_encoding::HEXUPPER;
 use url::{Url, form_urlencoded};
 use webbrowser;
@@ -170,15 +170,15 @@ impl Service for Callback {
     }
 }
 
-pub fn generate_secret() -> Result<String, Error> {
-    let data: Vec<u8> = OsRng::new()?.gen_iter::<u8>().take(32).collect();
-    Ok(HEXUPPER.encode(&data))
+pub fn generate_secret() -> String {
+    let data = random::<[u8; 32]>();
+    HEXUPPER.encode(&data)
 }
 
 pub fn execute(_: Args) -> Result<(), Error> {
     let done = Done::new();
     let callback_done = done.clone();
-    let secret = generate_secret()?;
+    let secret = generate_secret();
     let mut url = Url::parse("http://localhost:8000/login_client").unwrap();
     url.query_pairs_mut().append_pair("token", &secret);
     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);

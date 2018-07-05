@@ -23,7 +23,7 @@ indicatif = "0.9.0"
 pest = "=1.0.0-beta.17" # needs update
 pest_derive = "=1.0.0-beta.17" # needs update
 quick-error = "1.2.2"
-rand = "0.4.2" # needs update
+rand = "0.5.3"
 reqwest = "0.8.6"
 rmp-serde = "0.13.7"
 serde = "1.0.69"
