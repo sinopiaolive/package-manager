@@ -34,8 +34,7 @@ features = ["postgres"]
 version = "0.16.1" # needs update
 
 [dependencies.im]
-git = "https://github.com/bodil/im-rs"
-rev = "6e3d933"
+version = "11.0.1"
 features = ["serde"]
 
 [dependencies.pm_lib]

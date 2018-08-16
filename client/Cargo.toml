@@ -18,7 +18,6 @@ docopt = "1.0.0"
 futures = "0.1.21"
 glob = "0.2.11"
 hyper = "0.11.27" # needs update
-im = { git = "https://github.com/bodil/im-rs", rev = "6e3d933" }
 indicatif = "0.9.0"
 pest = "=1.0.0-beta.17" # needs update
 pest_derive = "=1.0.0-beta.17" # needs update
@@ -33,6 +32,10 @@ tar = "0.4.16"
 toml = "0.4.6"
 url = "1.7.0"
 webbrowser = "0.3.1"
+
+[dependencies.im]
+version = "11.0.1"
+features = ["serde"]
 
 [dependencies.git2]
 default-features = false
