@@ -2,9 +2,9 @@
 
 use std::path::{Path,PathBuf};
 use std::fs::canonicalize;
+use failure;
 use git2::{Repository,RepositoryState,StatusOptions,Tree};
 use git2;
-use error::Error;
 
 pub struct GitScmProvider {
     pub relative_package_root: PathBuf, // relative to repo.workdir()
@@ -12,17 +12,17 @@ pub struct GitScmProvider {
 }
 
 impl GitScmProvider {
-    pub fn new(package_root: &Path) -> Result<Self, Error> {
+    pub fn new(package_root: &Path) -> Result<Self, failure::Error> {
         let absolute_package_root = canonicalize(package_root)?;
         let repo = Repository::discover(&absolute_package_root)?;
         let repo_workdir = match repo.workdir() {
-            None => return Err(Error::from(GitError::BaseDir)),
+            None => return Err(failure::Error::from(GitError::BaseDir)),
             Some(p) => p,
         }.to_path_buf();
         let relative_package_root
             = match absolute_package_root.strip_prefix(&repo_workdir) {
                 Ok(p) => p,
-                Err(_) => return Err(Error::from(GitError::RepoNotParent(
+                Err(_) => return Err(failure::Error::from(GitError::RepoNotParent(
                     repo_workdir.to_string_lossy().to_string(), absolute_package_root.to_string_lossy().to_string())))
             };
         Ok(GitScmProvider {
@@ -31,22 +31,22 @@ impl GitScmProvider {
         })
     }
 
-    pub fn check_repo_is_pristine(&self) -> Result<(), Error> {
+    pub fn check_repo_is_pristine(&self) -> Result<(), failure::Error> {
         self.check_state_is_clean()?;
         self.check_no_submodules()?;
         self.check_status_is_empty()?;
         Ok(())
     }
 
-    pub fn check_state_is_clean(&self) -> Result<(), Error> {
+    pub fn check_state_is_clean(&self) -> Result<(), failure::Error> {
         if self.repo.state() == RepositoryState::Clean {
             Ok(())
         } else {
-            Err(Error::from(GitError::NotCleanState))
+            Err(failure::Error::from(GitError::NotCleanState))
         }
     }
 
-    pub fn check_status_is_empty(&self) -> Result<(), Error> {
+    pub fn check_status_is_empty(&self) -> Result<(), failure::Error> {
         let mut status_options = StatusOptions::new();
         status_options
             .include_untracked(true)
@@ -57,26 +57,26 @@ impl GitScmProvider {
         if statuses.is_empty() {
             Ok(())
         } else {
-            Err(Error::from(GitError::NonEmptyStatus))
+            Err(failure::Error::from(GitError::NonEmptyStatus))
         }
     }
 
-    pub fn check_no_submodules(&self) -> Result<(), Error> {
+    pub fn check_no_submodules(&self) -> Result<(), failure::Error> {
         if self.repo.submodules()?.is_empty() {
             Ok(())
         } else {
-            Err(Error::from(GitError::SubmodulesPresent))
+            Err(failure::Error::from(GitError::SubmodulesPresent))
         }
     }
 
-    pub fn ls_files(&self) -> Result<Vec<String>, Error> {
+    pub fn ls_files(&self) -> Result<Vec<String>, failure::Error> {
         let head_sha = self.repo.refname_to_id("HEAD")?;
         let head = self.repo.find_commit(head_sha)?;
         let mut tree = head.tree()?;
         for component in self.relative_package_root.iter() {
             let component_str = match component.to_str() {
                 Some(s) => s,
-                None => return Err(Error::from(GitError::Utf8))
+                None => return Err(failure::Error::from(GitError::Utf8))
             };
             let subtree = match tree.get_name(component_str) {
                 None => return Ok(vec![]),
@@ -94,11 +94,11 @@ impl GitScmProvider {
         Ok(files)
     }
 
-    fn ls_files_inner(&self, tree: Tree, prefix: &str) -> Result<Vec<String>, Error> {
+    fn ls_files_inner(&self, tree: Tree, prefix: &str) -> Result<Vec<String>, failure::Error> {
         let mut files = Vec::new();
         for entry in tree.iter() {
             let name = match entry.name() {
-                None => return Err(Error::from(GitError::Utf8)),
+                None => return Err(failure::Error::from(GitError::Utf8)),
                 Some(n) => n
             };
             let relative_path = prefix.to_string() + name;
@@ -110,11 +110,11 @@ impl GitScmProvider {
                     let object = entry.to_object(&self.repo)?;
                     let subtree = match object.into_tree() {
                         Ok(t) => t,
-                        Err(_) => return Err(Error::from(GitError::ObjectType))
+                        Err(_) => return Err(failure::Error::from(GitError::ObjectType))
                     };
                     files.extend(self.ls_files_inner(subtree, &(relative_path + "/"))?);
                 }
-                _ => return Err(Error::from(GitError::ObjectType))
+                _ => return Err(failure::Error::from(GitError::ObjectType))
             }
         }
         Ok(files)

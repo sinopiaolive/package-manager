@@ -1,4 +1,4 @@
-use error::Error;
+use failure;
 use registry;
 
 pub const USAGE: &'static str = "Test page.
@@ -15,7 +15,7 @@ pub struct Args {}
 
 
 
-pub fn execute(_args: Args) -> Result<(), Error> {
+pub fn execute(_args: Args) -> Result<(), failure::Error> {
     match registry::get_auth::<String>("test", ordmap!{})? {
         Ok(_) => println!("You are logged in with a valid auth token."),
         Err(msg) => println!("Registry response: {}", msg),

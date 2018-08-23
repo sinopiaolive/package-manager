@@ -1,57 +1,63 @@
 #![allow(unused_features)]
 #![feature(specialization, plugin, test)]
 
+#[macro_use]
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 extern crate docopt;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-extern crate rmp_serde;
 extern crate pm_lib;
+extern crate rmp_serde;
+extern crate serde_json;
 extern crate toml;
 #[macro_use]
 extern crate quick_error;
 #[macro_use]
 extern crate im;
-extern crate reqwest;
-extern crate rand;
 extern crate data_encoding;
+extern crate futures;
+extern crate hyper;
+extern crate pest;
+extern crate rand;
+extern crate reqwest;
 extern crate url;
 extern crate webbrowser;
-extern crate hyper;
-extern crate futures;
-extern crate pest;
 #[macro_use]
 extern crate pest_derive;
-extern crate glob;
-extern crate git2;
-extern crate tar;
 extern crate brotli;
 extern crate console;
+extern crate git2;
+extern crate glob;
 extern crate indicatif;
+extern crate tar;
 #[cfg(test)]
 extern crate test;
+#[cfg(test)]
+#[macro_use]
+extern crate matches;
 
-mod error;
-mod path;
 mod config;
-mod registry;
 mod manifest;
+mod path;
 mod project;
+mod registry;
 #[allow(dead_code)]
 // TODO please remove this when the solver is actually being used
 #[macro_use]
 mod solver;
+mod files;
+mod git;
+mod io;
 #[allow(dead_code)]
 mod manifest_parser;
-mod git;
-mod files;
-mod io;
+mod manifest_parser_error;
 
-use std::process;
 use docopt::Docopt;
 use serde::de::Deserialize;
-use error::Error;
+use std::process;
 
 const USAGE: &'static str = "Your package manager.
 
@@ -70,9 +76,7 @@ struct Args {
     arg_args: Vec<String>,
 }
 
-type Result = std::result::Result<(), Error>;
-
-
+type Result = std::result::Result<(), failure::Error>;
 
 macro_rules! each_subcommand {
     ($mac:ident) => {
@@ -80,28 +84,32 @@ macro_rules! each_subcommand {
         $mac!(test);
         $mac!(search);
         $mac!(publish);
-    }
+    };
 }
 
 mod command;
-
-
 
 fn run_builtin_command<'de, Flags: Deserialize<'de>>(
     exec: fn(Flags) -> Result,
     usage: &str,
 ) -> Result {
     let docopt = Docopt::new(usage).unwrap().help(true);
-    docopt.deserialize().map_err(|e| e.exit()).and_then(
-        |opts| exec(opts),
-    )
+    docopt
+        .deserialize()
+        .map_err(|e| e.exit())
+        .and_then(|opts| exec(opts))
 }
 
 fn attempt_builtin_command(cmd: &str) -> Option<Result> {
     macro_rules! cmd {
-        ($name:ident) => (if cmd == stringify!($name).replace("_", "-") {
-            return Some(run_builtin_command(command::$name::execute, command::$name::USAGE))
-        })
+        ($name:ident) => {
+            if cmd == stringify!($name).replace("_", "-") {
+                return Some(run_builtin_command(
+                    command::$name::execute,
+                    command::$name::USAGE,
+                ));
+            }
+        };
     }
     each_subcommand!(cmd);
     None
@@ -133,10 +141,9 @@ fn main() {
         process::exit(1)
     } else {
         match attempt_builtin_command(&args.arg_command)
-            .or_else(|| {
-                Some(run_shell_command(&args.arg_command, &args.arg_args))
-            })
-            .unwrap() {
+            .or_else(|| Some(run_shell_command(&args.arg_command, &args.arg_args)))
+            .unwrap()
+        {
             Ok(_) => process::exit(0),
             Err(e) => {
                 println!("ERROR: {}", e);

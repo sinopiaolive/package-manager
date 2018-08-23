@@ -1,23 +1,20 @@
 #![allow(dead_code)]
 
-use std::path::Path;
-use pest;
 use files::FileCollection;
 use git::GitScmProvider;
+use manifest_parser::{
+    check_block_fields, get_field, get_fields, get_optional_block_field, get_optional_field,
+    get_optional_list_field, get_optional_string_field, get_string, parse_manifest, Arguments,
+    Pair, Rule,
+};
+use manifest_parser_error::{PestErrorExt, PestResultExt};
+use pm_lib::constraint::VersionConstraint;
+use pm_lib::index::Dependencies;
 use pm_lib::manifest::License;
 use pm_lib::package::PackageName;
-use pm_lib::constraint::VersionConstraint;
 use pm_lib::version::Version;
-use pm_lib::index::Dependencies;
-use manifest_parser::{
-    Pair, Rule, Arguments,
-    parse_manifest,
-    get_fields, get_field, check_block_fields,
-    get_optional_field, get_optional_block_field, get_optional_list_field, get_optional_string_field,
-    get_string,
-};
-
-use error::Error;
+use std::collections::HashSet;
+use std::path::Path;
 
 // The Manifest struct represents a parsed manifest file.
 
@@ -42,43 +39,38 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn from_str(manifest_source: String, root: &Path) -> Result<Self, Error> {
+    pub fn from_str(manifest_source: String, root: &Path) -> Result<Self, ::failure::Error> {
         let manifest_pair = parse_and_check_manifest(manifest_source)?;
 
         Ok(Self::from_manifest_pair(manifest_pair, root)?)
     }
 
-    pub fn from_manifest_pair(manifest_pair: Pair, root: &Path) -> Result<Self, Error> {
+    pub fn from_manifest_pair(manifest_pair: Pair, root: &Path) -> Result<Self, ::failure::Error> {
         let dependencies = get_dependencies(manifest_pair.clone())?;
 
         let package_arguments_pair = get_optional_field(manifest_pair.clone(), "package")
             .ok_or_else(|| {
                 // We use get_optional_field and .ok_or_else to produce a
                 // clearer error message.
-                pest::Error::CustomErrorPos {
-                    message: "A `package { ... }` section is required to publish this package"
-                        .to_string(),
-                    pos: manifest_pair.clone().into_span().end_pos(),
-                }
+                format_err!("A `package {{ ... }}` section is required to publish this package")
+                    .with_pos(&manifest_pair.clone().into_span().end_pos())
             })?;
         let block_pair = Arguments::from_pair(package_arguments_pair, 0, 0, &[], Some(true))?
-            .block.expect("validated block presence");
+            .block
+            .expect("validated block presence");
 
         check_block_fields(
             block_pair.clone(),
             &[
                 "name",
                 "version",
-
                 "description",
                 "keywords",
                 "homepage",
                 "repository",
                 "bugs",
-
                 "license",
                 "license_file",
-
                 "files",
             ],
         )?;
@@ -87,26 +79,21 @@ impl Manifest {
             let name_pair = Arguments::get_single(get_field(block_pair.clone(), "name")?)?;
 
             let name_string = get_string(name_pair.clone())?;
-            PackageName::from_str(&name_string).ok_or_else(|| {
-                pest::Error::CustomErrorSpan {
-                    message: "Invalid package name".to_string(),
-                    span: name_pair.clone().into_span(),
-                }
-            })?
+            PackageName::from_str(&name_string)
+                .ok_or_else(|| format_err!("Invalid package name").with_pair(&name_pair))?
         };
 
         let version = {
             let version_pair = Arguments::get_single(get_field(block_pair.clone(), "version")?)?;
             let version_string = get_string(version_pair.clone())?;
-            Version::from_str(&version_string).ok_or_else(|| {
-                pest::Error::CustomErrorSpan {
-                    message: "Invalid version number".to_string(),
-                    span: version_pair.clone().into_span(),
-                }
-            })?
+            Version::from_str(&version_string)
+                .ok_or_else(|| format_err!("Invalid version number").with_pair(&version_pair))?
         };
 
-        let description = get_string(Arguments::get_single(get_field(block_pair.clone(), "description")?)?)?;
+        let description = get_string(Arguments::get_single(get_field(
+            block_pair.clone(),
+            "description",
+        )?)?)?;
 
         let homepage = get_optional_string_field(block_pair.clone(), "homepage")?;
         let repository = get_optional_string_field(block_pair.clone(), "repository")?;
@@ -129,11 +116,10 @@ impl Manifest {
             (None, Some(file)) => License::File(file),
             (Some(tag), Some(file)) => License::SPDXAndFile(tag, file),
             (None, None) => {
-                return Err(Error::from(pest::Error::CustomErrorPos {
-                    message: "package section needs at least one of license or license_file"
-                        .to_string(),
-                    pos: block_pair.clone().into_span().start_pos(),
-                }))
+                return Err(::failure::Error::from(
+                    format_err!("package section needs at least one of license or license_file")
+                        .with_pos(&block_pair.clone().into_span().start_pos()),
+                ));
             }
         };
 
@@ -162,33 +148,33 @@ impl Manifest {
     }
 }
 
-pub fn parse_and_check_manifest(manifest_source: String)
-    -> Result<Pair, Error>
-{
+pub fn parse_and_check_manifest(manifest_source: String) -> Result<Pair, ::failure::Error> {
     let manifest_pair = parse_manifest(manifest_source)?;
 
-    check_block_fields(manifest_pair.clone(), &[
-        "pm", // TODO do something with this version tag (if present)
-        "dependencies",
-        "package"
-    ])?;
+    check_block_fields(
+        manifest_pair.clone(),
+        &[
+            "pm", // TODO do something with this version tag (if present)
+            "dependencies",
+            "package",
+        ],
+    )?;
 
     Ok(manifest_pair)
 }
 
-pub fn get_dependencies(manifest_pair: Pair)
-    -> Result<Dependencies, Error>
-{
+pub fn get_dependencies(manifest_pair: Pair) -> Result<Dependencies, ::failure::Error> {
     let mut depset = Dependencies::new();
-    for (package_name_pair, arguments_pair) in get_optional_block_field(manifest_pair, "dependencies")? {
+    for (package_name_pair, arguments_pair) in
+        get_optional_block_field(manifest_pair, "dependencies")?
+    {
         let arguments = Arguments::from_pair(arguments_pair, 0, 2, &[], Some(false))?;
         let (package_name, version_constraint) =
             make_dependency(package_name_pair.clone(), arguments.positional_arguments)?;
         if depset.contains_key(&package_name) {
-            return Err(Error::from(pest::Error::CustomErrorSpan {
-                message: "Duplicate dependency".to_string(),
-                span: package_name_pair.into_span(),
-            }));
+            return Err(::failure::Error::from(
+                format_err!("Duplicate dependency").with_pair(&package_name_pair),
+            ));
         }
         depset.insert(package_name, version_constraint);
     }
@@ -197,19 +183,13 @@ pub fn get_dependencies(manifest_pair: Pair)
 
 pub fn make_dependency(
     package_name_pair: Pair,
-    vcc_pairs: Vec<Pair>)
-    -> Result<(PackageName, VersionConstraint), Error> {
-    let package_name = PackageName::from_str(package_name_pair.as_str()).ok_or_else(||
-        pest::Error::CustomErrorSpan {
-            message: "Invalid package name".to_string(),
-            span: package_name_pair.into_span(),
-        }
-    )?;
+    vcc_pairs: Vec<Pair>,
+) -> Result<(PackageName, VersionConstraint), ::failure::Error> {
+    let package_name = PackageName::from_str(package_name_pair.as_str())
+        .ok_or_else(|| format_err!("Invalid package name").with_pair(&package_name_pair))?;
 
     let version_constraint = match vcc_pairs.len() {
-        0 => {
-            VersionConstraint::from_str("*")
-        }
+        0 => VersionConstraint::from_str("*"),
         1 => {
             let vc_component = vcc_pairs[0].clone();
             VersionConstraint::from_str(vc_component.into_span().as_str())
@@ -218,75 +198,66 @@ pub fn make_dependency(
             let vcc1 = vcc_pairs[0].clone(); // e.g. ">=2.0.0"
             let vcc2 = vcc_pairs[1].clone(); // e.g. "<4.0.0"
             VersionConstraint::from_str(&format!(
-                "{} {}", vcc1.into_span().as_str(), vcc2.into_span().as_str()))
+                "{} {}",
+                vcc1.into_span().as_str(),
+                vcc2.into_span().as_str()
+            ))
         }
-        _ => unreachable!()
-    }.ok_or_else(||
-        Error::from(pest::Error::CustomErrorPos {
-            // More error detail would make this much more user-friendly.
-            message: "Invalid version constraint".to_string(),
-            pos: vcc_pairs[0].clone().into_span().start_pos(),
-        })
-    )?;
+        _ => unreachable!(),
+    }.ok_or_else(|| {
+        format_err!("Invalid version constraint")
+            .with_pos(&vcc_pairs[0].clone().into_span().start_pos())
+    })?;
 
     Ok((package_name, version_constraint))
 }
 
-pub fn evaluate_files_block(files_block_pair: Pair, root: &Path)
-    -> Result<Vec<String>, Error>
-{
+pub fn evaluate_files_block(
+    files_block_pair: Pair,
+    root: &Path,
+) -> Result<Vec<String>, ::failure::Error> {
     let mut file_collection = FileCollection::new(root.to_path_buf())?;
+    let mut selected_files = HashSet::<String>::new();
+    // TODO add on-disk files AND git ls-files to FileCollection
     for (symbol_pair, arguments_pair) in get_fields(files_block_pair) {
         match symbol_pair.as_str() {
-            "git" => {
+            "add_committed" => {
+                // TODO allow argument
                 Arguments::from_pair(arguments_pair, 0, 0, &[], Some(false))?;
                 let git_scm_provider = GitScmProvider::new(root)?;
                 git_scm_provider.check_repo_is_pristine()?;
-                for committed_file in git_scm_provider.ls_files()? {
-                    file_collection.add_file(committed_file)?;
-                }
+                // for committed_file in git_scm_provider.ls_files()? {
+                //     file_collection.add_file(committed_file)?;
+                // }
             }
             "add" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
                 let glob = get_string(glob_pair.clone())?;
 
-                match file_collection.add(&glob) {
-                    Err(glob_error) => {
-                        // We should try to preserve the structure here rather than
-                        // stringifying it.
-                        return Err(Error::from(pest::Error::CustomErrorSpan {
-                            message: format!("{}", glob_error),
-                            span: glob_pair.into_span(),
-                        }));
-                    }
-                    Ok(()) => { }
-                }
+                file_collection
+                    .add(&mut selected_files, &glob)
+                    .pair_context(&glob_pair)?;
             }
-            "ignore" => {
+            "remove" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
                 let glob = get_string(glob_pair.clone())?;
 
-                match file_collection.remove(&glob) {
-                    Err(glob_error) => {
-                        return Err(Error::from(pest::Error::CustomErrorSpan {
-                            message: format!("{}", glob_error),
-                            span: glob_pair.into_span(),
-                        }));
-                    }
-                    Ok(()) => { }
-                }
+                file_collection
+                    .remove(&mut selected_files, &glob)
+                    .pair_context(&glob_pair)?;
             }
             _ => {
-                return Err(Error::from(pest::Error::CustomErrorSpan {
-                    message: "Expected `add`, `ignore` or `git`".to_string(),
-                    span: symbol_pair.into_span(),
-                }));
+                return Err(::failure::Error::from(
+                    format_err!("Expected `add_committed`, `add`, or `remove`")
+                        .with_pair(&symbol_pair),
+                ));
             }
         }
     }
-    Ok(file_collection.get_selected_files())
+    let mut selected_files_vec: Vec<String> = selected_files.into_iter().collect();
+    selected_files_vec.sort_unstable();
+    Ok(selected_files_vec)
 }
-
 
 pub fn test_reader() {
     println!(
@@ -303,9 +274,9 @@ pub fn test_reader() {
                 description "The foo package."
                 license "MIT"
                 files {
-                    // git
+                    // add_committed
                     add "**/*.rs"
-                    // ignore "test/**"
+                    // remove "test/**"
                 }
             } // commment
         "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e))

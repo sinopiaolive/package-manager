@@ -9,6 +9,7 @@ use rand::prelude::random;
 use url::{form_urlencoded, Url};
 use webbrowser;
 
+use failure;
 use futures::future::{self, Future, FutureResult};
 use futures::task::{current, Task};
 use futures::{Async, Poll};
@@ -17,7 +18,6 @@ use hyper::server::{Http, Request, Response, Service};
 use hyper::{self, StatusCode};
 
 use config::{get_config, write_config, Auth, Config};
-use error::Error;
 
 pub const USAGE: &'static str = "Login.
 
@@ -172,7 +172,7 @@ pub fn generate_secret() -> String {
     HEXUPPER.encode(&data)
 }
 
-pub fn execute(_: Args) -> Result<(), Error> {
+pub fn execute(_: Args) -> Result<(), failure::Error> {
     let done = Done::new();
     let callback_done = done.clone();
     let secret = generate_secret();

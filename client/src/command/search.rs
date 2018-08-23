@@ -1,8 +1,8 @@
 use std::cmp::{min, max};
 
+use failure;
 use console::{Term, Style};
 
-use error::Error;
 use registry;
 
 pub const USAGE: &'static str = "Search for packages by keyword.
@@ -29,7 +29,7 @@ pub struct SearchResult {
     description: String,
 }
 
-pub fn execute(args: Args) -> Result<(), Error> {
+pub fn execute(args: Args) -> Result<(), failure::Error> {
     match registry::get::<Vec<SearchResult>>(
         "search",
         ordmap!{"ns".to_string() => args.arg_namespace, "q".to_string() => args.arg_keyword.join(" ")},

@@ -4,8 +4,8 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use failure;
 
-use error::Error;
 use manifest::Manifest;
 
 fn find_manifest(path: &Path) -> Option<PathBuf> {
@@ -17,18 +17,18 @@ fn find_manifest(path: &Path) -> Option<PathBuf> {
     }
 }
 
-pub fn find_manifest_path() -> Result<PathBuf, Error> {
+pub fn find_manifest_path() -> Result<PathBuf, failure::Error> {
     let cwd = env::current_dir()?;
-    find_manifest(&cwd).ok_or(Error::from("no project file found!"))
+    find_manifest(&cwd).ok_or(format_err!("no project file found!"))
 }
 
-pub fn find_project_dir() -> Result<PathBuf, Error> {
+pub fn find_project_dir() -> Result<PathBuf, failure::Error> {
     let mut manifest_path = find_manifest_path()?;
     manifest_path.pop();
     Ok(manifest_path)
 }
 
-pub fn read_manifest() -> Result<Manifest, Error> {
+pub fn read_manifest() -> Result<Manifest, failure::Error> {
     let manifest_path = find_manifest_path()?;
     let root = manifest_path.parent().unwrap_or(Path::new(&"."));
     let data = File::open(manifest_path.clone()).and_then(|mut f| {

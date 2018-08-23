@@ -10,7 +10,7 @@ use rmp_serde::encode;
 
 use pm_lib::manifest::Manifest;
 
-use error::Error;
+use failure;
 use io::ProgressIO;
 use project::{read_manifest, find_project_dir};
 use registry::post;
@@ -47,7 +47,7 @@ fn make_progress(msg: &str, len: usize, quiet: bool) -> ProgressBar {
     bar
 }
 
-pub fn execute(args: Args) -> Result<(), Error> {
+pub fn execute(args: Args) -> Result<(), failure::Error> {
     let manifest = read_manifest()?;
 
     if !args.flag_quiet {
@@ -116,7 +116,7 @@ pub fn execute(args: Args) -> Result<(), Error> {
     Ok(())
 }
 
-fn build_archive(files: Vec<PathBuf>, args: &Args) -> Result<Vec<u8>, Error> {
+fn build_archive(files: Vec<PathBuf>, args: &Args) -> Result<Vec<u8>, failure::Error> {
     let project_path = find_project_dir()?;
     let mut tar = tar::Builder::new(Vec::new());
     for local_path in files {

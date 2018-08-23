@@ -3,10 +3,10 @@
 use std::path::PathBuf;
 use std::env::home_dir;
 
-use error::Error;
+use failure;
 
-pub fn config_path() -> Result<PathBuf, Error> {
-    let mut p = home_dir().ok_or(Error::from("unable to find user home directory!"))?;
+pub fn config_path() -> Result<PathBuf, failure::Error> {
+    let mut p = home_dir().ok_or(format_err!("unable to find user home directory!"))?;
     p.push(".package-manager");
     Ok(p)
 }

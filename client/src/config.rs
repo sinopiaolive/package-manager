@@ -1,8 +1,8 @@
 use std::io::{Read, Write};
 use std::fs::{File, create_dir_all};
+use failure;
 use toml;
 
-use error::Error;
 use path::config_path;
 
 #[derive(Serialize, Deserialize)]
@@ -25,7 +25,7 @@ pub struct Auth {
     pub token: Option<String>,
 }
 
-fn read_config<R>(r: &mut R) -> Result<Config, Error>
+fn read_config<R>(r: &mut R) -> Result<Config, failure::Error>
 where
     R: Read,
 {
@@ -34,7 +34,7 @@ where
     Ok(toml::from_str(&data)?)
 }
 
-pub fn get_config() -> Result<Config, Error> {
+pub fn get_config() -> Result<Config, failure::Error> {
     let mut path = config_path()?;
     path.push("config.toml");
     match File::open(path) {
@@ -43,7 +43,7 @@ pub fn get_config() -> Result<Config, Error> {
     }
 }
 
-pub fn write_config(config: &Config) -> Result<(), Error> {
+pub fn write_config(config: &Config) -> Result<(), failure::Error> {
     let mut path = config_path()?;
     create_dir_all(&path)?;
     path.push("config.toml");
