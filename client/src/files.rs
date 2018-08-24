@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 // behavior due to ordering.
 type FileSet = HashSet<String>;
 
-pub struct FileCollection {
+pub struct FilesSectionInterpreter {
     pub root: PathBuf,
     pub files_on_disk: BTreeSet<String>,
     pub directories_on_disk: BTreeSet<String>,
@@ -33,10 +33,11 @@ pub struct AddCommittedNotFoundError;
 #[fail(display = "Version control system returned 0 committed files")]
 pub struct AddAllCommittedNotFoundError;
 
-impl FileCollection {
+// Interpret "add" and "remove" commands in the `files { ... }` section.
+impl FilesSectionInterpreter {
     pub fn new(root: PathBuf) -> Result<Self, failure::Error> {
         let (files, directories) = walk_dir(&root)?;
-        Ok(FileCollection {
+        Ok(FilesSectionInterpreter {
             root: root,
             files_on_disk: files,
             directories_on_disk: directories,
@@ -57,21 +58,21 @@ impl FileCollection {
 
     pub fn add_committed(
         &mut self,
-        selected_files: &mut FileSet,
+        file_set: &mut FileSet,
         glob: &str,
     ) -> Result<(), failure::Error> {
         self.initialize_committed_files()?;
         let pattern = self.parse_glob(glob)?;
         let mut did_match = false;
         for file in &self.committed_files {
-            if FileCollection::pattern_matches(&pattern, file) {
+            if FilesSectionInterpreter::pattern_matches(&pattern, file) {
                 if !self.files_on_disk.contains(file) {
                     return Err(format_err!(
                         "File is committed to SCM but missing in working tree: {}",
                         file
                     ));
                 }
-                selected_files.insert(file.clone());
+                file_set.insert(file.clone());
                 did_match = true;
             }
         }
@@ -107,7 +108,7 @@ impl FileCollection {
     }
 
     pub fn pattern_matches(pattern: &Pattern, file: &str) -> bool {
-        pattern.matches_with(&file, &FileCollection::match_options())
+        pattern.matches_with(&file, &FilesSectionInterpreter::match_options())
     }
 
     pub fn match_options() -> MatchOptions {
@@ -120,13 +121,13 @@ impl FileCollection {
         }
     }
 
-    pub fn add(&mut self, selected_files: &mut FileSet, glob: &str) -> Result<(), failure::Error> {
+    pub fn add(&mut self, file_set: &mut FileSet, glob: &str) -> Result<(), failure::Error> {
         let mut did_match = false;
         let pattern = self.parse_glob(glob)?;
         for file in self.files_on_disk.iter() {
-            if FileCollection::pattern_matches(&pattern, &file) {
+            if FilesSectionInterpreter::pattern_matches(&pattern, &file) {
                 did_match = true;
-                selected_files.insert(file.to_string());
+                file_set.insert(file.to_string());
             }
         }
 
@@ -134,8 +135,8 @@ impl FileCollection {
             // Produce a helpful error if the glob matches a directory (but no
             // files).
             for dir in self.directories_on_disk.iter() {
-                if FileCollection::pattern_matches(&pattern, &dir)
-                    || FileCollection::pattern_matches(&pattern, &format!("{}/", dir))
+                if FilesSectionInterpreter::pattern_matches(&pattern, &dir)
+                    || FilesSectionInterpreter::pattern_matches(&pattern, &format!("{}/", dir))
                 {
                     return Err(failure::Error::from(GlobError::Directory));
                 }
@@ -152,12 +153,12 @@ impl FileCollection {
 
     pub fn remove(
         &mut self,
-        selected_files: &mut FileSet,
+        file_set: &mut FileSet,
         glob: &str,
     ) -> Result<(), failure::Error> {
         let pattern = self.parse_glob(glob)?;
-        let match_options = FileCollection::match_options();
-        selected_files.retain(|file| {
+        let match_options = FilesSectionInterpreter::match_options();
+        file_set.retain(|file| {
             // Given file x/y, check if the glob matches x/y, x/ or x
             // to enable excluding entire directories.
             let mut slice: &str = &file;
@@ -267,8 +268,8 @@ impl fmt::Display for GlobError {
 mod test {
     use super::*;
 
-    fn make_fc(files: &[&str]) -> FileCollection {
-        FileCollection {
+    fn make_fsi(files: &[&str]) -> FilesSectionInterpreter {
+        FilesSectionInterpreter {
             root: PathBuf::from("dummy"),
             files_on_disk: files.iter().map(|s| s.to_string()).collect(),
             directories_on_disk: generate_directories(files),
@@ -296,11 +297,11 @@ mod test {
         directories
     }
 
-    fn assert_selected(selected_files: &FileSet, files: &[&str]) {
-        let mut selected_files_v: Vec<String> = selected_files.clone().into_iter().collect();
-        selected_files_v.sort();
+    fn assert_file_set(file_set: &FileSet, files: &[&str]) {
+        let mut file_set_v: Vec<String> = file_set.clone().into_iter().collect();
+        file_set_v.sort();
         assert_eq!(
-            selected_files_v,
+            file_set_v,
             files.iter().map(|s| s.to_string()).collect::<Vec<String>>()
         );
     }
@@ -309,7 +310,7 @@ mod test {
         use super::*;
 
         fn glob_error_for(glob: &str) -> GlobError {
-            unwrap_glob_error(make_fc(&[]).add(&mut FileSet::new(), glob))
+            unwrap_glob_error(make_fsi(&[]).add(&mut FileSet::new(), glob))
         }
 
         fn unwrap_glob_error(glob_result: Result<(), ::failure::Error>) -> GlobError {
@@ -340,7 +341,7 @@ mod test {
 
         #[test]
         fn include_and_exclude() {
-            let mut fc = make_fc(&[
+            let mut fsi = make_fsi(&[
                 "src/a.rs",
                 "src/b.rs",
                 "src/vendor/a.rs",
@@ -348,41 +349,41 @@ mod test {
                 "test/a.rs",
             ]);
             let mut file_set = FileSet::new();
-            fc.add(&mut file_set, "src/**").unwrap();
-            fc.remove(&mut file_set, "src/vendor/*").unwrap();
-            fc.add(&mut file_set, "src/vendor/a.rs").unwrap();
+            fsi.add(&mut file_set, "src/**").unwrap();
+            fsi.remove(&mut file_set, "src/vendor/*").unwrap();
+            fsi.add(&mut file_set, "src/vendor/a.rs").unwrap();
 
-            assert_selected(&file_set, &["src/a.rs", "src/b.rs", "src/vendor/a.rs"]);
+            assert_file_set(&file_set, &["src/a.rs", "src/b.rs", "src/vendor/a.rs"]);
         }
 
         #[test]
         fn include_directory() {
             assert_matches!(
-                unwrap_glob_error(make_fc(&["src/foo.rs"]).add(&mut FileSet::new(), "src")),
+                unwrap_glob_error(make_fsi(&["src/foo.rs"]).add(&mut FileSet::new(), "src")),
                 GlobError::Directory
             );
             assert_matches!(
-                unwrap_glob_error(make_fc(&["src/foo.rs"]).add(&mut FileSet::new(), "src/")),
+                unwrap_glob_error(make_fsi(&["src/foo.rs"]).add(&mut FileSet::new(), "src/")),
                 GlobError::Directory
             );
         }
 
         #[test]
         fn exclude_directory() {
-            let mut fc = make_fc(&["src/a.rs"]);
+            let mut fsi = make_fsi(&["src/a.rs"]);
             let mut file_set = FileSet::new();
-            fc.add(&mut file_set, "**").unwrap();
-            fc.remove(&mut file_set, "src").unwrap();
-            assert_selected(&file_set, &[]);
+            fsi.add(&mut file_set, "**").unwrap();
+            fsi.remove(&mut file_set, "src").unwrap();
+            assert_file_set(&file_set, &[]);
         }
 
         #[test]
         fn exclude_directory_trailing_slash() {
-            let mut fc = make_fc(&["src/a.rs"]);
+            let mut fsi = make_fsi(&["src/a.rs"]);
             let mut file_set = FileSet::new();
-            fc.add(&mut file_set, "**").unwrap();
-            fc.remove(&mut file_set, "src/").unwrap();
-            assert_selected(&file_set, &[]);
+            fsi.add(&mut file_set, "**").unwrap();
+            fsi.remove(&mut file_set, "src/").unwrap();
+            assert_file_set(&file_set, &[]);
         }
 
         //     mod star_behavior {
@@ -440,7 +441,7 @@ mod test {
 
         //     #[test]
         //     fn test_case_sensitive() {
-        //         match fc(&["jquery.js"], &["jQuery.js"]) {
+        //         match fsi(&["jquery.js"], &["jQuery.js"]) {
         //             Err(GlobError::NotFound) => {},
         //             r @ _ => panic!("{:?}", r),
         //         }

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use files::FileCollection;
+use files::FilesSectionInterpreter;
 use git::GitScmProvider;
 use manifest_parser::{
     check_block_fields, get_field, get_fields, get_optional_block_field, get_optional_field,
@@ -216,9 +216,9 @@ pub fn evaluate_files_block(
     files_block_pair: Pair,
     root: &Path,
 ) -> Result<Vec<String>, ::failure::Error> {
-    let mut file_collection = FileCollection::new(root.to_path_buf())?;
-    let mut selected_files = HashSet::<String>::new();
-    // TODO add on-disk files AND git ls-files to FileCollection
+    let mut file_section_interpreter = FilesSectionInterpreter::new(root.to_path_buf())?;
+    let mut file_set = HashSet::<String>::new();
+    // TODO add on-disk files AND git ls-files to FilesSectionInterpreter
     for (symbol_pair, arguments_pair) in get_fields(files_block_pair) {
         match symbol_pair.as_str() {
             "add_committed" => {
@@ -227,23 +227,23 @@ pub fn evaluate_files_block(
                 let git_scm_provider = GitScmProvider::new(root)?;
                 git_scm_provider.check_repo_is_pristine()?;
                 // for committed_file in git_scm_provider.ls_files()? {
-                //     file_collection.add_file(committed_file)?;
+                //     file_section_interpreter.add_file(committed_file)?;
                 // }
             }
             "add" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
                 let glob = get_string(glob_pair.clone())?;
 
-                file_collection
-                    .add(&mut selected_files, &glob)
+                file_section_interpreter
+                    .add(&mut file_set, &glob)
                     .pair_context(&glob_pair)?;
             }
             "remove" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
                 let glob = get_string(glob_pair.clone())?;
 
-                file_collection
-                    .remove(&mut selected_files, &glob)
+                file_section_interpreter
+                    .remove(&mut file_set, &glob)
                     .pair_context(&glob_pair)?;
             }
             _ => {
@@ -254,9 +254,9 @@ pub fn evaluate_files_block(
             }
         }
     }
-    let mut selected_files_vec: Vec<String> = selected_files.into_iter().collect();
-    selected_files_vec.sort_unstable();
-    Ok(selected_files_vec)
+    let mut file_set_vec: Vec<String> = file_set.into_iter().collect();
+    file_set_vec.sort_unstable();
+    Ok(file_set_vec)
 }
 
 pub fn test_reader() {
