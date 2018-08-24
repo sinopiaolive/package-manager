@@ -230,12 +230,12 @@ pub fn evaluate_files_block(
                 //     file_section_interpreter.add_file(committed_file)?;
                 // }
             }
-            "add" => {
+            "add_uncommitted" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
                 let glob = get_string(glob_pair.clone())?;
 
                 file_section_interpreter
-                    .add(&mut file_set, &glob)
+                    .add_uncommitted(&mut file_set, &glob)
                     .pair_context(&glob_pair)?;
             }
             "remove" => {
@@ -248,7 +248,7 @@ pub fn evaluate_files_block(
             }
             _ => {
                 return Err(::failure::Error::from(
-                    format_err!("Expected `add_committed`, `add`, or `remove`")
+                    format_err!("Expected `add_committed`, `add_uncommitted`, or `remove`")
                         .with_pair(&symbol_pair),
                 ));
             }
@@ -275,7 +275,7 @@ pub fn test_reader() {
                 license "MIT"
                 files {
                     // add_committed
-                    add "**/*.rs"
+                    add_committed "**/*.rs"
                     // remove "test/**"
                 }
             } // commment

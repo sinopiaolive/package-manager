@@ -83,45 +83,7 @@ impl FilesSectionInterpreter {
         }
     }
 
-    pub fn parse_glob(&self, glob: &str) -> Result<Pattern, GlobError> {
-        // The various checks here are purely to provide better error messages
-        // than "file not found" for various syntax errors.
-        if glob == "" {
-            return Err(GlobError::Empty);
-        }
-        if glob.starts_with('!') {
-            return Err(GlobError::ExclamationPoint);
-        }
-        if glob.contains('{') || glob.contains('}') {
-            return Err(GlobError::Braces);
-        }
-        if glob.contains('\\') {
-            return Err(GlobError::Backslash);
-        }
-        if glob.contains("[^") {
-            return Err(GlobError::Caret);
-        }
-        if glob.starts_with("/") || (glob.len() >= 2 && glob.as_bytes()[1] == b':') {
-            return Err(GlobError::Absolute);
-        }
-        Pattern::new(glob).map_err(|pattern_error| GlobError::PatternError(pattern_error))
-    }
-
-    pub fn pattern_matches(pattern: &Pattern, file: &str) -> bool {
-        pattern.matches_with(&file, &FilesSectionInterpreter::match_options())
-    }
-
-    pub fn match_options() -> MatchOptions {
-        MatchOptions {
-            case_sensitive: true,
-            // foo/*/bar should not match foo/a/b/bar
-            require_literal_separator: true,
-            // * should not match .dotfile
-            require_literal_leading_dot: true,
-        }
-    }
-
-    pub fn add(&mut self, file_set: &mut FileSet, glob: &str) -> Result<(), failure::Error> {
+    pub fn add_uncommitted(&mut self, file_set: &mut FileSet, glob: &str) -> Result<(), failure::Error> {
         let mut did_match = false;
         let pattern = self.parse_glob(glob)?;
         for file in self.files_on_disk.iter() {
@@ -181,6 +143,44 @@ impl FilesSectionInterpreter {
         });
 
         Ok(())
+    }
+
+    pub fn parse_glob(&self, glob: &str) -> Result<Pattern, GlobError> {
+        // The various checks here are purely to provide better error messages
+        // than "file not found" for various syntax errors.
+        if glob == "" {
+            return Err(GlobError::Empty);
+        }
+        if glob.starts_with('!') {
+            return Err(GlobError::ExclamationPoint);
+        }
+        if glob.contains('{') || glob.contains('}') {
+            return Err(GlobError::Braces);
+        }
+        if glob.contains('\\') {
+            return Err(GlobError::Backslash);
+        }
+        if glob.contains("[^") {
+            return Err(GlobError::Caret);
+        }
+        if glob.starts_with("/") || (glob.len() >= 2 && glob.as_bytes()[1] == b':') {
+            return Err(GlobError::Absolute);
+        }
+        Pattern::new(glob).map_err(|pattern_error| GlobError::PatternError(pattern_error))
+    }
+
+    pub fn pattern_matches(pattern: &Pattern, file: &str) -> bool {
+        pattern.matches_with(&file, &FilesSectionInterpreter::match_options())
+    }
+
+    pub fn match_options() -> MatchOptions {
+        MatchOptions {
+            case_sensitive: true,
+            // foo/*/bar should not match foo/a/b/bar
+            require_literal_separator: true,
+            // * should not match .dotfile
+            require_literal_leading_dot: true,
+        }
     }
 }
 
@@ -310,7 +310,7 @@ mod test {
         use super::*;
 
         fn glob_error_for(glob: &str) -> GlobError {
-            unwrap_glob_error(make_fsi(&[]).add(&mut FileSet::new(), glob))
+            unwrap_glob_error(make_fsi(&[]).add_uncommitted(&mut FileSet::new(), glob))
         }
 
         fn unwrap_glob_error(glob_result: Result<(), ::failure::Error>) -> GlobError {
@@ -349,9 +349,9 @@ mod test {
                 "test/a.rs",
             ]);
             let mut file_set = FileSet::new();
-            fsi.add(&mut file_set, "src/**").unwrap();
+            fsi.add_uncommitted(&mut file_set, "src/**").unwrap();
             fsi.remove(&mut file_set, "src/vendor/*").unwrap();
-            fsi.add(&mut file_set, "src/vendor/a.rs").unwrap();
+            fsi.add_uncommitted(&mut file_set, "src/vendor/a.rs").unwrap();
 
             assert_file_set(&file_set, &["src/a.rs", "src/b.rs", "src/vendor/a.rs"]);
         }
@@ -359,11 +359,11 @@ mod test {
         #[test]
         fn include_directory() {
             assert_matches!(
-                unwrap_glob_error(make_fsi(&["src/foo.rs"]).add(&mut FileSet::new(), "src")),
+                unwrap_glob_error(make_fsi(&["src/foo.rs"]).add_uncommitted(&mut FileSet::new(), "src")),
                 GlobError::Directory
             );
             assert_matches!(
-                unwrap_glob_error(make_fsi(&["src/foo.rs"]).add(&mut FileSet::new(), "src/")),
+                unwrap_glob_error(make_fsi(&["src/foo.rs"]).add_uncommitted(&mut FileSet::new(), "src/")),
                 GlobError::Directory
             );
         }
@@ -372,7 +372,7 @@ mod test {
         fn exclude_directory() {
             let mut fsi = make_fsi(&["src/a.rs"]);
             let mut file_set = FileSet::new();
-            fsi.add(&mut file_set, "**").unwrap();
+            fsi.add_uncommitted(&mut file_set, "**").unwrap();
             fsi.remove(&mut file_set, "src").unwrap();
             assert_file_set(&file_set, &[]);
         }
@@ -381,7 +381,7 @@ mod test {
         fn exclude_directory_trailing_slash() {
             let mut fsi = make_fsi(&["src/a.rs"]);
             let mut file_set = FileSet::new();
-            fsi.add(&mut file_set, "**").unwrap();
+            fsi.add_uncommitted(&mut file_set, "**").unwrap();
             fsi.remove(&mut file_set, "src/").unwrap();
             assert_file_set(&file_set, &[]);
         }
