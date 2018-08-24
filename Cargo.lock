@@ -305,6 +305,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "docopt"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -922,6 +931,7 @@ dependencies = [
  "brotli 2.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "console 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "data-encoding 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dirs 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure_derive 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1886,6 +1896,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum diesel 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)" = "304226fa7a3982b0405f6bb95dd9c10c3e2000709f194038a60ec2c277150951"
 "checksum diesel_codegen 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)" = "22006237aee4465b49fb3a0248310a0aaefa6f165fc63c5f6e67810c63521c31"
 "checksum diesel_infer_schema 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bf1957ff5cd3b04772e43c162c2f69c2aa918080ff9b020276792d236be8be52"
+"checksum dirs 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "f679c09c1cf5428702cc10f6846c56e4e23420d3a88bcc9335b17c630a7b710b"
 "checksum docopt 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e67fb750c36fc6fffbd3575cf8f2b46790fc0b05096ae3c03a36cf71b55e1e2b"
 "checksum dotenv 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d6f0e2bb24d163428d8031d3ebd2d2bd903ad933205a97d0f18c7c1aade380f3"
 "checksum dotenv 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c0d0a1279c96732bc6800ce6337b6a614697b0e74ae058dc03c62ebeb78b4d86"

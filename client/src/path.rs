@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::path::PathBuf;
-use std::env::home_dir;
+use dirs::home_dir;
 
 use failure;
 

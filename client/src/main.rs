@@ -1,6 +1,7 @@
 #![allow(unused_features)]
 #![feature(specialization, plugin, test)]
 
+extern crate dirs;
 #[macro_use]
 extern crate failure;
 #[macro_use]
