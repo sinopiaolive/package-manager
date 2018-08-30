@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use schema::{files};
+use schema::files;
 
 #[derive(Insertable, Queryable, Identifiable, Associations, Debug)]
 #[table_name = "files"]

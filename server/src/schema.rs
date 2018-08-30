@@ -36,7 +36,7 @@ table! {
 }
 
 table! {
-    use diesel::types::*;
+    use diesel::sql_types::*;
     use diesel::pg::types::sql_types::Array;
 
     package_releases (namespace, name, version) {

@@ -1,7 +1,7 @@
 #![recursion_limit = "128"]
 #![feature(plugin, custom_derive)]
 #![plugin(rocket_codegen)]
-
+#![allow(proc_macro_derive_resolution_fallback)]
 extern crate rocket;
 extern crate serde;
 extern crate serde_json;
@@ -11,51 +11,49 @@ extern crate rmp_serde;
 extern crate rocket_contrib;
 #[macro_use]
 extern crate quick_error;
-extern crate reqwest;
 extern crate data_encoding;
-extern crate url;
 extern crate dotenv;
+extern crate reqwest;
+extern crate url;
 #[macro_use]
 extern crate diesel;
 #[macro_use]
-extern crate diesel_codegen;
-extern crate pm_lib;
-extern crate im;
-extern crate tar;
+extern crate diesel_migrations;
 extern crate brotli;
+extern crate im;
+extern crate pm_lib;
+extern crate tar;
 
-mod error;
-mod schema;
-mod store;
-mod user;
 mod auth;
-mod package;
-mod search;
-mod upload;
+mod error;
 mod file;
 mod github;
 mod gitlab;
+mod package;
+mod schema;
+mod search;
+mod store;
+mod upload;
+mod user;
 
 #[cfg(test)]
 mod test;
 
 use std::io::Cursor;
 
-use rocket::request::{Request, FromRequest};
-use rocket::response::{Redirect, Response, content};
-use rocket::{Outcome, State, Data};
-use rocket::http::{Status, ContentType};
+use rocket::http::{ContentType, Status};
+use rocket::request::{FromRequest, Request};
+use rocket::response::{content, Redirect, Response};
+use rocket::{Data, Outcome, State};
 use rocket_contrib::Json;
 
 use url::Url;
 
-use error::{Res, Error};
-use store::Store;
+use auth::{AuthProvider, AuthToken};
+use error::{Error, Res};
 use github::{Github, GITHUB_CLIENT_ID};
 use gitlab::{Gitlab, GITLAB_CLIENT_ID};
-use auth::{AuthProvider, AuthToken};
-
-
+use store::Store;
 
 static STYLES: &'static str = "
 body {
@@ -118,12 +116,9 @@ fn html_doc(content: &str) -> content::Html<String> {
   </body>
 </html>
 ",
-        STYLES,
-        content
+        STYLES, content
     ))
 }
-
-
 
 fn parse_auth_header<'a>(header: &'a str) -> Option<&'a str> {
     let start = "Bearer ";
@@ -140,16 +135,16 @@ impl<'a, 'r> FromRequest<'a, 'r> for Authenticate {
     type Error = Error;
 
     fn from_request(request: &'a Request<'r>) -> Outcome<Self, (Status, Self::Error), ()> {
-        match request.headers().get_one("Authorization").and_then(
-            parse_auth_header,
-        ) {
+        match request
+            .headers()
+            .get_one("Authorization")
+            .and_then(parse_auth_header)
+        {
             None => Outcome::Failure((Status::Unauthorized, Error::Status(Status::Unauthorized))),
-            Some(token) => {
-                match AuthToken::decode(token.as_bytes()) {
-                    Ok(token) => Outcome::Success(Authenticate(token)),
-                    Err(err) => Outcome::Failure((Status::Unauthorized, err)),
-                }
-            }
+            Some(token) => match AuthToken::decode(token.as_bytes()) {
+                Ok(token) => Outcome::Success(Authenticate(token)),
+                Err(err) => Outcome::Failure((Status::Unauthorized, err)),
+            },
         }
     }
 }
@@ -158,24 +153,20 @@ impl Authenticate {
     pub fn validate(&self, store: &Store) -> Res<AuthToken> {
         match self.0.user.provider.provider() {
             Err(_) => Err(Error::Status(Status::Unauthorized)),
-            Ok(provider) => {
-                match provider.user(&self.0.token) {
-                    Err(_) => Err(Error::Status(Status::Unauthorized)),
-                    Ok(user) => {
-                        if user.user()? == self.0.user {
-                            store.update_user(&user)?;
-                            Ok(self.0.clone())
-                        } else {
-                            Err(Error::Status(Status::Unauthorized))
-                        }
+            Ok(provider) => match provider.user(&self.0.token) {
+                Err(_) => Err(Error::Status(Status::Unauthorized)),
+                Ok(user) => {
+                    if user.user()? == self.0.user {
+                        store.update_user(&user)?;
+                        Ok(self.0.clone())
+                    } else {
+                        Err(Error::Status(Status::Unauthorized))
                     }
                 }
-            }
+            },
         }
     }
 }
-
-
 
 #[get("/test")]
 fn test(auth: Authenticate, store: State<Store>) -> Res<String> {
@@ -193,13 +184,11 @@ struct SearchQuery {
 fn files(store: State<Store>, namespace: String, name: String) -> Res<Response> {
     match store.get_file(&namespace, &name) {
         Err(_) => Err(Error::Status(Status::NotFound)),
-        Ok(file) => {
-            Response::build()
-                .status(Status::Ok)
-                .header(ContentType::new("application", "brotli"))
-                .sized_body(Cursor::new(file.data))
-                .ok()
-        }
+        Ok(file) => Response::build()
+            .status(Status::Ok)
+            .header(ContentType::new("application", "brotli"))
+            .sized_body(Cursor::new(file.data))
+            .ok(),
     }
 }
 
@@ -215,9 +204,11 @@ fn search(query: SearchQuery, store: State<Store>) -> Res<Json<Vec<search::Searc
 #[post("/publish", data = "<data>")]
 fn publish(data: Data, auth: Authenticate, store: State<Store>) -> Res<Json<upload::Receipt>> {
     let token = auth.validate(&store)?;
-    Ok(Json(
-        upload::process_upload(&store, &token.user, data.open())?,
-    ))
+    Ok(Json(upload::process_upload(
+        &store,
+        &token.user,
+        data.open(),
+    )?))
 }
 
 #[get("/")]
@@ -242,8 +233,7 @@ fn login_client(store: State<Store>, login: Login) -> Res<content::Html<String>>
     store.register_login(&login.token, &login.callback)?;
     let github_url = format!(
         "https://github.com/login/oauth/authorize?scope=user:email&client_id={}&state={}",
-        GITHUB_CLIENT_ID,
-        login.token
+        GITHUB_CLIENT_ID, login.token
     );
     let gitlab_url = format!(
         "https://gitlab.com/oauth/authorize?client_id={}&state={}&response_type=code&redirect_uri=http://localhost:8000/gitlab/callback&scope=read_user",
@@ -261,8 +251,7 @@ fn login_client(store: State<Store>, login: Login) -> Res<content::Html<String>>
   <a class=\"btn\" href=\"{}\">Log in with GitLab</a>
 </p>
 ",
-        github_url,
-        gitlab_url
+        github_url, gitlab_url
     )))
 }
 
@@ -305,7 +294,8 @@ fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
 }
 
 fn main() {
-    #[cfg(not(test))] dotenv::dotenv().ok();
+    #[cfg(not(test))]
+    dotenv::dotenv().ok();
 
     let store = Store::new().expect("couldn't connect to Postgres server");
     rocket::ignite()
@@ -322,6 +312,5 @@ fn main() {
                 github_callback,
                 gitlab_callback,
             ],
-        )
-        .launch();
+        ).launch();
 }

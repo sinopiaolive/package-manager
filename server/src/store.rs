@@ -1,23 +1,23 @@
 use std::env;
-use std::time::SystemTime;
 use std::str::FromStr;
+use std::time::SystemTime;
 
 use diesel;
-use diesel::prelude::*;
-use diesel::pg::PgConnection;
 use diesel::expression::dsl::now;
-use diesel::pg::expression::extensions::MicroIntervalDsl;
-use diesel::result::Error::DatabaseError;
+use diesel::pg::expression::extensions::IntervalDsl;
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind::UniqueViolation;
+use diesel::result::Error::DatabaseError;
 
 use data_encoding::BASE64;
 
-use error::{Res, Error};
-use user::{User, UserRecord};
-use package::{Package, PackageOwner, Release};
+use error::{Error, Res};
 use file::File;
+use package::{Package, PackageOwner, Release};
+use user::{User, UserRecord};
 
-use schema::{users, login_sessions, packages, package_owners, package_releases, files};
+use schema::{files, login_sessions, package_owners, package_releases, packages, users};
 
 #[allow(dead_code)]
 #[derive(Queryable)]
@@ -40,7 +40,9 @@ pub struct Store {
 
 impl Store {
     pub fn new() -> Res<Store> {
-        Ok(Store { db_url: env::var("DATABASE_URL")? })
+        Ok(Store {
+            db_url: env::var("DATABASE_URL")?,
+        })
     }
 
     pub fn db(&self) -> Res<PgConnection> {
@@ -52,11 +54,11 @@ impl Store {
         if BASE64.decode(token.as_bytes()).is_err() {
             return Err(Error::InvalidLoginState(token.to_string()));
         }
-        diesel::insert(&NewLoginSession {
-            token: token.to_string(),
-            callback: callback.to_string(),
-        }).into(login_sessions::table)
-            .execute(&db)?;
+        diesel::insert_into(login_sessions::table)
+            .values(&NewLoginSession {
+                token: token.to_string(),
+                callback: callback.to_string(),
+            }).execute(&db)?;
         Ok(())
     }
 
@@ -72,9 +74,8 @@ impl Store {
         match results.into_iter().next() {
             None => Err(Error::InvalidLoginState(token.to_string())),
             Some(session) => {
-                diesel::delete(login_sessions::table.filter(
-                    login_sessions::token.eq(token),
-                )).execute(&db)?;
+                diesel::delete(login_sessions::table.filter(login_sessions::token.eq(token)))
+                    .execute(&db)?;
                 Ok(session.callback)
             }
         }
@@ -89,11 +90,12 @@ impl Store {
                         users::name.eq(&user.name),
                         users::email.eq(&user.email),
                         users::avatar.eq(&user.avatar),
-                    ))
-                    .execute(&db)?;
+                    )).execute(&db)?;
             }
             Err(_) => {
-                diesel::insert(user).into(users::table).execute(&db)?;
+                diesel::insert_into(users::table)
+                    .values(user)
+                    .execute(&db)?;
             }
         }
         Ok(())
@@ -101,9 +103,9 @@ impl Store {
 
     pub fn get_user(&self, user: &User) -> Res<UserRecord> {
         let db = self.db()?;
-        let results: Vec<UserRecord> = users::table.filter(users::id.eq(user.to_string())).load(
-            &db,
-        )?;
+        let results: Vec<UserRecord> = users::table
+            .filter(users::id.eq(user.to_string()))
+            .load(&db)?;
         match results.into_iter().next() {
             None => Err(Error::UnknownUser(user.to_string())),
             Some(user) => Ok(user),
@@ -113,10 +115,11 @@ impl Store {
     pub fn get_package(&self, namespace: &str, name: &str) -> Res<Package> {
         let db = self.db()?;
         let results = packages::table
-            .filter(packages::namespace.eq(&namespace).and(
-                packages::name.eq(&name),
-            ))
-            .load(&db)?;
+            .filter(
+                packages::namespace
+                    .eq(&namespace)
+                    .and(packages::name.eq(&name)),
+            ).load(&db)?;
         match results.into_iter().next() {
             None => Err(Error::UnknownPackage(namespace.to_owned(), name.to_owned())),
             Some(pkg) => Ok(pkg),
@@ -125,13 +128,14 @@ impl Store {
 
     pub fn insert_package(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
         let db = self.db()?;
-        match diesel::insert(&Package {
-            namespace: namespace.to_owned(),
-            name: name.to_owned(),
-            deleted: None,
-            deleted_on: None,
-        }).into(packages::table)
-            .execute(&db) {
+        match diesel::insert_into(packages::table)
+            .values(&Package {
+                namespace: namespace.to_owned(),
+                name: name.to_owned(),
+                deleted: None,
+                deleted_on: None,
+            }).execute(&db)
+        {
             Ok(_) => self.add_package_owner(namespace, name, owner),
             Err(_) => Ok(()),
         }
@@ -140,53 +144,56 @@ impl Store {
     pub fn get_package_owners(&self, namespace: &str, name: &str) -> Res<Vec<User>> {
         let db = self.db()?;
         let results: Vec<PackageOwner> = package_owners::table
-            .filter(package_owners::namespace.eq(namespace).and(
-                package_owners::name.eq(name),
-            ))
-            .load(&db)?;
+            .filter(
+                package_owners::namespace
+                    .eq(namespace)
+                    .and(package_owners::name.eq(name)),
+            ).load(&db)?;
         results.iter().map(|o| User::from_str(&o.user_id)).collect()
     }
 
     pub fn add_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
         let db = self.db()?;
-        diesel::insert(&PackageOwner {
-            namespace: namespace.to_owned(),
-            name: name.to_owned(),
-            user_id: owner.to_string(),
-            added_time: SystemTime::now(),
-        }).into(package_owners::table)
-            .execute(&db)?;
+        diesel::insert_into(package_owners::table)
+            .values(&PackageOwner {
+                namespace: namespace.to_owned(),
+                name: name.to_owned(),
+                user_id: owner.to_string(),
+                added_time: SystemTime::now(),
+            }).execute(&db)?;
         Ok(())
     }
 
     pub fn remove_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
         let db = self.db()?;
-        diesel::delete(package_owners::table.filter(
-            package_owners::namespace.eq(namespace).and(
-                package_owners::name.eq(name).and(
-                    package_owners::user_id.eq(
-                        &owner.to_string(),
-                    ),
+        diesel::delete(
+            package_owners::table.filter(
+                package_owners::namespace.eq(namespace).and(
+                    package_owners::name
+                        .eq(name)
+                        .and(package_owners::user_id.eq(&owner.to_string())),
                 ),
             ),
-        )).execute(&db)?;
+        ).execute(&db)?;
         Ok(())
     }
 
     pub fn get_releases(&self, namespace: &str, name: &str) -> Res<Vec<Release>> {
         let db = self.db()?;
         Ok(package_releases::table
-            .filter(package_releases::namespace.eq(namespace).and(
-                package_releases::name.eq(name),
-            ))
-            .load(&db)?)
+            .filter(
+                package_releases::namespace
+                    .eq(namespace)
+                    .and(package_releases::name.eq(name)),
+            ).load(&db)?)
     }
 
     pub fn add_release(&self, release: &Release) -> Res<()> {
         let db = self.db()?;
-        match diesel::insert(release)
-            .into(package_releases::table)
-            .execute(&db) {
+        match diesel::insert_into(package_releases::table)
+            .values(release)
+            .execute(&db)
+        {
             Ok(_) => Ok(()),
             Err(DatabaseError(UniqueViolation, _)) => Err(Error::ReleaseAlreadyExists(
                 release.namespace.clone(),
@@ -210,13 +217,13 @@ impl Store {
 
     pub fn add_file(&self, namespace: &str, name: &str, data: &[u8]) -> Res<()> {
         let db = self.db()?;
-        diesel::insert(&File {
-            namespace: namespace.to_owned(),
-            name: name.to_owned(),
-            data: data.to_owned(),
-            uploaded_on: SystemTime::now(),
-        }).into(files::table)
-            .execute(&db)?;
+        diesel::insert_into(files::table)
+            .values(&File {
+                namespace: namespace.to_owned(),
+                name: name.to_owned(),
+                data: data.to_owned(),
+                uploaded_on: SystemTime::now(),
+            }).execute(&db)?;
         Ok(())
     }
 }

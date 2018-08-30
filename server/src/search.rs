@@ -1,7 +1,7 @@
-use diesel::expression::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::types::Text;
+use diesel::sql_query;
+use diesel::sql_types::Text;
 
 use pm_lib::version::Version;
 
@@ -10,11 +10,15 @@ use im::OrdMap as Map;
 use error::Error;
 use store::Store;
 
-#[derive(Queryable, Serialize, Clone, Debug, PartialEq, Eq)]
+#[derive(QueryableByName, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct SearchResult {
+    #[sql_type = "Text"]
     pub name: String,
+    #[sql_type = "Text"]
     pub version: String,
+    #[sql_type = "Text"]
     pub publisher: String,
+    #[sql_type = "Text"]
     pub description: String,
 }
 
@@ -23,7 +27,7 @@ pub fn search_db(
     ns: &str,
     query: Vec<String>,
 ) -> Result<Vec<SearchResult>, Error> {
-    let search = sql::<(Text, Text, Text, Text)>(
+    let result: Vec<SearchResult> = sql_query(
         "
 select package_releases.name,
        package_releases.version,
@@ -36,8 +40,8 @@ from package_releases, (
       and package_releases.namespace = $1;
 ",
     ).bind::<Text, _>(ns)
-        .bind::<Array<Text>, _>(query);
-    let result = search.load::<SearchResult>(db)?;
+    .bind::<Array<Text>, _>(query)
+    .get_results(db)?;
     Ok(group_by_semver(result))
 }
 
