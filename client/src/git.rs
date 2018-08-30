@@ -38,6 +38,7 @@ impl GitScmProvider {
         Ok(())
     }
 
+    // Check that no merge (or similar) is in progress.
     pub fn check_state_is_clean(&self) -> Result<(), failure::Error> {
         if self.repo.state() == RepositoryState::Clean {
             Ok(())
@@ -46,10 +47,11 @@ impl GitScmProvider {
         }
     }
 
+    // Check that there are no modified files.
     pub fn check_status_is_empty(&self) -> Result<(), failure::Error> {
         let mut status_options = StatusOptions::new();
         status_options
-            .include_untracked(true)
+            .include_untracked(false)
             .exclude_submodules(true)
             .pathspec(&self.relative_package_root)
             .disable_pathspec_match(true);
@@ -142,7 +144,7 @@ quick_error! {
             description("A Git operation such as a merge or a rebase is in progress in your working tree")
         }
         NonEmptyStatus {
-            description("The command `git status` shows modified or untracked files. Commit them to Git or add them to .gitignore before running this.")
+            description("The command `git status` shows modified files. Commit them to Git or revert the changes before running this.")
         }
         SubmodulesPresent {
             description("Git repositories with submodules are currently unsupported")
