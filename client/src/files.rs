@@ -8,12 +8,15 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+// Case insensitivity handling for Windows is currently missing; e.g. "*.rs" in
+// glob but "foo.RS" on disk. For Git, we follow the casing returned by Git, but
+// for uncommitted files we might want to match case insensitively or
+// alternatively throw useful error messages if the casing differs.
+
 // This needs to be a HashSet because BTreeSet doesn't have a .retain
 // method. When we iterate, we need to make sure to avoid non-deterministic
 // behavior due to ordering.
 type FileSet = HashSet<String>;
-
-
 
 pub struct FilesSectionInterpreter {
     pub root: PathBuf,
@@ -24,16 +27,12 @@ pub struct FilesSectionInterpreter {
 }
 
 #[derive(Fail, Debug)]
-#[fail(display = "No such file or directory")]
-pub struct AddNotFoundError;
-
-#[derive(Fail, Debug)]
-#[fail(display = "No such file or directory in version control system")]
+#[fail(display = "No such file or directory (in Git)")]
 pub struct AddCommittedNotFoundError;
 
 #[derive(Fail, Debug)]
-#[fail(display = "Version control system returned 0 committed files")]
-pub struct AddAllCommittedNotFoundError;
+#[fail(display = "No such file or directory")]
+pub struct AddUncommittedNotFoundError;
 
 // Interpret "add" and "remove" commands in the `files { ... }` section.
 impl FilesSectionInterpreter {
@@ -67,13 +66,7 @@ impl FilesSectionInterpreter {
         let cglob = CompiledGlob::new(glob)?;
         let mut did_match = false;
         for file in &self.committed_files {
-            if self.pattern_matches(&cglob, file) {
-                if !self.files_on_disk.contains(file) {
-                    return Err(format_err!(
-                        "File is committed to SCM but missing in working tree: {}",
-                        file
-                    ));
-                }
+            if self.pattern_matches_path_or_ancestor(&cglob, file) {
                 file_set.insert(file.clone());
                 did_match = true;
             }
@@ -93,30 +86,19 @@ impl FilesSectionInterpreter {
         let mut did_match = false;
         let cglob = CompiledGlob::new(glob)?;
         for file in self.files_on_disk.iter() {
-            if self.pattern_matches(&cglob, &file) {
+            if self.pattern_matches_path_or_ancestor(&cglob, &file) {
                 did_match = true;
-                file_set.insert(file.to_string());
+                file_set.insert(file.clone());
             }
         }
 
         if !did_match {
-            // Produce a helpful error if the glob matches a directory (but no
-            // files).
-            for dir in self.directories_on_disk.iter() {
-                if self.pattern_matches(&cglob, &dir)
-                    || self.pattern_matches(&cglob, &format!("{}/", dir))
-                {
-                    return Err(failure::Error::from(GlobError::Directory));
-                }
-            }
-
             // We may also want to provide a more helpful error message if a
             // glob only matches case-insensitively.
-
-            return Err(failure::Error::from(GlobError::NotFound));
+            Err(failure::Error::from(AddUncommittedNotFoundError))
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 
     pub fn remove(&mut self, file_set: &mut FileSet, glob: &str) -> Result<(), failure::Error> {
@@ -126,10 +108,6 @@ impl FilesSectionInterpreter {
         });
 
         Ok(())
-    }
-
-    fn pattern_matches(&self, cglob: &CompiledGlob, file: &str) -> bool {
-        cglob.matches_non_root(file)
     }
 
     fn pattern_matches_path_or_ancestor(&self, cglob: &CompiledGlob, file: &str) -> bool {
@@ -207,7 +185,6 @@ pub enum GlobError {
     Absolute,
     PatternError(PatternError), // anything caught by the glob library
 
-    Directory,
     NotFound,
 }
 
@@ -224,7 +201,6 @@ impl StdError for GlobError {
             GlobError::Absolute => r#"Expected relative path"#,
             GlobError::PatternError(_) => r#"Invalid glob syntax"#,
 
-            GlobError::Directory => r#"Expected file, found directory"#,
             GlobError::NotFound => r#"File(s) not found"#,
         }
     }
@@ -314,11 +290,6 @@ mod test {
         }
 
         #[test]
-        fn not_found() {
-            assert_matches!(glob_error_for("missing"), GlobError::NotFound);
-        }
-
-        #[test]
         fn include_and_exclude() {
             let mut fsi = make_fsi(&[
                 "src/a.rs",
@@ -338,18 +309,18 @@ mod test {
 
         #[test]
         fn include_directory() {
-            assert_matches!(
-                unwrap_glob_error(
-                    make_fsi(&["src/foo.rs"]).add_uncommitted(&mut FileSet::new(), "src")
-                ),
-                GlobError::Directory
-            );
-            assert_matches!(
-                unwrap_glob_error(
-                    make_fsi(&["src/foo.rs"]).add_uncommitted(&mut FileSet::new(), "src/")
-                ),
-                GlobError::Directory
-            );
+            let mut fsi = make_fsi(&[
+                "a.rs",
+                "src/b.rs",
+                "src/vendor/c.rs"
+            ]);
+            let mut file_set = FileSet::new();
+            fsi.add_uncommitted(&mut file_set, "src").unwrap();
+            assert_file_set(&file_set, &["src/b.rs", "src/vendor/c.rs"]);
+
+            let mut file_set2 = FileSet::new();
+            fsi.add_uncommitted(&mut file_set2, "src/").unwrap();
+            assert_file_set(&file_set2, &["src/b.rs", "src/vendor/c.rs"]);
         }
 
         #[test]
