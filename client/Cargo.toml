@@ -48,4 +48,4 @@ version = "0.7.1"
 path = "../lib"
 
 [dev-dependencies]
-matches = "0.1.7"
+matches = "0.1.8"

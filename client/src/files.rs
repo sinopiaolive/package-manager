@@ -104,9 +104,7 @@ impl FilesSectionInterpreter {
 
     pub fn remove(&mut self, file_set: &mut FileSet, glob: &str) -> Result<(), failure::Error> {
         let cglob = CompiledGlob::new(glob)?;
-        file_set.retain(|file| {
-            !self.pattern_matches_path_or_ancestor(&cglob, file)
-        });
+        file_set.retain(|file| !self.pattern_matches_path_or_ancestor(&cglob, file));
 
         Ok(())
     }
@@ -220,6 +218,69 @@ impl fmt::Display for GlobError {
     }
 }
 
+#[derive(Debug)]
+enum CompiledGlob {
+    Root,
+    NonRoot(Pattern),
+}
+
+static MATCH_OPTIONS: MatchOptions = MatchOptions {
+    case_sensitive: true,
+    // foo/*/bar should not match foo/a/b/bar
+    require_literal_separator: true,
+    // * should not match .dotfile
+    require_literal_leading_dot: true,
+};
+
+impl CompiledGlob {
+    pub fn new(glob: &str) -> Result<Self, GlobError> {
+        // The various checks here are purely to provide better error messages
+        // than "file not found" for various syntax errors.
+        if glob == "" {
+            return Err(GlobError::Empty);
+        }
+        if glob.starts_with('!') {
+            return Err(GlobError::ExclamationPoint);
+        }
+        if glob.contains('{') || glob.contains('}') {
+            return Err(GlobError::Braces);
+        }
+        if glob.contains('\\') {
+            return Err(GlobError::Backslash);
+        }
+        if glob.contains("[^") {
+            return Err(GlobError::Caret);
+        }
+        if glob.starts_with("/") || (glob.len() >= 2 && glob.as_bytes()[1] == b':') {
+            return Err(GlobError::Absolute);
+        }
+
+        if glob == "." || glob == "./" {
+            Ok(CompiledGlob::Root)
+        } else {
+            let pattern = Pattern::new(glob).map_err(|e| GlobError::PatternError(e))?;
+            Ok(CompiledGlob::NonRoot(pattern))
+        }
+    }
+
+    // The reason why we don't have a single "matches" function is that the glob
+    // library thinks that ".*" matches ".", and "*" matches "". So we treat the
+    // root case separately.
+    pub fn matches_non_root(&self, p: &str) -> bool {
+        match self {
+            CompiledGlob::Root => false,
+            CompiledGlob::NonRoot(pattern) => pattern.matches_with(p, &MATCH_OPTIONS),
+        }
+    }
+
+    pub fn matches_root(&self) -> bool {
+        match self {
+            CompiledGlob::Root => true,
+            CompiledGlob::NonRoot(_) => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -310,11 +371,7 @@ mod test {
 
         #[test]
         fn include_directory() {
-            let mut fsi = make_fsi(&[
-                "a.rs",
-                "src/b.rs",
-                "src/vendor/c.rs"
-            ]);
+            let mut fsi = make_fsi(&["a.rs", "src/b.rs", "src/vendor/c.rs"]);
             let mut file_set = FileSet::new();
             fsi.add_uncommitted(&mut file_set, "src").unwrap();
             assert_file_set(&file_set, &["src/b.rs", "src/vendor/c.rs"]);
@@ -340,69 +397,6 @@ mod test {
             fsi.add_uncommitted(&mut file_set, "**").unwrap();
             fsi.remove(&mut file_set, "src/").unwrap();
             assert_file_set(&file_set, &[]);
-        }
-    }
-}
-
-#[derive(Debug)]
-enum CompiledGlob {
-    Root,
-    NonRoot(Pattern)
-}
-
-static MATCH_OPTIONS: MatchOptions = MatchOptions {
-    case_sensitive: true,
-    // foo/*/bar should not match foo/a/b/bar
-    require_literal_separator: true,
-    // * should not match .dotfile
-    require_literal_leading_dot: true,
-};
-
-impl CompiledGlob {
-    pub fn new(glob: &str) -> Result<Self, GlobError> {
-        // The various checks here are purely to provide better error messages
-        // than "file not found" for various syntax errors.
-        if glob == "" {
-            return Err(GlobError::Empty);
-        }
-        if glob.starts_with('!') {
-            return Err(GlobError::ExclamationPoint);
-        }
-        if glob.contains('{') || glob.contains('}') {
-            return Err(GlobError::Braces);
-        }
-        if glob.contains('\\') {
-            return Err(GlobError::Backslash);
-        }
-        if glob.contains("[^") {
-            return Err(GlobError::Caret);
-        }
-        if glob.starts_with("/") || (glob.len() >= 2 && glob.as_bytes()[1] == b':') {
-            return Err(GlobError::Absolute);
-        }
-
-        if glob == "." || glob == "./" {
-            Ok(CompiledGlob::Root)
-        } else {
-            let pattern = Pattern::new(glob).map_err(|e| GlobError::PatternError(e))?;
-            Ok(CompiledGlob::NonRoot(pattern))
-        }
-    }
-
-    // The reason why we don't have a single "matches" function is that the glob
-    // library thinks that ".*" matches ".", and "*" matches "". So we treat the
-    // root case separately.
-    pub fn matches_non_root(&self, p: &str) -> bool {
-        match self {
-            CompiledGlob::Root => false,
-            CompiledGlob::NonRoot(pattern) => pattern.matches_with(p, &MATCH_OPTIONS)
-        }
-    }
-
-    pub fn matches_root(&self) -> bool {
-        match self {
-            CompiledGlob::Root => true,
-            CompiledGlob::NonRoot(_) => false
         }
     }
 }
