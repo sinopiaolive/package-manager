@@ -39,3 +39,6 @@ features = ["serde"]
 
 [dependencies.pm_lib]
 path = "../lib"
+
+[dev-dependencies]
+pretty_assertions = "0.5"
