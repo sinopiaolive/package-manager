@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use files::FilesSectionInterpreter;
-use git::GitScmProvider;
 use manifest_parser::{
     check_block_fields, get_field, get_fields, get_optional_block_field, get_optional_field,
     get_optional_list_field, get_optional_string_field, get_string, parse_manifest, Arguments,
@@ -218,17 +217,15 @@ pub fn evaluate_files_block(
 ) -> Result<Vec<String>, ::failure::Error> {
     let mut file_section_interpreter = FilesSectionInterpreter::new(root.to_path_buf())?;
     let mut file_set = HashSet::<String>::new();
-    // TODO add on-disk files AND git ls-files to FilesSectionInterpreter
     for (symbol_pair, arguments_pair) in get_fields(files_block_pair) {
         match symbol_pair.as_str() {
             "add_committed" => {
-                // TODO allow argument
-                Arguments::from_pair(arguments_pair, 0, 0, &[], Some(false))?;
-                let git_scm_provider = GitScmProvider::new(root)?;
-                git_scm_provider.check_repo_is_pristine()?;
-                // for committed_file in git_scm_provider.ls_files()? {
-                //     file_section_interpreter.add_file(committed_file)?;
-                // }
+                let glob_pair = Arguments::get_single(arguments_pair)?;
+                let glob = get_string(glob_pair.clone())?;
+
+                file_section_interpreter
+                    .add_committed(&mut file_set, &glob)
+                    .pair_context(&glob_pair)?;
             }
             "add_uncommitted" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;

@@ -51,6 +51,7 @@ impl FilesSectionInterpreter {
     pub fn initialize_committed_files(&mut self) -> Result<(), failure::Error> {
         if !self.did_initialize_committed_files {
             let git_scm_provider = GitScmProvider::new(&self.root)?;
+            git_scm_provider.check_repo_is_pristine()?;
             self.committed_files = git_scm_provider.ls_files()?;
             self.did_initialize_committed_files = true;
         }
