@@ -341,67 +341,6 @@ mod test {
             fsi.remove(&mut file_set, "src/").unwrap();
             assert_file_set(&file_set, &[]);
         }
-
-        //     mod star_behavior {
-        //         use super::*;
-
-        //         #[test]
-        //         fn single_star() {
-        //             assert_matches(
-        //                 &["a/*/foo.rs"],
-        //                 &["a/b/foo.rs"],
-        //                 &["a/b/c/foo.rs", "a/foo.rs", "a/.dot/foo.rs"]
-        //             );
-        //         }
-
-        //         #[test]
-        //         fn double_star() {
-        //             assert_matches(
-        //                 &["a/**/foo.rs"],
-        //                 &["a/b/c/foo.rs", "a/b/foo.rs", "a/foo.rs"],
-        //                 &["a/.dot/foo.rs", "a/b/.dot/foo.rs"]
-        //             );
-        //         }
-
-        //         #[test]
-        //         fn trailing_double_star() {
-        //             assert_matches(
-        //                 &["**"],
-        //                 &["a/b/foo.rs", "foo.rs"],
-        //                 &[".foo.rs", ".a/b/foo.rs", "a/b/.foo.rs"]
-        //             );
-        //         }
-
-        //         #[test]
-        //         fn negated_trailing_double_star() {
-        //             // !a/** excludes a/.dot because it matches the a/ directory,
-        //             // excluding it entirely. People may come to rely on this so we
-        //             // test it explicitly here.
-        //             assert_matches(
-        //                 &["a/*", "a/.dot/.foo.rs", "!a/**"],
-        //                 &[],
-        //                 &["a/foo.rs", "a/.dot/.foo.rs"]
-        //             );
-        //         }
-
-        //         #[test]
-        //         fn negated_double_star() {
-        //             // Edge case: !** does not exclude the root directory.
-        //             assert_matches(
-        //                 &[".dot", "foo", "!**"],
-        //                 &[".dot"],
-        //                 &["foo"]
-        //             );
-        //         }
-        //     }
-
-        //     #[test]
-        //     fn test_case_sensitive() {
-        //         match fsi(&["jquery.js"], &["jQuery.js"]) {
-        //             Err(GlobError::NotFound) => {},
-        //             r @ _ => panic!("{:?}", r),
-        //         }
-        //     }
     }
 }
 
