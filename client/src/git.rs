@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
-use std::path::{Path,PathBuf};
-use std::fs::canonicalize;
 use failure;
-use git2::{Repository,RepositoryState,StatusOptions,Tree};
 use git2;
+use git2::{Repository, RepositoryState, StatusOptions, Tree};
+use std::fs::canonicalize;
+use std::path::{Path, PathBuf};
 
 pub struct GitScmProvider {
     pub relative_package_root: PathBuf, // relative to repo.workdir()
@@ -19,12 +19,15 @@ impl GitScmProvider {
             None => return Err(failure::Error::from(GitError::BaseDir)),
             Some(p) => p,
         }.to_path_buf();
-        let relative_package_root
-            = match absolute_package_root.strip_prefix(&repo_workdir) {
-                Ok(p) => p,
-                Err(_) => return Err(failure::Error::from(GitError::RepoNotParent(
-                    repo_workdir.to_string_lossy().to_string(), absolute_package_root.to_string_lossy().to_string())))
-            };
+        let relative_package_root = match absolute_package_root.strip_prefix(&repo_workdir) {
+            Ok(p) => p,
+            Err(_) => {
+                return Err(failure::Error::from(GitError::RepoNotParent(
+                    repo_workdir.to_string_lossy().to_string(),
+                    absolute_package_root.to_string_lossy().to_string(),
+                )))
+            }
+        };
         Ok(GitScmProvider {
             relative_package_root: relative_package_root.to_path_buf(),
             repo: repo,
@@ -78,51 +81,48 @@ impl GitScmProvider {
         for component in self.relative_package_root.iter() {
             let component_str = match component.to_str() {
                 Some(s) => s,
-                None => return Err(failure::Error::from(GitError::Utf8))
+                None => return Err(failure::Error::from(GitError::Utf8)),
             };
             let subtree = match tree.get_name(component_str) {
                 None => return Ok(vec![]),
-                Some(tree_entry) => {
-                    match tree_entry.to_object(&self.repo)?.into_tree() {
-                        Err(_object) => return Ok(vec![]),
-                        Ok(subtree) => subtree
-                    }
-                }
+                Some(tree_entry) => match tree_entry.to_object(&self.repo)?.into_tree() {
+                    Err(_object) => return Ok(vec![]),
+                    Ok(subtree) => subtree,
+                },
             };
             tree = subtree;
         }
-        let mut files = self.ls_files_inner(tree, "")?;
+        let mut files = self.ls_files_inner(&tree, "")?;
         files.sort();
         Ok(files)
     }
 
-    fn ls_files_inner(&self, tree: Tree, prefix: &str) -> Result<Vec<String>, failure::Error> {
+    fn ls_files_inner(&self, tree: &Tree, prefix: &str) -> Result<Vec<String>, failure::Error> {
         let mut files = Vec::new();
         for entry in tree.iter() {
             let name = match entry.name() {
                 None => return Err(failure::Error::from(GitError::Utf8)),
-                Some(n) => n
+                Some(n) => n,
             };
             let relative_path = prefix.to_string() + name;
             match entry.kind() {
                 Some(git2::ObjectType::Blob) => {
                     files.push(relative_path);
-                },
+                }
                 Some(git2::ObjectType::Tree) => {
                     let object = entry.to_object(&self.repo)?;
                     let subtree = match object.into_tree() {
                         Ok(t) => t,
-                        Err(_) => return Err(failure::Error::from(GitError::ObjectType))
+                        Err(_) => return Err(failure::Error::from(GitError::ObjectType)),
                     };
-                    files.extend(self.ls_files_inner(subtree, &(relative_path + "/"))?);
+                    files.extend(self.ls_files_inner(&subtree, &(relative_path + "/"))?);
                 }
-                _ => return Err(failure::Error::from(GitError::ObjectType))
+                _ => return Err(failure::Error::from(GitError::ObjectType)),
             }
         }
         Ok(files)
     }
 }
-
 
 quick_error! {
     #[derive(Debug)]
@@ -152,7 +152,9 @@ quick_error! {
     }
 }
 
-
 pub fn test_git() {
-    println!("{:?}", GitScmProvider::new(&Path::new(".")).unwrap().ls_files());
+    println!(
+        "{:?}",
+        GitScmProvider::new(&Path::new(".")).unwrap().ls_files()
+    );
 }

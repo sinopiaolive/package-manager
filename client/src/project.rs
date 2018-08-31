@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
+use failure;
 use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use failure;
 
 use manifest::Manifest;
 
@@ -19,7 +19,7 @@ fn find_manifest(path: &Path) -> Option<PathBuf> {
 
 pub fn find_manifest_path() -> Result<PathBuf, failure::Error> {
     let cwd = env::current_dir()?;
-    find_manifest(&cwd).ok_or(format_err!("no project file found!"))
+    find_manifest(&cwd).ok_or_else(|| format_err!("no project file found!"))
 }
 
 pub fn find_project_dir() -> Result<PathBuf, failure::Error> {
@@ -30,7 +30,7 @@ pub fn find_project_dir() -> Result<PathBuf, failure::Error> {
 
 pub fn read_manifest() -> Result<Manifest, failure::Error> {
     let manifest_path = find_manifest_path()?;
-    let root = manifest_path.parent().unwrap_or(Path::new(&"."));
+    let root = manifest_path.parent().unwrap_or_else(|| Path::new(&"."));
     let data = File::open(manifest_path.clone()).and_then(|mut f| {
         let mut s = String::new();
         f.read_to_string(&mut s).map(|_| s)

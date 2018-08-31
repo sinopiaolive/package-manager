@@ -41,14 +41,14 @@ impl Manifest {
     pub fn from_str(manifest_source: String, root: &Path) -> Result<Self, ::failure::Error> {
         let manifest_pair = parse_and_check_manifest(manifest_source)?;
 
-        Ok(Self::from_manifest_pair(manifest_pair, root)?)
+        Ok(Self::from_manifest_pair(&manifest_pair, root)?)
     }
 
-    pub fn from_manifest_pair(manifest_pair: Pair, root: &Path) -> Result<Self, ::failure::Error> {
-        let dependencies = get_dependencies(manifest_pair.clone())?;
+    pub fn from_manifest_pair(manifest_pair: &Pair, root: &Path) -> Result<Self, ::failure::Error> {
+        let dependencies = get_dependencies(manifest_pair)?;
 
-        let package_arguments_pair = get_optional_field(manifest_pair.clone(), "package")
-            .ok_or_else(|| {
+        let package_arguments_pair =
+            get_optional_field(&manifest_pair, "package").ok_or_else(|| {
                 // We use get_optional_field and .ok_or_else to produce a
                 // clearer error message.
                 format_err!("A `package {{ ... }}` section is required to publish this package")
@@ -59,7 +59,7 @@ impl Manifest {
             .expect("validated block presence");
 
         check_block_fields(
-            block_pair.clone(),
+            &block_pair,
             &[
                 "name",
                 "version",
@@ -75,40 +75,40 @@ impl Manifest {
         )?;
 
         let name = {
-            let name_pair = Arguments::get_single(get_field(block_pair.clone(), "name")?)?;
+            let name_pair = Arguments::get_single(get_field(&block_pair, "name")?)?;
 
-            let name_string = get_string(name_pair.clone())?;
+            let name_string = get_string(&name_pair)?;
             PackageName::from_str(&name_string)
                 .ok_or_else(|| format_err!("Invalid package name").with_pair(&name_pair))?
         };
 
         let version = {
-            let version_pair = Arguments::get_single(get_field(block_pair.clone(), "version")?)?;
-            let version_string = get_string(version_pair.clone())?;
+            let version_pair = Arguments::get_single(get_field(&block_pair, "version")?)?;
+            let version_string = get_string(&version_pair)?;
             Version::from_str(&version_string)
                 .ok_or_else(|| format_err!("Invalid version number").with_pair(&version_pair))?
         };
 
-        let description = get_string(Arguments::get_single(get_field(
-            block_pair.clone(),
+        let description = get_string(&Arguments::get_single(get_field(
+            &block_pair,
             "description",
         )?)?)?;
 
-        let homepage = get_optional_string_field(block_pair.clone(), "homepage")?;
-        let repository = get_optional_string_field(block_pair.clone(), "repository")?;
-        let bugs = get_optional_string_field(block_pair.clone(), "bugs")?;
+        let homepage = get_optional_string_field(&block_pair, "homepage")?;
+        let repository = get_optional_string_field(&block_pair, "repository")?;
+        let bugs = get_optional_string_field(&block_pair, "bugs")?;
 
-        let authors = get_optional_list_field(block_pair.clone(), "authors")?
+        let authors = get_optional_list_field(&block_pair, "authors")?
             .into_iter()
-            .map(|item_pair| get_string(item_pair))
+            .map(|i| get_string(&i))
             .collect::<Result<_, _>>()?;
-        let keywords = get_optional_list_field(block_pair.clone(), "keywords")?
+        let keywords = get_optional_list_field(&block_pair, "keywords")?
             .into_iter()
-            .map(|item_pair| get_string(item_pair))
+            .map(|i| get_string(&i))
             .collect::<Result<_, _>>()?;
 
-        let license = get_optional_string_field(block_pair.clone(), "license")?;
-        let license_file = get_optional_string_field(block_pair.clone(), "license_file")?;
+        let license = get_optional_string_field(&block_pair, "license")?;
+        let license_file = get_optional_string_field(&block_pair, "license_file")?;
 
         let license_field = match (license, license_file) {
             (Some(tag), None) => License::SPDX(tag),
@@ -122,8 +122,8 @@ impl Manifest {
             }
         };
 
-        let files_block = Arguments::get_block(get_field(block_pair.clone(), "files")?)?;
-        let files = evaluate_files_block(files_block, root)?;
+        let files_block = Arguments::get_block(get_field(&block_pair, "files")?)?;
+        let files = evaluate_files_block(&files_block, root)?;
 
         Ok(Manifest {
             name: name,
@@ -151,7 +151,7 @@ pub fn parse_and_check_manifest(manifest_source: String) -> Result<Pair, ::failu
     let manifest_pair = parse_manifest(manifest_source)?;
 
     check_block_fields(
-        manifest_pair.clone(),
+        &manifest_pair,
         &[
             "pm", // TODO do something with this version tag (if present)
             "dependencies",
@@ -162,14 +162,14 @@ pub fn parse_and_check_manifest(manifest_source: String) -> Result<Pair, ::failu
     Ok(manifest_pair)
 }
 
-pub fn get_dependencies(manifest_pair: Pair) -> Result<Dependencies, ::failure::Error> {
+pub fn get_dependencies(manifest_pair: &Pair) -> Result<Dependencies, ::failure::Error> {
     let mut depset = Dependencies::new();
     for (package_name_pair, arguments_pair) in
-        get_optional_block_field(manifest_pair, "dependencies")?
+        get_optional_block_field(&manifest_pair, "dependencies")?
     {
         let arguments = Arguments::from_pair(arguments_pair, 0, 2, &[], Some(false))?;
         let (package_name, version_constraint) =
-            make_dependency(package_name_pair.clone(), arguments.positional_arguments)?;
+            make_dependency(&package_name_pair, &arguments.positional_arguments)?;
         if depset.contains_key(&package_name) {
             return Err(::failure::Error::from(
                 format_err!("Duplicate dependency").with_pair(&package_name_pair),
@@ -181,8 +181,8 @@ pub fn get_dependencies(manifest_pair: Pair) -> Result<Dependencies, ::failure::
 }
 
 pub fn make_dependency(
-    package_name_pair: Pair,
-    vcc_pairs: Vec<Pair>,
+    package_name_pair: &Pair,
+    vcc_pairs: &[Pair],
 ) -> Result<(PackageName, VersionConstraint), ::failure::Error> {
     let package_name = PackageName::from_str(package_name_pair.as_str())
         .ok_or_else(|| format_err!("Invalid package name").with_pair(&package_name_pair))?;
@@ -212,16 +212,16 @@ pub fn make_dependency(
 }
 
 pub fn evaluate_files_block(
-    files_block_pair: Pair,
+    files_block_pair: &Pair,
     root: &Path,
 ) -> Result<Vec<String>, ::failure::Error> {
     let mut file_section_interpreter = FilesSectionInterpreter::new(root.to_path_buf())?;
     let mut file_set = HashSet::<String>::new();
-    for (symbol_pair, arguments_pair) in get_fields(files_block_pair) {
+    for (symbol_pair, arguments_pair) in get_fields(&files_block_pair) {
         match symbol_pair.as_str() {
             "add_committed" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
-                let glob = get_string(glob_pair.clone())?;
+                let glob = get_string(&glob_pair)?;
 
                 file_section_interpreter
                     .add_committed(&mut file_set, &glob)
@@ -229,7 +229,7 @@ pub fn evaluate_files_block(
             }
             "add_uncommitted" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
-                let glob = get_string(glob_pair.clone())?;
+                let glob = get_string(&glob_pair)?;
 
                 file_section_interpreter
                     .add_uncommitted(&mut file_set, &glob)
@@ -237,7 +237,7 @@ pub fn evaluate_files_block(
             }
             "remove" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
-                let glob = get_string(glob_pair.clone())?;
+                let glob = get_string(&glob_pair)?;
 
                 file_section_interpreter
                     .remove(&mut file_set, &glob)

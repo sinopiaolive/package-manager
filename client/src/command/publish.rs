@@ -1,21 +1,21 @@
-use std::sync::Arc;
 use std::fs::File;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use indicatif::{ProgressBar, ProgressStyle};
-use console::Style;
-use tar;
 use brotli;
+use console::Style;
+use indicatif::{ProgressBar, ProgressStyle};
 use rmp_serde::encode;
+use tar;
 
 use pm_lib::manifest::Manifest;
 
 use failure;
 use io::ProgressIO;
-use project::{read_manifest, find_project_dir};
+use project::{find_project_dir, read_manifest};
 use registry::post;
 
-pub const USAGE: &'static str = "Publish a package to the registry.
+pub const USAGE: &str = "Publish a package to the registry.
 
 Usage:
     pm publish [options]
@@ -35,18 +35,21 @@ pub struct Args {
 }
 
 fn make_progress(msg: &str, len: usize, quiet: bool) -> ProgressBar {
+    #[cfg_attr(feature = "cargo-clippy", allow(blacklisted_name))]
     let bar = if quiet {
         ProgressBar::hidden()
     } else {
         ProgressBar::new(len as u64)
     };
-    bar.set_style(ProgressStyle::default_bar().template(
-        "{msg} {bar:40} {percent:>3}% {bytes:>8}/{total_bytes} {eta:>6} left",
-    ));
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("{msg} {bar:40} {percent:>3}% {bytes:>8}/{total_bytes} {eta:>6} left"),
+    );
     bar.set_message(msg);
     bar
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn execute(args: Args) -> Result<(), failure::Error> {
     let manifest = read_manifest()?;
 
@@ -54,10 +57,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
         println!("Building release {}-{}...", manifest.name, manifest.version);
     }
 
-    let tar = build_archive(
-        manifest.files.iter().map(|f| PathBuf::from(f)).collect(),
-        &args,
-    )?;
+    let tar = build_archive(manifest.files.iter().map(PathBuf::from).collect(), &args)?;
 
     let mut artifact = vec![];
     let compress_progress = make_progress("Compressing:", tar.len(), args.flag_quiet);
@@ -68,7 +68,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
     brotli::BrotliCompress(
         &mut ProgressIO::reader_from(tar, |c, _| compress_progress.set_position(c as u64)),
         &mut artifact,
-        &brotli_encoder_params
+        &brotli_encoder_params,
     )?;
     compress_progress.finish_and_clear();
 
@@ -101,13 +101,10 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
             println!("Seems to work!")
         } else {
             match res {
-                Ok(_) => {
-                    println!(
-                        "Package {} version {} has been published!",
-                        manifest.name,
-                        manifest.version
-                    )
-                }
+                Ok(_) => println!(
+                    "Package {} version {} has been published!",
+                    manifest.name, manifest.version
+                ),
                 Err(msg) => println!("{}: {}", Style::new().red().bold().apply_to("ERROR"), msg),
             }
         }
@@ -121,10 +118,9 @@ fn build_archive(files: Vec<PathBuf>, args: &Args) -> Result<Vec<u8>, failure::E
     let mut tar = tar::Builder::new(Vec::new());
     for local_path in files {
         if args.flag_verbose {
-            let repr = local_path.to_str().expect(&format!(
-                "non-representable file name: {:?}",
-                local_path
-            ));
+            let repr = local_path
+                .to_str()
+                .unwrap_or_else(|| panic!("non-representable file name: {:?}", local_path));
             if args.flag_quiet {
                 println!("{}", repr)
             } else {

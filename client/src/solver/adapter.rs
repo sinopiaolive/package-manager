@@ -1,19 +1,19 @@
+use pm_lib::constraint::VersionConstraint;
+use pm_lib::index::{Dependencies, Index};
+use pm_lib::package::PackageName;
+use pm_lib::version::Version;
+use solver::constraints::{Constraint, ConstraintSet};
+use solver::failure::Failure;
+use solver::mappable::Mappable;
+use solver::path::Path;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec::Vec;
-use pm_lib::constraint::VersionConstraint;
-use pm_lib::package::PackageName;
-use pm_lib::version::Version;
-use pm_lib::index::{Index, Dependencies};
-use solver::failure::Failure;
-use solver::constraints::{Constraint, ConstraintSet};
-use solver::path::Path;
-use solver::mappable::Mappable;
 
 pub struct RegistryAdapter<'r> {
     registry: &'r Index,
-    cache: RefCell<HashMap<(Arc<PackageName>, Arc<VersionConstraint>), Option<Vec<Arc<Version>>>>>,
+    cache: RefCell<HashMap<(PackageName, VersionConstraint), Option<Vec<Version>>>>,
 }
 
 impl<'r> RegistryAdapter<'r> {
@@ -29,9 +29,9 @@ impl<'r> RegistryAdapter<'r> {
     /// empty if no versions match.
     pub fn versions_for(
         &self,
-        package: Arc<PackageName>,
-        constraint: Arc<VersionConstraint>,
-    ) -> Option<Vec<Arc<Version>>> {
+        package: &PackageName,
+        constraint: &VersionConstraint,
+    ) -> Option<Vec<Version>> {
         let key = (package.clone(), constraint.clone());
         let mut cache = self.cache.borrow_mut();
         if let Some(value) = cache.get(&key) {
@@ -39,40 +39,41 @@ impl<'r> RegistryAdapter<'r> {
         }
         let value = match self.registry.get(&package) {
             None => None,
-            Some(pkg) => {
-                Some(
-                    pkg.keys()
-                        .filter(|v| constraint.contains(v))
-                        .map(|v| Arc::new(v.clone()))
-                        .collect(),
-                )
-            }
+            Some(pkg) => Some(
+                pkg.keys()
+                    .filter(|v| constraint.contains(v))
+                    .cloned()
+                    .collect(),
+            ),
         };
-        cache.insert(key, value.clone());
-        value
+        cache.insert(key.clone(), value);
+        cache.get(&key).unwrap().clone()
     }
 
     /// Return a constraint containing all versions of `package` matching
     /// `constraint`. Can fail with PackageMissing or UninhabitedConstraint.
     pub fn constraint_for(
         &self,
-        package: Arc<PackageName>,
-        version_constraint: Arc<VersionConstraint>,
-        path: Path,
+        package: &PackageName,
+        version_constraint: &VersionConstraint,
+        path: &Path,
     ) -> Result<Constraint, Failure> {
-        match self.versions_for(package.clone(), version_constraint.clone()) {
-            None => Err(Failure::package_missing(package.clone(), path.clone())),
+        match self.versions_for(package, version_constraint) {
+            None => Err(Failure::package_missing(
+                Arc::new(package.clone()),
+                path.clone(),
+            )),
             Some(versions) => {
                 if versions.is_empty() {
                     Err(Failure::uninhabited_constraint(
-                        package.clone(),
-                        version_constraint.clone(),
+                        Arc::new(package.clone()),
+                        Arc::new(version_constraint.clone()),
                         path.clone(),
                     ))
                 } else {
                     let mut constraint = Constraint::new();
                     for version in versions {
-                        constraint = constraint.insert(version, path.clone());
+                        constraint = constraint.insert(Arc::new(version.clone()), path.clone());
                     }
                     Ok(constraint)
                 }
@@ -87,26 +88,21 @@ impl<'r> RegistryAdapter<'r> {
     /// function instead.
     pub fn constraint_set_for(
         &self,
-        package: Arc<PackageName>,
-        version: Arc<Version>,
-        path: Path,
+        package: &PackageName,
+        version: &Version,
+        path: &Path,
     ) -> Result<ConstraintSet, Failure> {
-        let new_path = path.push((package.clone(), version.clone()));
-        let release = self.registry
+        let new_path = path.push((Arc::new(package.clone()), Arc::new(version.clone())));
+        let release = self
+            .registry
             .get(&package)
-            .expect(&format!("package not found: {}", package))
+            .unwrap_or_else(|| panic!("package not found: {}", package))
             .get(&version)
-            .expect(&format!("release not found: {} {}", package, version));
+            .unwrap_or_else(|| panic!("release not found: {} {}", package, version));
         let mut constraint_set = ConstraintSet::new();
         for (dep_package, version_constraint) in release {
-            let dep_package_arc = Arc::new(dep_package.clone());
-            let version_constraint_arc = Arc::new(version_constraint.clone());
-            let constraint = self.constraint_for(
-                dep_package_arc.clone(),
-                version_constraint_arc.clone(),
-                new_path.clone(),
-            )?;
-            constraint_set = constraint_set.insert(dep_package_arc, constraint);
+            let constraint = self.constraint_for(dep_package, version_constraint, &new_path)?;
+            constraint_set = constraint_set.insert(Arc::new(dep_package.clone()), constraint);
         }
         Ok(constraint_set)
     }
@@ -114,14 +110,8 @@ impl<'r> RegistryAdapter<'r> {
     pub fn constraint_set_from(&self, deps: &Dependencies) -> Result<ConstraintSet, Failure> {
         let mut constraint_set = ConstraintSet::new();
         for (package, version_constraint) in deps {
-            let package_arc = Arc::new(package.clone());
-            let version_constraint_arc = Arc::new(version_constraint.clone());
-            let constraint = self.constraint_for(
-                package_arc.clone(),
-                version_constraint_arc.clone(),
-                Path::new(),
-            )?;
-            constraint_set = constraint_set.insert(package_arc.clone(), constraint);
+            let constraint = self.constraint_for(package, version_constraint, &Path::new())?;
+            constraint_set = constraint_set.insert(Arc::new(package.clone()), constraint);
         }
         Ok(constraint_set)
     }

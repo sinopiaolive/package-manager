@@ -1,4 +1,4 @@
-use std::io::{Read, Cursor, Result};
+use std::io::{Cursor, Read, Result};
 
 pub struct ProgressIO<IO, F> {
     io: IO,
@@ -31,7 +31,7 @@ where
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         match self.io.read(buf) {
             Ok(size) => {
-                self.current = self.current + size;
+                self.current += size;
                 (self.notify)(self.current, self.total);
                 Ok(size)
             }

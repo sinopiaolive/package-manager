@@ -1,6 +1,6 @@
-use std::io::{Read, Write};
-use std::fs::{File, create_dir_all};
 use failure;
+use std::fs::{create_dir_all, File};
+use std::io::{Read, Write};
 use toml;
 
 use path::config_path;
@@ -13,9 +13,7 @@ pub struct Config {
 impl Config {
     fn new() -> Config {
         Config {
-            auth: Auth {
-                token: None
-            }
+            auth: Auth { token: None },
         }
     }
 }
@@ -39,7 +37,7 @@ pub fn get_config() -> Result<Config, failure::Error> {
     path.push("config.toml");
     match File::open(path) {
         Err(_) => Ok(Config::new()),
-        Ok(mut file) => read_config(&mut file)
+        Ok(mut file) => read_config(&mut file),
     }
 }
 
@@ -49,6 +47,6 @@ pub fn write_config(config: &Config) -> Result<(), failure::Error> {
     path.push("config.toml");
     let mut file = File::create(path)?;
     let data = toml::to_string(config)?;
-    file.write(data.as_bytes())?;
+    file.write_all(data.as_bytes())?;
     Ok(())
 }

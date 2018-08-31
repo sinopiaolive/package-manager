@@ -1,11 +1,11 @@
-use std::cmp::{min, max};
+use std::cmp::{max, min};
 
+use console::{Style, Term};
 use failure;
-use console::{Term, Style};
 
 use registry;
 
-pub const USAGE: &'static str = "Search for packages by keyword.
+pub const USAGE: &str = "Search for packages by keyword.
 
 Usage:
     pm search [options] <namespace> <keyword>...
@@ -41,7 +41,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
     Ok(())
 }
 
-fn print_results(results: &Vec<SearchResult>) {
+fn print_results(results: &[SearchResult]) {
     let border = Style::new().dim();
     let header = Style::new().green();
     let package = Style::new().bold();
@@ -49,6 +49,7 @@ fn print_results(results: &Vec<SearchResult>) {
     let term = Term::stdout();
     let width = term.size().1 as usize;
     let max_avail = width - 2;
+    #[cfg_attr(feature = "cargo-clippy", allow(blacklisted_name))]
     let bar = border.apply_to("|");
     let w_pkg = max(
         7,

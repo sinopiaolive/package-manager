@@ -6,7 +6,7 @@ use pest::Parser;
 use manifest_parser_error::{ManifestParserError, PestErrorExt};
 
 // Ensure this file recompiles when the grammar is modified.
-const _GRAMMAR: &'static str = include_str!("grammar.pest");
+const _GRAMMAR: &str = include_str!("grammar.pest");
 
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
@@ -25,10 +25,10 @@ pub fn parse_manifest(manifest_source: String) -> Result<Pair, ManifestParserErr
 
 /// Check that there are no unexpected or duplicate fields.
 pub fn check_block_fields(
-    block_pair: Pair,
+    block_pair: &Pair,
     fields: &'static [&'static str],
 ) -> Result<(), ManifestParserError> {
-    let symbol_pairs = get_fields(block_pair)
+    let symbol_pairs = get_fields(&block_pair)
         .into_iter()
         .map(|(symbol_pair, _arguments_pair)| symbol_pair)
         .collect::<Vec<_>>();
@@ -98,13 +98,13 @@ pub fn get_flag_option(
 }
 
 // Return an arguments pair or an error if the field is missing.
-pub fn get_field(block_pair: Pair, field_name: &'static str) -> Result<Pair, ManifestParserError> {
-    get_optional_field(block_pair.clone(), field_name)
+pub fn get_field(block_pair: &Pair, field_name: &'static str) -> Result<Pair, ManifestParserError> {
+    get_optional_field(block_pair, field_name)
         .ok_or_else(|| format_err!("Missing field: {}", field_name).with_pair(&block_pair))
 }
 
-pub fn get_optional_field(block_pair: Pair, field_name: &'static str) -> Option<Pair> {
-    for (symbol_pair, arguments_pair) in get_fields(block_pair) {
+pub fn get_optional_field(block_pair: &Pair, field_name: &'static str) -> Option<Pair> {
+    for (symbol_pair, arguments_pair) in get_fields(&block_pair) {
         if symbol_pair.as_str() == field_name {
             return Some(arguments_pair);
         }
@@ -160,14 +160,14 @@ impl Arguments {
                 ).with_pair(&positional_arguments_pair));
             }
         } else {
-            if !(positional_arguments.len() >= min_positional_arguments) {
+            if positional_arguments.len() < min_positional_arguments {
                 return Err(format_err!(
                     "Expected at least {} argument(s), found {}",
                     min_positional_arguments,
                     positional_arguments.len()
                 ).with_pair(&positional_arguments_pair));
             }
-            if !(positional_arguments.len() <= max_positional_arguments) {
+            if positional_arguments.len() > max_positional_arguments {
                 return Err(format_err!(
                     "Expected at most {} argument(s), found {}",
                     min_positional_arguments,
@@ -205,38 +205,38 @@ impl Arguments {
 }
 
 pub fn get_optional_block_field(
-    block_pair: Pair,
+    block_pair: &Pair,
     field_name: &'static str,
 ) -> Result<Vec<(Pair, Pair)>, ManifestParserError> {
-    get_optional_field(block_pair, field_name).map_or(Ok(vec![]), |arguments_pair| {
+    get_optional_field(&block_pair, field_name).map_or(Ok(vec![]), |arguments_pair| {
         let arguments = Arguments::from_pair(arguments_pair, 0, 0, &[], Some(true))?;
         Ok(get_fields(
-            arguments.block.expect("validated block presence"),
+            &arguments.block.expect("validated block presence"),
         ))
     })
 }
 
 pub fn get_optional_list_field(
-    block_pair: Pair,
+    block_pair: &Pair,
     field_name: &'static str,
 ) -> Result<Vec<Pair>, ManifestParserError> {
-    get_optional_field(block_pair, field_name).map_or(Ok(vec![]), |arguments_pair| {
+    get_optional_field(&block_pair, field_name).map_or(Ok(vec![]), |arguments_pair| {
         let argument_pair = Arguments::get_single(arguments_pair)?;
-        Ok(get_list(argument_pair)?)
+        Ok(get_list(&argument_pair)?)
     })
 }
 
 pub fn get_optional_string_field(
-    block_pair: Pair,
+    block_pair: &Pair,
     field_name: &'static str,
 ) -> Result<Option<String>, ManifestParserError> {
-    get_optional_field(block_pair, field_name).map_or(Ok(None), |arguments_pair| {
+    get_optional_field(&block_pair, field_name).map_or(Ok(None), |arguments_pair| {
         let argument_pair = Arguments::get_single(arguments_pair)?;
-        Ok(Some(get_string(argument_pair)?))
+        Ok(Some(get_string(&argument_pair)?))
     })
 }
 
-pub fn get_fields(block_pair: Pair) -> Vec<(Pair, Pair)> {
+pub fn get_fields(block_pair: &Pair) -> Vec<(Pair, Pair)> {
     let fields_pair = find_optional_rule(block_pair.clone(), Rule::fields_newline_terminated)
         .unwrap_or_else(|| find_rule(block_pair.clone(), Rule::fields_not_newline_terminated));
     children(fields_pair, Rule::field)
@@ -249,28 +249,31 @@ pub fn get_fields(block_pair: Pair) -> Vec<(Pair, Pair)> {
         }).collect()
 }
 
-pub fn get_string(pair: Pair) -> Result<String, ManifestParserError> {
-    for string_pair in children(pair.clone(), Rule::string) {
+pub fn get_string(pair: &Pair) -> Result<String, ManifestParserError> {
+    if let Some(string_pair) = children(pair.clone(), Rule::string).first() {
         let string_contents = parse_string(string_pair.clone())?;
-        return Ok(string_contents);
+        Ok(string_contents)
+    } else {
+        Err(format_err!("Expected string").with_pair(&pair))
     }
-    Err(format_err!("Expected string").with_pair(&pair))
 }
 
-pub fn get_list(pair: Pair) -> Result<Vec<Pair>, ManifestParserError> {
-    for list_pair in children(pair.clone(), Rule::list) {
+pub fn get_list(pair: &Pair) -> Result<Vec<Pair>, ManifestParserError> {
+    if let Some(list_pair) = children(pair.clone(), Rule::list).first() {
         let list_item_pairs = children(list_pair.clone(), Rule::list_item);
-        return Ok(list_item_pairs);
+        Ok(list_item_pairs)
+    } else {
+        Err(format_err!("Expected list").with_pair(&pair))
     }
-    Err(format_err!("Expected list").with_pair(&pair))
 }
 
-pub fn get_version_constraint_component(pair: Pair) -> Result<String, ManifestParserError> {
-    for vcc_pair in children(pair.clone(), Rule::version_constraint_component) {
+pub fn get_version_constraint_component(pair: &Pair) -> Result<String, ManifestParserError> {
+    if let Some(vcc_pair) = children(pair.clone(), Rule::version_constraint_component).first() {
         let version_constraint_component = vcc_pair.as_str().to_string();
-        return Ok(version_constraint_component);
+        Ok(version_constraint_component)
+    } else {
+        Err(format_err!("Expected version range").with_pair(&pair))
     }
-    Err(format_err!("Expected version range").with_pair(&pair))
 }
 
 pub fn parse_string(string_pair: Pair) -> Result<String, ManifestParserError> {

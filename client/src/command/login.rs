@@ -4,22 +4,25 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use data_encoding::HEXUPPER;
+use failure;
+use hyper::body::Body;
+use hyper::header::{CONTENT_LENGTH, CONTENT_TYPE};
+use hyper::server::Server;
+use hyper::service::{NewService, Service};
+use hyper::{Error, Request, Response, StatusCode};
 use im::OrdMap as Map;
+use mime;
 use rand::prelude::random;
+use tokio::prelude::future::{ok, Future, FutureResult};
+use tokio::prelude::task::{current, Task};
+use tokio::prelude::{Async, Poll};
+use tokio::runtime::Runtime;
 use url::{form_urlencoded, Url};
 use webbrowser;
 
-use failure;
-use futures::future::{self, Future, FutureResult};
-use futures::task::{current, Task};
-use futures::{Async, Poll};
-use hyper::header::{ContentLength, ContentType};
-use hyper::server::{Http, Request, Response, Service};
-use hyper::{self, StatusCode};
+use config::{write_config, Auth, Config};
 
-use config::{get_config, write_config, Auth, Config};
-
-pub const USAGE: &'static str = "Login.
+pub const USAGE: &str = "Login.
 
 Usage:
     pm login [options]
@@ -31,7 +34,7 @@ Options:
 #[derive(Debug, Deserialize)]
 pub struct Args {}
 
-const AUTHENTICATED_DOC: &'static str = "
+const AUTHENTICATED_DOC: &str = "
 <html>
   <head>
     <style>
@@ -65,11 +68,8 @@ impl<A> Done<A> {
             _ => panic!("failed to acquire mutex!?"),
         }
         match self.task.lock() {
-            Ok(ref mutex) => match **mutex {
-                Some(ref task) => {
-                    task.notify();
-                }
-                None => (),
+            Ok(ref mutex) => if let Some(ref task) = **mutex {
+                task.notify();
             },
             _ => panic!("failed to acquire mutex!?"),
         }
@@ -107,12 +107,12 @@ impl<A> Future for Done<A> {
     }
 }
 
-fn bad_request() -> Response {
-    Response::new()
-        .with_status(StatusCode::BadRequest)
-        .with_header(ContentLength("400 Bad Request".len() as u64))
-        .with_header(ContentType::plaintext())
-        .with_body("400 Bad Request")
+fn bad_request() -> Response<Body> {
+    let mut response = Response::builder();
+    response
+        .header(CONTENT_LENGTH, "400 Bad Request".len())
+        .status(StatusCode::BAD_REQUEST);
+    response.body(Body::from("400 Bad Request")).unwrap()
 }
 
 struct CallbackArgs {
@@ -120,51 +120,15 @@ struct CallbackArgs {
     token: String,
 }
 
-fn parse_callback_args(req: &Request) -> Option<CallbackArgs> {
+fn parse_callback_args<Whatever>(req: &Request<Whatever>) -> Option<CallbackArgs> {
     req.uri().query().and_then(|query| {
         let mut q =
             Map::<String, String>::from_iter(form_urlencoded::parse(query.as_bytes()).into_owned());
         match (q.remove("state"), q.remove("token")) {
-            (Some(state), Some(token)) => if q.len() == 2 {
-                Some(CallbackArgs {
-                    state: state,
-                    token: token,
-                })
-            } else {
-                None
-            },
+            (Some(state), Some(token)) => Some(CallbackArgs { state, token }),
             _ => None,
         }
     })
-}
-
-struct Callback {
-    state: String,
-    done: Done<String>,
-}
-
-impl Service for Callback {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Future = FutureResult<Response, hyper::Error>;
-
-    fn call(&self, req: Request) -> Self::Future {
-        if let Some(args) = parse_callback_args(&req) {
-            if args.state != self.state {
-                return future::ok(bad_request());
-            }
-            self.done.done(args.token);
-            future::ok(
-                Response::new()
-                    .with_header(ContentLength(AUTHENTICATED_DOC.len() as u64))
-                    .with_header(ContentType::html())
-                    .with_body(AUTHENTICATED_DOC),
-            )
-        } else {
-            future::ok(bad_request())
-        }
-    }
 }
 
 pub fn generate_secret() -> String {
@@ -172,41 +136,86 @@ pub fn generate_secret() -> String {
     HEXUPPER.encode(&data)
 }
 
+struct Callback {
+    state: String,
+    done: Done<String>,
+}
+
+impl NewService for Callback {
+    type ReqBody = Body;
+    type ResBody = Body;
+    type Error = Error;
+    type Service = CallbackService;
+    type InitError = Error;
+    type Future = FutureResult<CallbackService, Error>;
+
+    fn new_service(&self) -> Self::Future {
+        ok(CallbackService {
+            state: self.state.clone(),
+            done: self.done.clone(),
+        })
+    }
+}
+
+struct CallbackService {
+    state: String,
+    done: Done<String>,
+}
+
+impl Service for CallbackService {
+    type ReqBody = Body;
+    type ResBody = Body;
+    type Error = Error;
+    type Future = FutureResult<Response<Body>, Error>;
+
+    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
+        if let Some(args) = parse_callback_args(&req) {
+            if args.state != self.state {
+                return ok(bad_request());
+            }
+            self.done.done(args.token);
+            let mut response = Response::builder();
+            response.header(CONTENT_LENGTH, AUTHENTICATED_DOC.len());
+            response.header(CONTENT_TYPE, mime::TEXT_HTML.as_ref());
+            ok(response.body(Body::from(AUTHENTICATED_DOC)).unwrap())
+        } else {
+            ok(bad_request())
+        }
+    }
+}
+
 pub fn execute(_: Args) -> Result<(), failure::Error> {
     let done = Done::new();
-    let callback_done = done.clone();
     let secret = generate_secret();
+    let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let service = Callback {
+        state: secret.clone(),
+        done: done.clone(),
+    };
+    let server = Server::bind(&socket).serve(service);
+
+    // TODO This is the URL for the registry server, it should not be localhost.
     let mut url = Url::parse("http://localhost:8000/login_client").unwrap();
     url.query_pairs_mut().append_pair("token", &secret);
-    let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let server = Http::new()
-        .bind(&socket, move || {
-            Ok(Callback {
-                state: secret.clone(),
-                done: callback_done.clone(),
-            })
-        })
-        .expect("unable to launch local web server");
+    url.query_pairs_mut()
+        .append_pair("callback", &format!("http://{}", server.local_addr()));
 
-    url.query_pairs_mut().append_pair(
-        "callback",
-        &format!("http://{}", server.local_addr().unwrap()),
+    let mut rt = Runtime::new().unwrap();
+    rt.spawn(
+        server
+            .with_graceful_shutdown(done.clone())
+            .map_err(|e| eprintln!("HTTP server error: {}", e)),
     );
     thread::spawn(move || webbrowser::open(url.as_str()));
-
-    server.run_until(done.clone()).unwrap();
+    rt.shutdown_on_idle().wait().unwrap();
 
     let token = done
         .get()
         .expect("unable to get auth token from web server");
 
-    let config = get_config()?;
+    // let config = get_config()?;
     write_config(&Config {
-        auth: Auth {
-            token: Some(token),
-            ..config.auth
-        },
-        ..config
+        auth: Auth { token: Some(token) },
     })?;
 
     Ok(())

@@ -1,17 +1,17 @@
-use std::sync::Arc;
 use pm_lib::constraint::VersionConstraint;
+use pm_lib::index::{Dependencies, Index};
 use pm_lib::package::PackageName;
-use pm_lib::index::{Index, Dependencies};
-use solver::path::Path;
+use solver::adapter::RegistryAdapter;
 use solver::failure;
 use solver::failure::Failure;
 pub use solver::failure::{PackageMissing, UninhabitedConstraint};
-use solver::adapter::RegistryAdapter;
 use solver::mappable::Mappable;
+use solver::path::Path;
+use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
-    Conflict(Conflict),
+    Conflict(Box<Conflict>),
     PackageMissing(PackageMissing),
     UninhabitedConstraint(UninhabitedConstraint),
 }
@@ -33,7 +33,9 @@ impl Error {
         failure: Failure,
     ) -> Self {
         match failure {
-            Failure::Conflict(f) => Error::Conflict(Conflict::from(&registry, &deps, &ra, f)),
+            Failure::Conflict(f) => {
+                Error::Conflict(Box::new(Conflict::from(&registry, &deps, &ra, &f)))
+            }
             Failure::PackageMissing(f) => Error::PackageMissing(f),
             Failure::UninhabitedConstraint(f) => Error::UninhabitedConstraint(f),
         }
@@ -86,33 +88,33 @@ impl Conflict {
         registry: &Index,
         deps: &Dependencies,
         ra: &RegistryAdapter,
-        conflict: failure::Conflict,
+        conflict: &failure::Conflict,
     ) -> Self {
         let vc_from_path = |path: &Path| {
             let depset = match path.last() {
                 None => deps,
-                Some(&(ref pkg, ref ver)) => {
-                    &registry
-                        .get(&pkg)
-                        .expect("path package must exist in registry")
-                        .get(&ver)
-                        .expect("path version must exist in registry")
-                }
+                Some(&(ref pkg, ref ver)) => &registry
+                    .get(&pkg)
+                    .expect("path package must exist in registry")
+                    .get(&ver)
+                    .expect("path version must exist in registry"),
             };
             depset
                 .get(&conflict.package)
-                .expect(
-                    "package must be listed in dependency set, according to path",
-                )
+                .expect("package must be listed in dependency set, according to path")
                 .clone()
         };
 
-        let (existing_ver, existing_path) = conflict.existing.iter().next().expect(
-            "constraints must not be empty",
-        );
-        let (conflicting_ver, conflicting_path) = conflict.conflicting.iter().next().expect(
-            "constraints must not be empty",
-        );
+        let (existing_ver, existing_path) = conflict
+            .existing
+            .iter()
+            .next()
+            .expect("constraints must not be empty");
+        let (conflicting_ver, conflicting_path) = conflict
+            .conflicting
+            .iter()
+            .next()
+            .expect("constraints must not be empty");
 
         // Get version constraints justifying existing and conflicting version
         // from the registry or deps ("original existing", "original
@@ -126,9 +128,9 @@ impl Conflict {
 
         let disjoint = |vc1: &VersionConstraint, vc2: &VersionConstraint| -> bool {
             // Turn version constraints into constraints
-            let c1 = ra.constraint_for(conflict.package.clone(), Arc::new(vc1.clone()), Path::new())
+            let c1 = ra.constraint_for(&conflict.package, vc1, &Path::new())
                 .expect("we should not have gotten a conflict if there is a PackageMissing or UninhabitedConstraint error");
-            let c2 = ra.constraint_for(conflict.package.clone(), Arc::new(vc2.clone()), Path::new())
+            let c2 = ra.constraint_for(&conflict.package, vc2, &Path::new())
                 .expect("we should not have gotten a conflict if there is a PackageMissing or UninhabitedConstraint error");
 
             c1.as_map().keys().all(|ver| !c2.contains_key(ver))
@@ -163,8 +165,7 @@ mod test {
 
     #[test]
     fn test_conflict_from_solver_conflict() {
-        let registry =
-            gen_registry!(
+        let registry = gen_registry!(
                 A => (
                     "1" => deps!(
                         X => ">= 1 < 3"
@@ -194,24 +195,21 @@ mod test {
                 )
             );
         let ra = RegistryAdapter::new(&registry);
-        let deps =
-            deps!(
+        let deps = deps!(
                 X => ">= 3 < 4"
             );
 
         // Disjoint
         let sc1 = failure::Conflict {
             package: Arc::new(pkg("X")),
-            existing: constraint(
-                &[
-                    ("1", &[("B", "1"), ("A", "1")]),
-                    ("2", &[("B", "1"), ("A", "2")]),
-                ],
-            ),
+            existing: constraint(&[
+                ("1", &[("B", "1"), ("A", "1")]),
+                ("2", &[("B", "1"), ("A", "2")]),
+            ]),
             conflicting: constraint(&[("3", &[])]),
         };
         assert_eq!(
-            Conflict::from(&registry, &deps, &ra, sc1),
+            Conflict::from(&registry, &deps, &ra, &sc1),
             Conflict {
                 package: Arc::new(pkg("X")),
                 existing: range(">= 2 < 3"), // from A 2
@@ -224,16 +222,14 @@ mod test {
         // Overlapping
         let sc2 = failure::Conflict {
             package: Arc::new(pkg("X")),
-            existing: constraint(
-                &[
-                    ("1", &[("B", "1"), ("A", "1")]),
-                    ("2", &[("B", "1"), ("C", "1")]),
-                ],
-            ),
+            existing: constraint(&[
+                ("1", &[("B", "1"), ("A", "1")]),
+                ("2", &[("B", "1"), ("C", "1")]),
+            ]),
             conflicting: constraint(&[("3", &[])]),
         };
         assert_eq!(
-            Conflict::from(&registry, &deps, &ra, sc2),
+            Conflict::from(&registry, &deps, &ra, &sc2),
             Conflict {
                 package: Arc::new(pkg("X")),
                 existing: range("2"), // C 1's range was replaced
@@ -246,16 +242,14 @@ mod test {
         // Overlapping -- same but with existing and conflicting swapped
         let sc3 = failure::Conflict {
             package: Arc::new(pkg("X")),
-            conflicting: constraint(
-                &[
-                    ("1", &[("B", "1"), ("A", "1")]),
-                    ("2", &[("B", "1"), ("C", "1")]),
-                ],
-            ),
+            conflicting: constraint(&[
+                ("1", &[("B", "1"), ("A", "1")]),
+                ("2", &[("B", "1"), ("C", "1")]),
+            ]),
             existing: constraint(&[("3", &[])]),
         };
         assert_eq!(
-            Conflict::from(&registry, &deps, &ra, sc3),
+            Conflict::from(&registry, &deps, &ra, &sc3),
             Conflict {
                 package: Arc::new(pkg("X")),
                 conflicting: range("2"), // C 1's range was replaced
@@ -264,6 +258,5 @@ mod test {
                 existing_path: path(&[]),
             }
         );
-
     }
 }

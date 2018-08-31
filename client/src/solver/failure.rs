@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use pm_lib::constraint::VersionConstraint;
 use pm_lib::package::PackageName;
 use solver::constraints::Constraint;
 use solver::path::Path;
-use pm_lib::constraint::VersionConstraint;
+use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Failure {
@@ -18,16 +18,16 @@ impl Failure {
         conflicting: Constraint,
     ) -> Failure {
         Failure::Conflict(Conflict {
-            package: package.clone(),
-            existing: existing.clone(),
-            conflicting: conflicting.clone(),
+            package: package,
+            existing: existing,
+            conflicting: conflicting,
         })
     }
 
     pub fn package_missing(package: Arc<PackageName>, path: Path) -> Failure {
         Failure::PackageMissing(PackageMissing {
-            package: package.clone(),
-            path: path.clone(),
+            package: package,
+            path: path,
         })
     }
 
@@ -37,9 +37,9 @@ impl Failure {
         path: Path,
     ) -> Failure {
         Failure::UninhabitedConstraint(UninhabitedConstraint {
-            package: package.clone(),
-            constraint: constraint.clone(),
-            path: path.clone(),
+            package: package,
+            constraint: constraint,
+            path: path,
         })
     }
 }

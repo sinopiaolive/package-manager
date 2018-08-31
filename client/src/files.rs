@@ -86,7 +86,7 @@ impl FilesSectionInterpreter {
     ) -> Result<(), failure::Error> {
         let mut did_match = false;
         let cglob = CompiledGlob::new(glob)?;
-        for file in self.files_on_disk.iter() {
+        for file in &self.files_on_disk {
             if self.pattern_matches_path_or_ancestor(&cglob, &file) {
                 did_match = true;
                 file_set.insert(file.clone());
@@ -120,15 +120,13 @@ impl FilesSectionInterpreter {
         loop {
             if cglob.matches_non_root(p) {
                 return true;
+            } else if p.ends_with('/') {
+                p = &p[..(p.len() - 1)];
             } else {
-                if p.ends_with('/') {
-                    p = &p[..(p.len() - 1)];
-                } else {
-                    match p.rfind('/') {
-                        Some(i) => p = &p[..(i + 1)],
-                        None => {
-                            break;
-                        }
+                match p.rfind('/') {
+                    Some(i) => p = &p[..=i],
+                    None => {
+                        break;
                     }
                 }
             }
@@ -206,7 +204,7 @@ impl StdError for GlobError {
 
     fn cause(&self) -> Option<&StdError> {
         match self {
-            &GlobError::PatternError(ref pattern_error) => Some(pattern_error),
+            GlobError::PatternError(ref pattern_error) => Some(pattern_error),
             _ => None,
         }
     }
@@ -251,14 +249,14 @@ impl CompiledGlob {
         if glob.contains("[^") {
             return Err(GlobError::Caret);
         }
-        if glob.starts_with("/") || (glob.len() >= 2 && glob.as_bytes()[1] == b':') {
+        if glob.starts_with('/') || (glob.len() >= 2 && glob.as_bytes()[1] == b':') {
             return Err(GlobError::Absolute);
         }
 
         if glob == "." || glob == "./" {
             Ok(CompiledGlob::Root)
         } else {
-            let pattern = Pattern::new(glob).map_err(|e| GlobError::PatternError(e))?;
+            let pattern = Pattern::new(glob).map_err(GlobError::PatternError)?;
             Ok(CompiledGlob::NonRoot(pattern))
         }
     }
@@ -299,15 +297,8 @@ mod test {
         let mut directories = BTreeSet::new();
         for file in files {
             let mut slice: &str = file;
-            loop {
-                match slice.rfind('/') {
-                    Some(i) => {
-                        slice = &slice[..i];
-                    }
-                    None => {
-                        break;
-                    }
-                }
+            while let Some(i) = slice.rfind('/') {
+                slice = &slice[..i];
                 directories.insert(slice.to_string());
             }
         }

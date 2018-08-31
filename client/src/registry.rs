@@ -25,7 +25,10 @@ pub type Response<A> = Result<A, RegistryError>;
 
 fn read_auth() -> Result<String, failure::Error> {
     let config = get_config()?;
-    config.auth.token.ok_or(format_err!("Please log in first using `pm login`."))
+    config
+        .auth
+        .token
+        .ok_or_else(|| format_err!("Please log in first using `pm login`."))
 }
 
 fn request<A, R>(
@@ -72,14 +75,11 @@ where
     request::<A, &'static [u8]>(Method::Get, url, args, None, false)
 }
 
-pub fn get_auth<A>(url: &str, args: Map<String, String>) -> Result<Response<A>, failure::Error>
-where
-    for<'de> A: Deserialize<'de>,
-{
-    request::<A, &'static [u8]>(Method::Get, url, args, None, true)
-}
-
-pub fn post<A, R>(url: &str, args: Map<String, String>, data: R) -> Result<Response<A>, failure::Error>
+pub fn post<A, R>(
+    url: &str,
+    args: Map<String, String>,
+    data: R,
+) -> Result<Response<A>, failure::Error>
 where
     for<'de> A: Deserialize<'de>,
     R: Read + Send + 'static,

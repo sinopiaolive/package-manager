@@ -34,8 +34,7 @@ fn search(
             }
             Err(failure) => {
                 cheap_failure = failure;
-                let (new_stack, modified) =
-                    infer_indirect_dependencies(ra, stack.clone(), solution)?;
+                let (new_stack, modified) = infer_indirect_dependencies(ra, &stack, solution)?;
                 if !modified {
                     break;
                 } else {
@@ -57,10 +56,9 @@ fn search(
                     },
                 );
                 let try_version = || {
-                    let constraint_set =
-                        ra.constraint_set_for(package.clone(), version.clone(), (*path).clone())?;
+                    let constraint_set = ra.constraint_set_for(&package, &version, path)?;
                     let (new_deps, _) = stack_tail.and(&constraint_set, &new_solution)?;
-                    Ok(search(ra.clone(), new_deps, &new_solution)?)
+                    Ok(search(ra, new_deps, &new_solution)?)
                 };
                 match try_version() {
                     Err(failure) => {
@@ -101,8 +99,7 @@ fn cheap_attempt(
                         path: (*path).clone(),
                     },
                 );
-                let constraint_set =
-                    ra.constraint_set_for(package.clone(), version.clone(), (*path).clone())?;
+                let constraint_set = ra.constraint_set_for(&package, &version, path)?;
                 stack = stack_tail.and(&constraint_set, &solution)?.0;
             }
         }
@@ -122,7 +119,7 @@ fn solve_inner(ra: &RegistryAdapter, deps: &Dependencies) -> Result<Solution, Fa
 
 fn infer_indirect_dependencies(
     ra: &RegistryAdapter,
-    stack: ConstraintSet,
+    stack: &ConstraintSet,
     solution: &PartialSolution,
 ) -> Result<(ConstraintSet, bool), Failure> {
     let mut modified = false;
@@ -133,8 +130,7 @@ fn infer_indirect_dependencies(
         let mut first_failure = None;
         assert!(!constraint.is_empty());
         for (version, path) in constraint.iter() {
-            let cset_result =
-                ra.constraint_set_for(package.clone(), version.clone(), (*path).clone());
+            let cset_result = ra.constraint_set_for(&package, &version, path);
             match cset_result.and_then(|cset| {
                 new_stack.and(&cset, &solution)?;
                 Ok(cset)
@@ -262,13 +258,13 @@ mod unit_test {
         b.iter(|| {
             assert_eq!(
                 solve(&reg, &problem),
-                Err(Error::Conflict(Conflict {
+                Err(Error::Conflict(Box::new(Conflict {
                     package: Arc::new(pkg("hyper")),
                     existing: range("^0.11"),
                     existing_path: path(&[("hyper_rustls", "0.8.0")]),
                     conflicting: range("^0.10.4"),
                     conflicting_path: path(&[("rocket", "0.2.9")]),
-                }))
+                })))
             );
         });
     }
@@ -392,7 +388,7 @@ mod unit_test {
                 ],
             ),
         ]);
-        let (new_stack, modified) = infer_indirect_dependencies(&ra, stack.clone(), &ps).unwrap();
+        let (new_stack, modified) = infer_indirect_dependencies(&ra, &stack, &ps).unwrap();
         assert_eq!(new_stack, expected);
         assert!(modified);
     }

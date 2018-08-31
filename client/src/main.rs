@@ -1,5 +1,5 @@
-#![allow(unused_features)]
-#![feature(specialization, plugin, test)]
+#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+#![feature(plugin, test)]
 
 extern crate dirs;
 #[macro_use]
@@ -17,9 +17,8 @@ extern crate toml;
 #[macro_use]
 extern crate quick_error;
 #[macro_use]
-extern crate im;
+extern crate im_rc as im;
 extern crate data_encoding;
-extern crate futures;
 extern crate hyper;
 extern crate pest;
 extern crate rand;
@@ -39,6 +38,8 @@ extern crate test;
 #[cfg(test)]
 #[macro_use]
 extern crate matches;
+extern crate mime;
+extern crate tokio;
 
 mod config;
 mod manifest;
@@ -60,7 +61,7 @@ use docopt::Docopt;
 use serde::de::Deserialize;
 use std::process;
 
-const USAGE: &'static str = "Your package manager.
+const USAGE: &str = "Your package manager.
 
 Usage:
     pm <command> [<args>...]
@@ -82,7 +83,6 @@ type Result = std::result::Result<(), failure::Error>;
 macro_rules! each_subcommand {
     ($mac:ident) => {
         $mac!(login);
-        $mac!(test);
         $mac!(search);
         $mac!(publish);
     };
@@ -95,10 +95,7 @@ fn run_builtin_command<'de, Flags: Deserialize<'de>>(
     usage: &str,
 ) -> Result {
     let docopt = Docopt::new(usage).unwrap().help(true);
-    docopt
-        .deserialize()
-        .map_err(|e| e.exit())
-        .and_then(|opts| exec(opts))
+    docopt.deserialize().map_err(|e| e.exit()).and_then(exec)
 }
 
 fn attempt_builtin_command(cmd: &str) -> Option<Result> {
@@ -116,14 +113,12 @@ fn attempt_builtin_command(cmd: &str) -> Option<Result> {
     None
 }
 
-fn run_shell_command(cmd: &str, args: &Vec<String>) -> Result {
+fn run_shell_command(cmd: &str, args: &[String]) -> Result {
     let prefixed_cmd = format!("pm-{}", cmd);
     let sh = process::Command::new(&prefixed_cmd).args(args).output();
     println!("exec({:?}, {:?}) -> {:?}", prefixed_cmd, args, sh);
     Ok(()) // FIXME: report subprocess result properly
 }
-
-
 
 fn main() {
     // manifest::test_reader();

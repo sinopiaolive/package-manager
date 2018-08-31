@@ -55,11 +55,7 @@ impl Constraint {
         }
 
         if out.is_empty() {
-            Err(Failure::conflict(
-                package.clone(),
-                self.clone(),
-                other.clone(),
-            ))
+            Err(Failure::conflict(package, self.clone(), other.clone()))
         } else {
             Ok((out, modified))
         }
@@ -146,7 +142,7 @@ impl ConstraintSet {
     ) -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
         let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> = match cheap_conflict
         {
-            &Some(Failure::Conflict(ref conflict)) => Box::new(
+            Some(Failure::Conflict(ref conflict)) => Box::new(
                 BreadthFirstIter::new(&conflict.existing, &conflict.conflicting).chain(
                     ::std::iter::once((
                         conflict.package.clone(),
@@ -154,13 +150,13 @@ impl ConstraintSet {
                     )),
                 ),
             ),
-            &Some(Failure::PackageMissing(ref pkg_missing)) => {
+            Some(Failure::PackageMissing(ref pkg_missing)) => {
                 Box::new(pkg_missing.path.iter().rev().cloned())
             }
-            &Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
+            Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
                 Box::new(pkg_missing.path.iter().rev().cloned())
             }
-            &None => Box::new(::std::iter::empty()),
+            None => Box::new(::std::iter::empty()),
         };
         for (ref package, _) in path_iter {
             if let Some((constraint, cdr)) = self.uncons(package) {
@@ -247,7 +243,8 @@ fn contained_in(
         Some(JustifiedVersion {
             ref version,
             ref path,
-        }) if !constraint.contains_key(&version.clone()) =>
+        })
+            if !constraint.contains_key(&version.clone()) =>
         {
             let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
             Err(Failure::conflict(
@@ -419,7 +416,7 @@ mod test {
                 constraint(&[("1", &[])]),
                 constraint(&[("2", &[("A", "1")])]),
             ))).unwrap()
-                .1,
+            .1,
             Arc::new(pkg("A"))
         );
     }
@@ -439,7 +436,7 @@ mod test {
                 null_constraint.clone(),
                 null_constraint.clone(),
             ))).unwrap()
-                .1,
+            .1,
             Arc::new(pkg("B"))
         );
 
@@ -449,7 +446,7 @@ mod test {
                 constraint(&[("1", &[("null", "1"), ("A", "1"), ("C", "1")])],),
                 null_constraint.clone(),
             ))).unwrap()
-                .1,
+            .1,
             Arc::new(pkg("A"))
         );
 
@@ -459,7 +456,7 @@ mod test {
                 constraint(&[("1", &[("null", "1"), ("A", "1")])]),
                 constraint(&[("1", &[("C", "1"), ("null", "1")])]),
             ))).unwrap()
-                .1,
+            .1,
             Arc::new(pkg("C"))
         );
     }
