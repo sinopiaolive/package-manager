@@ -1,7 +1,5 @@
-// infer_schema!("dotenv:DATABASE_URL");
-
 table! {
-    users {
+    users (id) {
         id -> Text,
         name -> Text,
         email -> Text,
@@ -36,9 +34,6 @@ table! {
 }
 
 table! {
-    use diesel::sql_types::*;
-    use diesel::pg::types::sql_types::Array;
-
     package_releases (namespace, name, version) {
         namespace -> Text,
         name -> Text,
@@ -65,7 +60,18 @@ table! {
     files (namespace, name) {
         namespace -> Text,
         name -> Text,
-        data -> Binary,
+        data -> Bytea,
         uploaded_on -> Timestamp,
     }
 }
+
+joinable!(package_owners -> users (user_id));
+
+allow_tables_to_appear_in_same_query!(
+    files,
+    login_sessions,
+    package_owners,
+    package_releases,
+    packages,
+    users,
+);
