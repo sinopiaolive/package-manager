@@ -1,9 +1,9 @@
 table! {
-    users (id) {
-        id -> Text,
+    files (namespace, name) {
+        namespace -> Text,
         name -> Text,
-        email -> Text,
-        avatar -> Nullable<Text>,
+        data -> Bytea,
+        uploaded_on -> Timestamp,
     }
 }
 
@@ -12,15 +12,6 @@ table! {
         token -> Text,
         callback -> Text,
         stamp -> Timestamp,
-    }
-}
-
-table! {
-    packages (namespace, name) {
-        namespace -> Text,
-        name -> Text,
-        deleted -> Nullable<Text>,
-        deleted_on -> Nullable<Timestamp>,
     }
 }
 
@@ -57,11 +48,20 @@ table! {
 }
 
 table! {
-    files (namespace, name) {
+    packages (namespace, name) {
         namespace -> Text,
         name -> Text,
-        data -> Bytea,
-        uploaded_on -> Timestamp,
+        deleted -> Nullable<Text>,
+        deleted_on -> Nullable<Timestamp>,
+    }
+}
+
+table! {
+    users (id) {
+        id -> Text,
+        name -> Text,
+        email -> Text,
+        avatar -> Nullable<Text>,
     }
 }
 
