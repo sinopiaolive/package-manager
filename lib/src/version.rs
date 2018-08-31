@@ -57,7 +57,7 @@ impl Version {
             .map(|f| f.to_string())
             .collect::<Vec<_>>()
             .join("."));
-        if self.prerelease.len() > 0 {
+        if !self.prerelease.is_empty() {
             s.push_str("-");
             s.push_str(&*self.prerelease
                 .iter()
@@ -65,7 +65,7 @@ impl Version {
                 .collect::<Vec<_>>()
                 .join("."));
         }
-        if self.build.len() > 0 {
+        if !self.build.is_empty() {
             s.push_str("+");
             s.push_str(&*self.build
                 .iter()
@@ -104,7 +104,7 @@ impl Version {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -221,7 +221,7 @@ impl Ord for VersionIdentifier {
 /// This drops all tags from the version.
 pub fn caret_bump(v: &Version) -> Version {
     let mut parts = Vec::new();
-    for next in v.fields.iter() {
+    for next in &v.fields {
         let i = *next;
         if i == 0u64 {
             parts.push(i);
@@ -258,7 +258,7 @@ named!(version_id<VersionIdentifier>,
 fn to_u64(s: &str) -> Result<u64, ()> {
     match u64::from_str(s) {
         Ok(n) => {
-            if s.chars().count() > 1 && s.chars().next() == Some('0') {
+            if s.chars().count() > 1 && s.starts_with('0') {
                 Err(())
             } else {
                 Ok(n)
@@ -303,7 +303,7 @@ named!(version_unchecked<Version>, do_parse!(
 pub fn version(input: &[u8]) -> nom::IResult<&[u8], Version> {
     match version_unchecked(input) {
         Done(i, _) if input.len() - i.len() > 128 => nom::IResult::Error(nom::ErrorKind::Custom(1)),
-        r @ _ => r,
+        r => r,
     }
 }
 

@@ -21,14 +21,14 @@ impl fmt::Debug for PackageName {
 fn validate_package_namespace(s: &str) -> bool {
     s.chars().all(|c| {
         (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
-    }) && s.len() > 0 && s.len() <= 128 && s.chars().next().unwrap() != '-'
+    }) && !s.is_empty()  && s.len() <= 128 && s.starts_with('-')
 }
 
 fn validate_package_name(s: &str) -> bool {
     s.chars().all(|c| {
         (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' ||
             c == '-'
-    }) && s.len() > 0 && s.len() <= 128 && s.chars().next().unwrap() != '-'
+    }) && !s.is_empty() && s.len() <= 128 && s.starts_with('-')
 }
 
 impl PackageName {

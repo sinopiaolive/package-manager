@@ -52,20 +52,20 @@ impl VersionConstraint {
 
     pub fn as_string(&self) -> String {
         match self {
-            &Exact(ref v) => v.as_string(),
-            &Range(None, None) => "*".to_string(),
-            &Range(Some(ref v), None) => format!(">= {}", v),
-            &Range(None, Some(ref v)) => format!("< {}", v),
-            &Range(Some(ref v1), Some(ref v2)) => format!(">= {} < {}", v1, v2),
-            &Caret(ref v) => format!("^{}", v),
+            Exact(ref v) => v.as_string(),
+            Range(None, None) => "*".to_string(),
+            Range(Some(ref v), None) => format!(">= {}", v),
+            Range(None, Some(ref v)) => format!("< {}", v),
+            Range(Some(ref v1), Some(ref v2)) => format!(">= {} < {}", v1, v2),
+            Caret(ref v) => format!("^{}", v),
         }
     }
 
     pub fn contains(&self, version: &Version) -> bool {
         match self {
-            &Exact(ref v) => version == v,
-            &Caret(ref v) => contained_in_range(&version, Some(&v), Some(&caret_bump(&v))),
-            &Range(ref v1, ref v2) => contained_in_range(&version, v1.as_ref(), v2.as_ref()),
+            Exact(ref v) => version == v,
+            Caret(ref v) => contained_in_range(&version, Some(&v), Some(&caret_bump(&v))),
+            Range(ref v1, ref v2) => contained_in_range(&version, v1.as_ref(), v2.as_ref()),
         }
     }
 }
@@ -150,14 +150,14 @@ named!(pub version_constraint_unchecked<VersionConstraint>,
 
 fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
     match version_constraint_unchecked(input) {
-        Done(i, _) if i.len() > 0 => nom::IResult::Error(nom::ErrorKind::Eof),
+        Done(i, _) if !i.is_empty() => nom::IResult::Error(nom::ErrorKind::Eof),
         Done(_, Range(Some(ref v1), Some(ref v2))) if v1.semver_cmp(v2) != Ordering::Less => {
             nom::IResult::Error(nom::ErrorKind::Custom(1))
         }
         Done(_, Caret(ref v)) if v.base_version_is_zero() => {
             nom::IResult::Error(nom::ErrorKind::Custom(2))
         }
-        r @ _ => r,
+        r => r,
     }
 }
 

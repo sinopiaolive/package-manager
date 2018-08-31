@@ -53,7 +53,8 @@ pub fn write_to<W>(i: &Index, wr: &mut W) -> Result<(), Error>
 where
     W: Write,
 {
-    Ok(encode::write(wr, i)?)
+    encode::write(wr, i)?;
+    Ok(())
 }
 
 pub fn write_index(i: &Index, path: &Path) -> Result<(), Error> {
@@ -71,7 +72,7 @@ where
     f.read_to_string(&mut s)?;
     serde_json::from_str(&s)
         .map_err(|e| Error::Custom(format!("{}", e)))
-        .map(|v| Arc::new(v))
+        .map(Arc::new)
 }
 
 

@@ -15,7 +15,7 @@ pub fn range(s: &str) -> VersionConstraint {
 }
 
 pub fn pkg(s: &str) -> PackageName {
-    let segments = s.split("/").count();
+    let segments = s.split('/').count();
     let pkg = if segments == 1 {
         PackageName::from_str(&format!("test/{}", s))
     } else {
