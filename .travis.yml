@@ -1,14 +1,25 @@
 language: rust
 rust:
-  # remember to edit ./rust-toolchain as well
+  - none # whatever rust-toolchain says
   - nightly
+  - stable
+matrix:
+  allow_failures:
+    - rust: nightly
+    - rust: stable
 services:
   - postgresql
 addons:
   postgresql: "9.6"
 env:
   - DATABASE_URL="postgres://postgres@localhost/registry"
+before_install:
+  # Pass the build matrix to rustup via $RUSTUP_TOOLCHAIN. Without this, our
+  # rust-toolchain file overrides the Rust version we selected in the build
+  # matrix. If "none" is set, export the empty string.
+  - export RUSTUP_TOOLCHAIN="${TRAVIS_RUST_VERSION#none}"
 before_script:
+  - rustc --version
   - psql -c 'create database registry;' -U postgres
   - cargo install diesel_cli --no-default-features --features postgres
 script:
