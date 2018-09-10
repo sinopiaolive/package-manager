@@ -204,25 +204,25 @@ impl Store {
         }
     }
 
-    pub fn get_file(&self, namespace: &str, name: &str) -> Res<File> {
+    pub fn get_file(&self, namespace: &str, name: &str, version: &str) -> Res<File> {
         let db = self.db()?;
         let results: Vec<File> = files::table
-            .filter(files::namespace.eq(namespace).and(files::name.eq(name)))
+            .filter(files::namespace.eq(namespace).and(files::name.eq(name)).and(files::version.eq(version)))
             .load(&db)?;
         match results.into_iter().next() {
-            None => Err(Error::UnknownFile(namespace.to_string(), name.to_string())),
+            None => Err(Error::UnknownRelease(namespace.to_string(), name.to_string(), version.to_string())),
             Some(file) => Ok(file),
         }
     }
 
-    pub fn add_file(&self, namespace: &str, name: &str, data: &[u8]) -> Res<()> {
+    pub fn add_file(&self, namespace: &str, name: &str, version: &str, data: &[u8]) -> Res<()> {
         let db = self.db()?;
         diesel::insert_into(files::table)
             .values(&File {
                 namespace: namespace.to_owned(),
                 name: name.to_owned(),
+                version: version.to_owned(),
                 data: data.to_owned(),
-                uploaded_on: SystemTime::now(),
             }).execute(&db)?;
         Ok(())
     }

@@ -84,8 +84,8 @@ quick_error! {
         UnknownPackage(namespace: String, name: String) {
             display("No such package: {}/{}", namespace, name)
         }
-        UnknownFile(namespace: String, name: String) {
-            display("No such file: {}/{}", namespace, name)
+        UnknownRelease(namespace: String, name: String, version: String) {
+            display("No such package version: {}/{}-{}", namespace, name, version)
         }
         AccessDenied(namespace: String, name: String, user: User) {
             display("User {} is not an owner of {}/{}", user, name, namespace)

@@ -93,7 +93,8 @@ pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<Rec
             })?;
             store.add_file(
                 &manifest.namespace,
-                &filename,
+                &manifest.name,
+                &manifest.version.to_string(),
                 manifest.data.as_slice(),
             )?;
             Ok(Receipt {

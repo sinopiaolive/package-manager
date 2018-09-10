@@ -3,7 +3,7 @@ table! {
         namespace -> Text,
         name -> Text,
         data -> Bytea,
-        uploaded_on -> Timestamp,
+        version -> Text,
     }
 }
 
