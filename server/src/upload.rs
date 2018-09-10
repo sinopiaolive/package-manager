@@ -57,7 +57,7 @@ pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<Rec
         Some(_) => {
             validate_manifest(&manifest)?;
             validate_archive(&mut manifest.data.as_slice())?;
-            store.add_release(&Release {
+            let release = Release {
                 namespace: manifest.namespace.clone(),
                 name: manifest.name.clone(),
                 version: manifest.version.to_string(),
@@ -90,13 +90,8 @@ pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<Rec
                 deprecated_on: None,
                 deleted: None,
                 deleted_on: None,
-            })?;
-            store.add_file(
-                &manifest.namespace,
-                &manifest.name,
-                &manifest.version.to_string(),
-                manifest.data.as_slice(),
-            )?;
+            };
+            store.add_release(&release, manifest.data.as_slice())?;
             Ok(Receipt {
                 ok: true,
                 url: Some(url),

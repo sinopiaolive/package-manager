@@ -188,20 +188,29 @@ impl Store {
             ).load(&db)?)
     }
 
-    pub fn add_release(&self, release: &Release) -> Res<()> {
+    pub fn add_release(&self, release: &Release, data: &[u8]) -> Res<()> {
         let db = self.db()?;
-        match diesel::insert_into(package_releases::table)
-            .values(release)
-            .execute(&db)
-        {
-            Ok(_) => Ok(()),
-            Err(DatabaseError(UniqueViolation, _)) => Err(Error::ReleaseAlreadyExists(
-                release.namespace.clone(),
-                release.name.clone(),
-                release.version.clone(),
-            )),
-            Err(e) => Err(Error::from(e)),
-        }
+        db.transaction(|| {
+            diesel::insert_into(package_releases::table)
+                .values(release)
+                .execute(&db)
+                .map_err(|err| match err {
+                    DatabaseError(UniqueViolation, _) => Error::ReleaseAlreadyExists(
+                        release.namespace.clone(),
+                        release.name.clone(),
+                        release.version.clone(),
+                    ),
+                    e => Error::from(e),
+                })?;
+            diesel::insert_into(files::table)
+                .values(&File {
+                    namespace: release.namespace.to_owned(),
+                    name: release.name.to_owned(),
+                    version: release.version.to_owned(),
+                    data: data.to_owned(),
+                }).execute(&db)?;
+            Ok(())
+        })
     }
 
     pub fn get_file(&self, namespace: &str, name: &str, version: &str) -> Res<File> {
@@ -213,17 +222,5 @@ impl Store {
             None => Err(Error::UnknownRelease(namespace.to_string(), name.to_string(), version.to_string())),
             Some(file) => Ok(file),
         }
-    }
-
-    pub fn add_file(&self, namespace: &str, name: &str, version: &str, data: &[u8]) -> Res<()> {
-        let db = self.db()?;
-        diesel::insert_into(files::table)
-            .values(&File {
-                namespace: namespace.to_owned(),
-                name: name.to_owned(),
-                version: version.to_owned(),
-                data: data.to_owned(),
-            }).execute(&db)?;
-        Ok(())
     }
 }
