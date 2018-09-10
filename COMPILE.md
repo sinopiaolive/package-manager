@@ -45,13 +45,13 @@ The GitHub secret is found on GitHub in the sinopiaolive org settings, section
 [OAuth
 Apps](https://github.com/organizations/sinopiaolive/settings/applications).
 
-Install the Diesel command line tool, to set up the database and run
-migrations:
+Install the Diesel command line tool, and reset your database. (This drops and
+re-creates the `registry` database and runs all migrations.)
 
 ```sh
-$ cargo install diesel_cli --no-default-features --features postgres
+$ cargo install diesel_cli --force --no-default-features --features postgres
 $ cd server
-$ diesel database setup
+$ diesel database reset
 ```
 
 ## Running the Server
@@ -80,4 +80,18 @@ Inspect a table:
 
 ```sh
 $ psql -U postgres -d registry -c 'select * from sometable;'
+```
+
+Add a new migration:
+
+```sh
+$ cd server
+$ diesel migration generate name_for_your_migration
+```
+
+Regenerate `schema.rs` after filling in your new migration:
+
+```sh
+$ cd server
+$ diesel database reset && diesel print-schema > src/schema.rs
 ```
