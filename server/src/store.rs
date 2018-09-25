@@ -3,12 +3,10 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use diesel;
-use diesel::expression::dsl::now;
-use diesel::pg::expression::extensions::IntervalDsl;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind::UniqueViolation;
-use diesel::result::Error::DatabaseError;
+use diesel::result::Error::{DatabaseError, NotFound};
 
 use data_encoding::BASE64;
 
@@ -67,78 +65,73 @@ impl Store {
         if BASE64.decode(token.as_bytes()).is_err() {
             return Err(Error::InvalidLoginState(token.to_string()));
         }
-        let results: Vec<LoginSession> = login_sessions::table
-            .filter(login_sessions::token.eq(token))
-            .filter(login_sessions::stamp.gt(now - 30.minutes()))
-            .load(&db)?;
-        match results.into_iter().next() {
-            None => Err(Error::InvalidLoginState(token.to_string())),
-            Some(session) => {
-                diesel::delete(login_sessions::table.filter(login_sessions::token.eq(token)))
-                    .execute(&db)?;
-                Ok(session.callback)
-            }
-        }
+        let session: LoginSession =
+            diesel::delete(login_sessions::table.filter(login_sessions::token.eq(token)))
+                .get_result(&db)
+                .map_err(|err| match err {
+                    NotFound => Error::InvalidLoginState(token.to_string()),
+                    e => Error::from(e),
+                })?;
+        Ok(session.callback)
     }
 
     pub fn update_user(&self, user: &UserRecord) -> Res<()> {
         let db = self.db()?;
-        match self.get_user(&user.user()?) {
-            Ok(_) => {
-                diesel::update(users::table.filter(users::id.eq(&user.id)))
-                    .set((
-                        users::name.eq(&user.name),
-                        users::email.eq(&user.email),
-                        users::avatar.eq(&user.avatar),
-                    )).execute(&db)?;
-            }
-            Err(_) => {
-                diesel::insert_into(users::table)
-                    .values(user)
-                    .execute(&db)?;
-            }
-        }
+        diesel::insert_into(users::table)
+            .values(user)
+            .on_conflict(users::id)
+            .do_update()
+            .set(user)
+            .execute(&db)?;
         Ok(())
     }
 
     pub fn get_user(&self, user: &User) -> Res<UserRecord> {
         let db = self.db()?;
-        let results: Vec<UserRecord> = users::table
+        let user = users::table
             .filter(users::id.eq(user.to_string()))
-            .load(&db)?;
-        match results.into_iter().next() {
-            None => Err(Error::UnknownUser(user.to_string())),
-            Some(user) => Ok(user),
-        }
+            .get_result(&db)
+            .map_err(|err| match err {
+                NotFound => Error::UnknownUser(user.to_string()),
+                e => Error::from(e),
+            })?;
+        Ok(user)
     }
 
     pub fn get_package(&self, namespace: &str, name: &str) -> Res<Package> {
         let db = self.db()?;
-        let results = packages::table
+        let pkg = packages::table
             .filter(
                 packages::namespace
                     .eq(&namespace)
                     .and(packages::name.eq(&name)),
-            ).load(&db)?;
-        match results.into_iter().next() {
-            None => Err(Error::UnknownPackage(namespace.to_owned(), name.to_owned())),
-            Some(pkg) => Ok(pkg),
-        }
+            ).get_result(&db)
+            .map_err(|err| match err {
+                NotFound => Error::UnknownPackage(namespace.to_owned(), name.to_owned()),
+                e => Error::from(e),
+            })?;
+        Ok(pkg)
     }
 
     pub fn insert_package(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
         let db = self.db()?;
-        match diesel::insert_into(packages::table)
-            .values(&Package {
-                namespace: namespace.to_owned(),
-                name: name.to_owned(),
-                deleted: None,
-                deleted_on: None,
-            }).execute(&db)
-        {
-            Ok(_) => self.add_package_owner(namespace, name, owner),
-            Err(_) => Ok(()),
-        }
+        db.build_transaction().serializable().run(|| {
+            // This logic implicitly relies on uniqueness constraints and
+            // transaction semantics. If any of these break, it might allow
+            // people to add themselves as owners to other people's packages. We
+            // should make it more robust.
+            match diesel::insert_into(packages::table)
+                .values(&Package {
+                    namespace: namespace.to_owned(),
+                    name: name.to_owned(),
+                    deleted: None,
+                    deleted_on: None,
+                }).execute(&db)
+            {
+                Ok(_) => self.add_package_owner(namespace, name, owner),
+                Err(_) => Ok(()),
+            }
+        })
     }
 
     pub fn get_package_owners(&self, namespace: &str, name: &str) -> Res<Vec<User>> {
@@ -190,7 +183,7 @@ impl Store {
 
     pub fn add_release(&self, release: &Release, data: &[u8]) -> Res<()> {
         let db = self.db()?;
-        db.transaction(|| {
+        db.build_transaction().serializable().run(|| {
             diesel::insert_into(package_releases::table)
                 .values(release)
                 .execute(&db)
@@ -215,12 +208,21 @@ impl Store {
 
     pub fn get_file(&self, namespace: &str, name: &str, version: &str) -> Res<File> {
         let db = self.db()?;
-        let results: Vec<File> = files::table
-            .filter(files::namespace.eq(namespace).and(files::name.eq(name)).and(files::version.eq(version)))
-            .load(&db)?;
-        match results.into_iter().next() {
-            None => Err(Error::UnknownRelease(namespace.to_string(), name.to_string(), version.to_string())),
-            Some(file) => Ok(file),
-        }
+        let file = files::table
+            .filter(
+                files::namespace
+                    .eq(namespace)
+                    .and(files::name.eq(name))
+                    .and(files::version.eq(version)),
+            ).get_result(&db)
+            .map_err(|err| match err {
+                NotFound => Error::UnknownRelease(
+                    namespace.to_string(),
+                    name.to_string(),
+                    version.to_string(),
+                ),
+                e => Error::from(e),
+            })?;
+        Ok(file)
     }
 }

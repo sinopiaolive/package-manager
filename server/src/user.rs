@@ -60,7 +60,7 @@ impl<'v> FromFormValue<'v> for User {
     }
 }
 
-#[derive(Insertable, Queryable, Identifiable, Associations, Debug)]
+#[derive(Insertable, Queryable, Identifiable, Associations, AsChangeset, Debug)]
 #[table_name = "users"]
 pub struct UserRecord {
     pub id: String,

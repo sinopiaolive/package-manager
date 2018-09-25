@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use schema::{packages, package_owners, package_releases};
 use user::UserRecord;
 
-#[derive(Identifiable, Queryable, Insertable, Associations, Debug)]
+#[derive(Identifiable, Queryable, Insertable, AsChangeset, Associations, Debug)]
 #[table_name = "packages"]
 #[primary_key(namespace, name)]
 pub struct Package {
@@ -13,7 +13,7 @@ pub struct Package {
     pub deleted_on: Option<SystemTime>
 }
 
-#[derive(Identifiable, Queryable, Insertable, Associations, Debug)]
+#[derive(Identifiable, Queryable, Insertable, AsChangeset, Associations, Debug)]
 #[table_name = "package_owners"]
 #[primary_key(namespace, name, user_id)]
 #[belongs_to(UserRecord, foreign_key = "user_id")]
@@ -24,7 +24,7 @@ pub struct PackageOwner {
     pub added_time: SystemTime
 }
 
-#[derive(Insertable, Identifiable, Queryable, Associations, Debug)]
+#[derive(Insertable, AsChangeset, Identifiable, Queryable, Associations, Debug)]
 #[belongs_to(UserRecord, foreign_key = "publisher")]
 #[table_name = "package_releases"]
 #[primary_key(namespace, name, version)]
