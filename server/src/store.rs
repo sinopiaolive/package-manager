@@ -77,6 +77,10 @@ impl Store {
 
     pub fn update_user(&self, user: &UserRecord) -> Res<()> {
         let db = self.db()?;
+        assert!(
+            user.id.contains(':'),
+            "user_record.id must be namespaced to prevent collisions between authentication providers"
+        );
         diesel::insert_into(users::table)
             .values(user)
             .on_conflict(users::id)
