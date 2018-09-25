@@ -18,10 +18,6 @@ impl User {
     pub fn new(provider: AuthSource, id: &str) -> User {
         User { provider, id: id.to_string() }
     }
-
-    pub fn to_string(&self) -> String {
-        format!("{}", self)
-    }
 }
 
 impl fmt::Display for User {
