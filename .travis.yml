@@ -2,11 +2,9 @@ language: rust
 rust:
   - none # whatever rust-toolchain says
   - nightly
-  - stable
 matrix:
   allow_failures:
     - rust: nightly
-    - rust: stable
 services:
   - postgresql
 addons:
