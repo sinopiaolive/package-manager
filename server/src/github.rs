@@ -5,8 +5,6 @@ use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
 
 use reqwest;
-use reqwest::header::{Accept, Authorization, qitem};
-use reqwest::mime::APPLICATION_JSON;
 
 use error::{Res, Error};
 use auth::{AuthSource, AuthProvider};
@@ -72,8 +70,8 @@ impl Github {
     {
         Ok(self.http
             .post(&format!("https://api.github.com/{}", url))
-            .header(Accept(vec![qitem(APPLICATION_JSON)]))
-            .header(Authorization(format!("token {}", token)))
+            .header("Accept", "application/json")
+            .header("Authorization", format!("token {}", token))
             .form(payload)
             .send()?
             .json()?)
@@ -85,8 +83,8 @@ impl Github {
     {
         Ok(self.http
             .get(&format!("https://api.github.com/{}", url))
-            .header(Accept(vec![qitem(APPLICATION_JSON)]))
-            .header(Authorization(format!("token {}", token)))
+            .header("Accept", "application/json")
+            .header("Authorization", format!("token {}", token))
             .send()?
             .json()?)
     }
@@ -96,8 +94,8 @@ impl Github {
         let mut s = String::new();
         let mut res = self.http
             .get(&format!("https://api.github.com/{}", url))
-            .header(Accept(vec![qitem(APPLICATION_JSON)]))
-            .header(Authorization(format!("token {}", token)))
+            .header("Accept", "application/json")
+            .header("Authorization", format!("token {}", token))
             .send()?;
         res.read_to_string(&mut s)?;
         Ok(s)
@@ -106,7 +104,7 @@ impl Github {
     pub fn validate_callback(&self, code: &str) -> Res<OAuthToken> {
         Ok(self.http
             .post("https://github.com/login/oauth/access_token")
-            .header(Accept(vec![qitem(APPLICATION_JSON)]))
+            .header("Accept", "application/json")
             .form(&OAuthResponse {
                 client_id: GITHUB_CLIENT_ID.to_string(),
                 client_secret: env::var("GITHUB_SECRET")?,

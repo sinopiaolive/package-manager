@@ -1,6 +1,5 @@
 use failure;
 use im::OrdMap as Map;
-use reqwest::header::Authorization;
 use reqwest::Body;
 use reqwest::{self, Method};
 use serde::Deserialize;
@@ -54,10 +53,10 @@ where
         &format!("http://localhost:8000/{}?{}", url, args_str),
     );
     if auth {
-        req.header(Authorization(format!("Bearer {}", read_auth()?)));
+        req = req.header("Authorization", format!("Bearer {}", read_auth()?));
     }
     if let Some(data) = body {
-        req.body(Body::new(data));
+        req = req.body(Body::new(data));
     }
     let res = req.send()?;
 
@@ -72,7 +71,7 @@ pub fn get<A>(url: &str, args: Map<String, String>) -> Result<Response<A>, failu
 where
     for<'de> A: Deserialize<'de>,
 {
-    request::<A, &'static [u8]>(Method::Get, url, args, None, false)
+    request::<A, &'static [u8]>(Method::GET, url, args, None, false)
 }
 
 pub fn post<A, R>(
@@ -84,5 +83,5 @@ where
     for<'de> A: Deserialize<'de>,
     R: Read + Send + 'static,
 {
-    request(Method::Post, url, args, Some(data), true)
+    request(Method::POST, url, args, Some(data), true)
 }

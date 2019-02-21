@@ -24,7 +24,7 @@ pest = "=1.0.0-beta.17" # needs update
 pest_derive = "=1.0.0-beta.17" # needs update
 quick-error = "1.2.2"
 rand = "0.6.5"
-reqwest = "0.8.6" # needs update
+reqwest = "0.9.10" # needs update
 rmp-serde = "0.13.7"
 serde = "1.0.88"
 serde_derive = "1.0.88"

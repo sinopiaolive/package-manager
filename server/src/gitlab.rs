@@ -4,8 +4,6 @@ use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
 
 use reqwest;
-use reqwest::header::{Accept, Authorization, qitem};
-use reqwest::mime::APPLICATION_JSON;
 
 use error::Res;
 use auth::{AuthSource, AuthProvider};
@@ -67,8 +65,8 @@ impl Gitlab {
     {
         Ok(self.http
             .post(&format!("https://gitlab.com/api/v4/{}", url))
-            .header(Accept(vec![qitem(APPLICATION_JSON)]))
-            .header(Authorization(format!("Bearer {}", token)))
+            .header("Accept", "application/json")
+            .header("Authorization", format!("Bearer {}", token))
             .form(payload)
             .send()?
             .json()?)
@@ -80,8 +78,8 @@ impl Gitlab {
     {
         Ok(self.http
             .get(&format!("https://gitlab.com/api/v4/{}", url))
-            .header(Accept(vec![qitem(APPLICATION_JSON)]))
-            .header(Authorization(format!("Bearer {}", token)))
+            .header("Accept", "application/json")
+            .header("Authorization", format!("Bearer {}", token))
             .send()?
             .json()?)
     }
@@ -89,7 +87,7 @@ impl Gitlab {
     pub fn validate_callback(&self, code: &str) -> Res<OAuthToken> {
         Ok(self.http
             .post("https://gitlab.com/oauth/token")
-            .header(Accept(vec![qitem(APPLICATION_JSON)]))
+            .header("Accept", "application/json")
             .form(&OAuthResponse {
                 client_id: GITLAB_CLIENT_ID.to_string(),
                 client_secret: env::var("GITLAB_SECRET")?,
