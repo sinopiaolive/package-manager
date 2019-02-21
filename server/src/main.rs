@@ -1,7 +1,8 @@
 #![recursion_limit = "128"]
-#![feature(plugin, custom_derive)]
-#![plugin(rocket_codegen)]
 #![allow(proc_macro_derive_resolution_fallback)]
+#![feature(proc_macro_hygiene, decl_macro)] // for rocket
+
+#[macro_use]
 extern crate rocket;
 extern crate serde;
 extern crate serde_json;
@@ -42,10 +43,10 @@ mod test;
 use std::io::Cursor;
 
 use rocket::http::{ContentType, Status};
-use rocket::request::{FromRequest, Request};
+use rocket::request::{FromRequest, Request, Form};
 use rocket::response::{content, Redirect, Response};
 use rocket::{Data, Outcome, State};
-use rocket_contrib::Json;
+use rocket_contrib::json::Json;
 
 use url::Url;
 
@@ -192,8 +193,8 @@ fn files(store: State<Store>, namespace: String, name: String, version: String) 
     }
 }
 
-#[get("/search?<query>")]
-fn search(query: SearchQuery, store: State<Store>) -> Res<Json<Vec<search::SearchResult>>> {
+#[get("/search?<query..>")]
+fn search(query: Form<SearchQuery>, store: State<Store>) -> Res<Json<Vec<search::SearchResult>>> {
     Ok(Json(search::search(
         &store,
         &query.ns,
@@ -228,8 +229,8 @@ struct Login {
     callback: String,
 }
 
-#[get("/login_client?<login>")]
-fn login_client(store: State<Store>, login: Login) -> Res<content::Html<String>> {
+#[get("/login_client?<login..>")]
+fn login_client(store: State<Store>, login: Form<Login>) -> Res<content::Html<String>> {
     store.register_login(&login.token, &login.callback)?;
     let github_url = format!(
         "https://github.com/login/oauth/authorize?scope=user:email&client_id={}&state={}",
@@ -261,8 +262,8 @@ struct OAuthCallback {
     state: String,
 }
 
-#[get("/github/callback?<callback>")]
-fn github_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect> {
+#[get("/github/callback?<callback..>")]
+fn github_callback(store: State<Store>, callback: Form<OAuthCallback>) -> Res<Redirect> {
     let mut redirect = Url::parse(&store.validate_login(&callback.state)?)?;
     let github = Github::new()?;
     let token = github.validate_callback(&callback.code)?;
@@ -274,11 +275,11 @@ fn github_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
         .query_pairs_mut()
         .append_pair("token", &auth.encode()?)
         .append_pair("state", &callback.state);
-    Ok(Redirect::to(redirect.as_str()))
+    Ok(Redirect::to(redirect.as_str().to_string()))
 }
 
-#[get("/gitlab/callback?<callback>")]
-fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect> {
+#[get("/gitlab/callback?<callback..>")]
+fn gitlab_callback(store: State<Store>, callback: Form<OAuthCallback>) -> Res<Redirect> {
     let mut redirect = Url::parse(&store.validate_login(&callback.state)?)?;
     let gitlab = Gitlab::new()?;
     let token = gitlab.validate_callback(&callback.code)?;
@@ -290,7 +291,7 @@ fn gitlab_callback(store: State<Store>, callback: OAuthCallback) -> Res<Redirect
         .query_pairs_mut()
         .append_pair("token", &auth.encode()?)
         .append_pair("state", &callback.state);
-    Ok(Redirect::to(redirect.as_str()))
+    Ok(Redirect::to(redirect.as_str().to_string()))
 }
 
 fn main() {
