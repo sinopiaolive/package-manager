@@ -35,7 +35,6 @@ pub struct Args {
 }
 
 fn make_progress(msg: &str, len: usize, quiet: bool) -> ProgressBar {
-    #[cfg_attr(feature = "cargo-clippy", allow(blacklisted_name))]
     let bar = if quiet {
         ProgressBar::hidden()
     } else {
@@ -49,7 +48,6 @@ fn make_progress(msg: &str, len: usize, quiet: bool) -> ProgressBar {
     bar
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn execute(args: Args) -> Result<(), failure::Error> {
     let manifest = read_manifest()?;
 

@@ -30,7 +30,7 @@ impl GitScmProvider {
         };
         Ok(GitScmProvider {
             relative_package_root: relative_package_root.to_path_buf(),
-            repo: repo,
+            repo,
         })
     }
 

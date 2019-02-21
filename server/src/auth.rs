@@ -1,4 +1,5 @@
 use std::fmt;
+use std::str::FromStr;
 
 use data_encoding::BASE64URL;
 use serde_json;
@@ -20,7 +21,19 @@ pub enum AuthSource {
 }
 
 impl AuthSource {
-    pub fn from_str(name: &str) -> Res<Self> {
+    pub fn provider(&self) -> Res<Box<AuthProvider>> {
+        Ok(match self {
+            AuthSource::Test => Box::new(NullAuth),
+            AuthSource::Github => Box::new(Github::new()?),
+            AuthSource::Gitlab => Box::new(Gitlab::new()?),
+        })
+    }
+}
+
+impl FromStr for AuthSource {
+    type Err = Error;
+
+    fn from_str(name: &str) -> Res<Self> {
         match name {
             "test" => Ok(AuthSource::Test),
             "github" => Ok(AuthSource::Github),
@@ -28,22 +41,14 @@ impl AuthSource {
             _ => Err(Error::NoSuchAuthSource(name.to_string()))
         }
     }
-
-    pub fn provider(&self) -> Res<Box<AuthProvider>> {
-        Ok(match self {
-            &AuthSource::Test => Box::new(NullAuth),
-            &AuthSource::Github => Box::new(Github::new()?),
-            &AuthSource::Gitlab => Box::new(Gitlab::new()?),
-        })
-    }
 }
 
 impl fmt::Display for AuthSource {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match self {
-            &AuthSource::Test => "test",
-            &AuthSource::Github => "github",
-            &AuthSource::Gitlab => "gitlab",
+            AuthSource::Test => "test",
+            AuthSource::Github => "github",
+            AuthSource::Gitlab => "gitlab",
         })
     }
 }

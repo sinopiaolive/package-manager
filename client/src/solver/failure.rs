@@ -18,16 +18,16 @@ impl Failure {
         conflicting: Constraint,
     ) -> Failure {
         Failure::Conflict(Conflict {
-            package: package,
-            existing: existing,
-            conflicting: conflicting,
+            package,
+            existing,
+            conflicting,
         })
     }
 
     pub fn package_missing(package: Arc<PackageName>, path: Path) -> Failure {
         Failure::PackageMissing(PackageMissing {
-            package: package,
-            path: path,
+            package,
+            path,
         })
     }
 
@@ -37,9 +37,9 @@ impl Failure {
         path: Path,
     ) -> Failure {
         Failure::UninhabitedConstraint(UninhabitedConstraint {
-            package: package,
-            constraint: constraint,
-            path: path,
+            package,
+            constraint,
+            path,
         })
     }
 }

@@ -1,3 +1,4 @@
+#![warn(clippy::all)]
 #![allow(dead_code, unused_features)]
 #![feature(test)]
 

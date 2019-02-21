@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+#![warn(clippy::all)]
 #![feature(plugin, test)]
 
 extern crate dirs;

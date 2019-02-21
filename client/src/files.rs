@@ -39,7 +39,7 @@ impl FilesSectionInterpreter {
     pub fn new(root: PathBuf) -> Result<Self, failure::Error> {
         let (files, directories) = walk_dir(&root)?;
         Ok(FilesSectionInterpreter {
-            root: root,
+            root,
             files_on_disk: files,
             directories_on_disk: directories,
             committed_files: Vec::new(),
@@ -286,7 +286,7 @@ mod test {
     fn make_fsi(files: &[&str]) -> FilesSectionInterpreter {
         FilesSectionInterpreter {
             root: PathBuf::from("dummy"),
-            files_on_disk: files.iter().map(|s| s.to_string()).collect(),
+            files_on_disk: files.iter().map(ToString::to_string).collect(),
             directories_on_disk: generate_directories(files),
             committed_files: Vec::new(),
             did_initialize_committed_files: true,
@@ -310,7 +310,7 @@ mod test {
         file_set_v.sort();
         assert_eq!(
             file_set_v,
-            files.iter().map(|s| s.to_string()).collect::<Vec<String>>()
+            files.iter().map(ToString::to_string).collect::<Vec<String>>()
         );
     }
 

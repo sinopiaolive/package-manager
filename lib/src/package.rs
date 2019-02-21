@@ -32,6 +32,7 @@ fn validate_package_name(s: &str) -> bool {
 }
 
 impl PackageName {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<PackageName> {
         let mut it = s.split('/');
         match (it.next(), it.next()) {

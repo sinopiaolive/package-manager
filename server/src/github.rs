@@ -122,8 +122,8 @@ impl AuthProvider for Github {
         let email = emails
             .iter()
             .find(|e| e.primary)
-            .or(emails.iter().next())
-            .ok_or(Error::UserHasNoEmail(format!(
+            .or_else(|| emails.iter().next())
+            .ok_or_else(|| Error::UserHasNoEmail(format!(
                 "{}:{} ({})",
                 AuthSource::Github,
                 user.id,

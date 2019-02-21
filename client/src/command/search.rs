@@ -49,7 +49,6 @@ fn print_results(results: &[SearchResult]) {
     let term = Term::stdout();
     let width = term.size().1 as usize;
     let max_avail = width - 2;
-    #[cfg_attr(feature = "cargo-clippy", allow(blacklisted_name))]
     let bar = border.apply_to("|");
     let w_pkg = max(
         7,

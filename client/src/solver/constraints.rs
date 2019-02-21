@@ -225,9 +225,9 @@ impl Mappable for ConstraintSet {
 
 impl fmt::Debug for ConstraintSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "ConstraintSet(\n")?;
+        writeln!(f, "ConstraintSet(")?;
         for (package, constraint) in self.iter() {
-            write!(f, "    {:?}: {:?}\n", package, constraint)?;
+            writeln!(f, "    {:?}: {:?}", package, constraint)?;
         }
         write!(f, ")")
     }

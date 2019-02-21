@@ -1,3 +1,4 @@
+#![warn(clippy::all)]
 #![recursion_limit = "128"]
 #![feature(proc_macro_hygiene, decl_macro)] // for rocket
 
@@ -17,6 +18,7 @@ extern crate reqwest;
 extern crate url;
 #[macro_use]
 extern crate diesel;
+#[cfg(test)]
 #[macro_use]
 extern crate diesel_migrations;
 extern crate brotli;
@@ -120,7 +122,7 @@ fn html_doc(content: &str) -> content::Html<String> {
     ))
 }
 
-fn parse_auth_header<'a>(header: &'a str) -> Option<&'a str> {
+fn parse_auth_header(header: &str) -> Option<&str> {
     let start = "Bearer ";
     if header.starts_with(start) {
         Some(&header[start.len()..])

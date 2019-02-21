@@ -36,8 +36,8 @@ impl FromStr for User {
     type Err = Error;
     fn from_str(s: &str) -> Res<User> {
         let mut it = s.split(':');
-        let source = it.next().ok_or(Error::InvalidUserID(s.to_string()))?;
-        let id = it.next().ok_or(Error::InvalidUserID(s.to_string()))?;
+        let source = it.next().ok_or_else(|| Error::InvalidUserID(s.to_string()))?;
+        let id = it.next().ok_or_else(|| Error::InvalidUserID(s.to_string()))?;
         if it.next() != None {
             return Err(Error::InvalidUserID(s.to_string()));
         }
@@ -71,7 +71,7 @@ impl UserRecord {
             id: user.to_string(),
             name: name.to_string(),
             email: email.to_string(),
-            avatar: if avatar.len() > 0 {
+            avatar: if !avatar.is_empty() {
                 Some(avatar.to_string())
             } else {
                 None

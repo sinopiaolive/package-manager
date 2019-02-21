@@ -126,23 +126,23 @@ impl Manifest {
         let files = evaluate_files_block(&files_block, root)?;
 
         Ok(Manifest {
-            name: name,
-            version: version,
+            name,
+            version,
 
-            dependencies: dependencies,
+            dependencies,
 
-            authors: authors,
-            description: description,
-            homepage: homepage,
-            repository: repository,
-            bugs: bugs,
-            keywords: keywords,
+            authors,
+            description,
+            homepage,
+            repository,
+            bugs,
+            keywords,
 
             license: license_field,
 
             readme: None,
 
-            files: files,
+            files,
         })
     }
 }

@@ -29,6 +29,7 @@ impl Version {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Version> {
         match version(s.as_bytes()) {
             Done(b"", v) => Some(v),
@@ -54,14 +55,14 @@ impl Version {
         let mut s = String::new();
         s.push_str(&*self.fields
             .iter()
-            .map(|f| f.to_string())
+            .map(ToString::to_string)
             .collect::<Vec<_>>()
             .join("."));
         if !self.prerelease.is_empty() {
             s.push_str("-");
             s.push_str(&*self.prerelease
                 .iter()
-                .map(|f| f.to_string())
+                .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("."));
         }
@@ -69,7 +70,7 @@ impl Version {
             s.push_str("+");
             s.push_str(&*self.build
                 .iter()
-                .map(|f| f.to_string())
+                .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("."));
         }
@@ -269,7 +270,7 @@ fn to_u64(s: &str) -> Result<u64, ()> {
 }
 
 fn convert_version_identifier(s: &str) -> Result<VersionIdentifier, ()> {
-    if s.chars().all(|c| c.is_numeric()) {
+    if s.chars().all(char::is_numeric) {
         to_u64(s).map(Numeric)
     } else {
         Ok(Alphanumeric(s.to_string()))

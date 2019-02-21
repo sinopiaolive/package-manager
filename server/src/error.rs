@@ -115,7 +115,7 @@ impl<'a> Responder<'a> for Error {
             _ => {
                 println!("error: {:?}", self);
                 let data = serde_json::to_vec(&ServerError { message: format!("{}", self) })
-                    .unwrap_or(
+                    .unwrap_or_else(|_|
                         "{message:\"an error occurred but I couldn't serialise it for you\"}"
                             .as_bytes()
                             .to_owned(),

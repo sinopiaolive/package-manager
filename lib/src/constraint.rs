@@ -43,6 +43,7 @@ impl<'de> Deserialize<'de> for VersionConstraint {
 }
 
 impl VersionConstraint {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<VersionConstraint> {
         match version_constraint(s.as_bytes()) {
             Done(b"", v) => Some(v),
@@ -87,7 +88,7 @@ fn contained_in_range(version: &Version, min: Option<&Version>, max: Option<&Ver
 /// This means that `2-pre.1` will be in bounds for `< 2-pre.2` but not
 /// for `< 2`. `1.9-pre` would be in bounds for both.
 fn max_match(v: &Version, maybe_min: Option<&Version>, max: &Version) -> bool {
-    if max.has_pre() || maybe_min.map(|v| v.normalized_fields()) == Some(max.normalized_fields()) {
+    if max.has_pre() || maybe_min.map(Version::normalized_fields) == Some(max.normalized_fields()) {
         v.semver_cmp(max) == Ordering::Less
     } else {
         v.normalized_fields() < max.normalized_fields()

@@ -1,0 +1,3 @@
+type-complexity-threshold = 999999
+cyclomatic-complexity-threshold = 999999
+blacklisted-names = []

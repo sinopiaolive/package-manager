@@ -19,7 +19,7 @@ pub struct RegistryAdapter<'r> {
 impl<'r> RegistryAdapter<'r> {
     pub fn new(registry: &Index) -> RegistryAdapter {
         RegistryAdapter {
-            registry: registry,
+            registry,
             cache: RefCell::new(HashMap::new()),
         }
     }
