@@ -37,4 +37,4 @@ features = ["serde"]
 path = "../lib"
 
 [dev-dependencies]
-pretty_assertions = "0.6.0"
+pretty_assertions = "0.6.1"
