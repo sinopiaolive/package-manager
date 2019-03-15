@@ -2,9 +2,11 @@
 
 use failure;
 use git2;
-use git2::{Repository, RepositoryState, StatusOptions, Tree};
+use git2::{Repository, RepositoryState, StatusOptions};
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
+
+use files::{VCSFileSet, VCSFileStatus};
 
 pub struct GitScmProvider {
     pub relative_package_root: PathBuf, // relative to repo.workdir()
@@ -18,7 +20,8 @@ impl GitScmProvider {
         let repo_workdir = match repo.workdir() {
             None => return Err(failure::Error::from(GitError::BaseDir)),
             Some(p) => p,
-        }.to_path_buf();
+        }
+        .to_path_buf();
         let relative_package_root = match absolute_package_root.strip_prefix(&repo_workdir) {
             Ok(p) => p,
             Err(_) => {
@@ -37,7 +40,6 @@ impl GitScmProvider {
     pub fn check_repo_is_pristine(&self) -> Result<(), failure::Error> {
         self.check_state_is_clean()?;
         self.check_no_submodules()?;
-        self.check_status_is_empty()?;
         Ok(())
     }
 
@@ -50,23 +52,9 @@ impl GitScmProvider {
         }
     }
 
-    // Check that there are no modified files.
-    pub fn check_status_is_empty(&self) -> Result<(), failure::Error> {
-        let mut status_options = StatusOptions::new();
-        status_options
-            .include_untracked(false)
-            .exclude_submodules(true)
-            .pathspec(&self.relative_package_root)
-            .disable_pathspec_match(true);
-        let statuses = self.repo.statuses(Some(&mut status_options))?;
-        if statuses.is_empty() {
-            Ok(())
-        } else {
-            Err(failure::Error::from(GitError::NonEmptyStatus))
-        }
-    }
-
     pub fn check_no_submodules(&self) -> Result<(), failure::Error> {
+        // We should restrict this check to submodules living under
+        // self.relative_package_root.
         if self.repo.submodules()?.is_empty() {
             Ok(())
         } else {
@@ -74,53 +62,59 @@ impl GitScmProvider {
         }
     }
 
-    pub fn ls_files(&self) -> Result<Vec<String>, failure::Error> {
-        let head_sha = self.repo.refname_to_id("HEAD")?;
-        let head = self.repo.find_commit(head_sha)?;
-        let mut tree = head.tree()?;
-        for component in self.relative_package_root.iter() {
-            let component_str = match component.to_str() {
-                Some(s) => s,
-                None => return Err(failure::Error::from(GitError::Utf8)),
-            };
-            let subtree = match tree.get_name(component_str) {
-                None => return Ok(vec![]),
-                Some(tree_entry) => match tree_entry.to_object(&self.repo)?.into_tree() {
-                    Err(_object) => return Ok(vec![]),
-                    Ok(subtree) => subtree,
-                },
-            };
-            tree = subtree;
+    pub fn get_files(&self) -> Result<VCSFileSet, failure::Error> {
+        let mut status_options = StatusOptions::new();
+        status_options
+            .include_untracked(true)
+            .recurse_untracked_dirs(true)
+            .include_unmodified(true)
+            .include_ignored(true)
+            .recurse_ignored_dirs(true)
+            // The name "include_unreadable" would suggest that we will get the
+            // WT_UNREADABLE status flag on files without read permissions, but
+            // cursory testing on macOS doesn't reveal any difference with
+            // regard to status flags: libgit2 still treats unreadable
+            // directories as empty and reports unreadable files as WT_NEW (if
+            // untracked) or returns an IO error (if tracked and mtime has
+            // changed).
+            .include_unreadable(true)
+            .include_unreadable_as_untracked(false)
+            .exclude_submodules(false)
+            // Disable rename detection so we get both source and target in the list
+            .renames_head_to_index(false)
+            .renames_index_to_workdir(false);
+        if !self.relative_package_root.as_os_str().is_empty() {
+            status_options
+                .pathspec(&self.relative_package_root)
+                .disable_pathspec_match(true); // don't glob
         }
-        let mut files = self.ls_files_inner(&tree, "")?;
-        files.sort();
-        Ok(files)
-    }
-
-    fn ls_files_inner(&self, tree: &Tree, prefix: &str) -> Result<Vec<String>, failure::Error> {
-        let mut files = Vec::new();
-        for entry in tree.iter() {
-            let name = match entry.name() {
-                None => return Err(failure::Error::from(GitError::Utf8)),
-                Some(n) => n,
+        let statuses = self.repo.statuses(Some(&mut status_options))?;
+        let mut vcs_file_set = VCSFileSet::new();
+        for status_entry in statuses.iter() {
+            let file_path = status_entry
+                .path()
+                .ok_or_else(|| failure::Error::from(GitError::Utf8))?;
+            let status = if status_entry.status().is_empty() {
+                VCSFileStatus::Tracked
+            } else if status_entry.status() == git2::Status::IGNORED {
+                // It's unclear if the IGNORED status flag can ever co-occur
+                // with other flags. Calling .ignored() would allow other flags
+                // to be set, which we would not want.
+                VCSFileStatus::Ignored
+            } else if status_entry.status() == git2::Status::WT_NEW {
+                // We don't use .wt_new() because we only want to list files
+                // that do not have other flags set. E.g. `git rm tracked_file;
+                // touch tracked_file` causes tracked_file to have status
+                // `INDEX_DELETED | WT_NEW`. We would not consider this file
+                // untracked.
+                VCSFileStatus::Untracked
+            } else {
+                // This subsumes every other flag combination.
+                VCSFileStatus::Changed
             };
-            let relative_path = prefix.to_string() + name;
-            match entry.kind() {
-                Some(git2::ObjectType::Blob) => {
-                    files.push(relative_path);
-                }
-                Some(git2::ObjectType::Tree) => {
-                    let object = entry.to_object(&self.repo)?;
-                    let subtree = match object.into_tree() {
-                        Ok(t) => t,
-                        Err(_) => return Err(failure::Error::from(GitError::ObjectType)),
-                    };
-                    files.extend(self.ls_files_inner(&subtree, &(relative_path + "/"))?);
-                }
-                _ => return Err(failure::Error::from(GitError::ObjectType)),
-            }
+            vcs_file_set.insert(file_path.to_string(), status);
         }
-        Ok(files)
+        Ok(vcs_file_set)
     }
 }
 
@@ -136,15 +130,9 @@ quick_error! {
         RepoNotParent(repo_root: String, package_root: String) {
             display("Git found a repo at {}, which is not a parent directory of {}", repo_root, package_root)
         }
-        ObjectType {
-            description("Git returned an unexpected object type")
-        }
 
         NotCleanState {
             description("A Git operation such as a merge or a rebase is in progress in your working tree")
-        }
-        NonEmptyStatus {
-            description("The command `git status` shows modified files. Commit them to Git or revert the changes before running this.")
         }
         SubmodulesPresent {
             description("Git repositories with submodules are currently unsupported")
@@ -153,8 +141,8 @@ quick_error! {
 }
 
 pub fn test_git() {
-    println!(
-        "{:?}",
-        GitScmProvider::new(&Path::new(".")).unwrap().ls_files()
-    );
+    GitScmProvider::new(&Path::new("."))
+        .unwrap()
+        .get_files()
+        .unwrap();
 }

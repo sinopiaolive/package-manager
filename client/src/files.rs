@@ -3,10 +3,10 @@
 use failure;
 use git::GitScmProvider;
 use glob::{MatchOptions, Pattern, PatternError};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error as StdError;
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // Case insensitivity handling for Windows is currently missing; e.g. "*.rs" in
 // glob but "foo.RS" on disk. For Git, we follow the casing returned by Git, but
@@ -20,40 +20,51 @@ type FileSet = HashSet<String>;
 
 pub struct FilesSectionInterpreter {
     pub root: PathBuf,
-    pub files_on_disk: BTreeSet<String>,
-    pub directories_on_disk: BTreeSet<String>,
-    pub committed_files: Vec<String>,
-    pub did_initialize_committed_files: bool,
+    pub vcs_file_set: VCSFileSet,
+    pub did_initialize_vcs_file_set: bool,
 }
 
 #[derive(Fail, Debug)]
-#[fail(display = "No such file or directory (in Git)")]
-pub struct AddCommittedNotFoundError;
+enum FileSetError {
+    #[fail(display = "No such file or directory")]
+    NotFound,
 
-#[derive(Fail, Debug)]
-#[fail(display = "No such file or directory")]
-pub struct AddUncommittedNotFoundError;
+    #[fail(display = "Only files ignored by Git were found")]
+    IgnoredOnly,
+
+    #[fail(display = "Some files are untracked or changed")]
+    NotCommitted {
+        changed: Vec<String>,
+        untracked: Vec<String>
+    }
+}
+
+pub enum VCSFileStatus {
+    Tracked,
+    Changed,
+    Untracked,
+    Ignored,
+}
+
+pub type VCSFileSet = BTreeMap<String, VCSFileStatus>;
 
 // Interpret "add" and "remove" commands in the `files { ... }` section.
 impl FilesSectionInterpreter {
     pub fn new(root: PathBuf) -> Result<Self, failure::Error> {
-        let (files, directories) = walk_dir(&root)?;
         Ok(FilesSectionInterpreter {
             root,
-            files_on_disk: files,
-            directories_on_disk: directories,
-            committed_files: Vec::new(),
-            did_initialize_committed_files: false,
+            vcs_file_set: VCSFileSet::new(),
+            did_initialize_vcs_file_set: false,
         })
     }
 
     // Populate `committed_files` with the results of `git ls-files`.
-    pub fn initialize_committed_files(&mut self) -> Result<(), failure::Error> {
-        if !self.did_initialize_committed_files {
+    pub fn initialize_vcs_file_set(&mut self) -> Result<(), failure::Error> {
+        if !self.did_initialize_vcs_file_set {
             let git_scm_provider = GitScmProvider::new(&self.root)?;
             git_scm_provider.check_repo_is_pristine()?;
-            self.committed_files = git_scm_provider.ls_files()?;
-            self.did_initialize_committed_files = true;
+            self.vcs_file_set = git_scm_provider.get_files()?;
+            self.did_initialize_vcs_file_set = true;
         }
         Ok(())
     }
@@ -63,40 +74,71 @@ impl FilesSectionInterpreter {
         file_set: &mut FileSet,
         glob: &str,
     ) -> Result<(), failure::Error> {
-        self.initialize_committed_files()?;
+        self.initialize_vcs_file_set()?;
         let cglob = CompiledGlob::new(glob)?;
-        let mut did_match = false;
-        for file in &self.committed_files {
+        let mut did_match_ignored = false;
+        let mut did_match_non_ignored = false;
+        let mut changed = Vec::<String>::new();
+        let mut untracked = Vec::<String>::new();
+        for (file, status) in &self.vcs_file_set {
             if self.pattern_matches_path_or_ancestor(&cglob, file) {
-                file_set.insert(file.clone());
-                did_match = true;
+                match status {
+                    VCSFileStatus::Tracked => {
+                        file_set.insert(file.clone());
+                        did_match_non_ignored = true;
+                    }
+                    VCSFileStatus::Changed => {
+                        changed.push(file.clone());
+                        did_match_non_ignored = true;
+                    }
+                    VCSFileStatus::Untracked => {
+                        untracked.push(file.clone());
+                        did_match_non_ignored = true;
+                    }
+                    VCSFileStatus::Ignored => {
+                        did_match_ignored = true;
+                    }
+                }
             }
         }
-        if !did_match {
-            Err(failure::Error::from(AddCommittedNotFoundError))
+        if !did_match_non_ignored {
+            if did_match_ignored {
+                Err(failure::Error::from(FileSetError::IgnoredOnly))
+            } else {
+                // We may also want to provide a more helpful error message if a
+                // glob only matches case-insensitively.
+                Err(failure::Error::from(FileSetError::NotFound))
+            }
+        } else if !changed.is_empty() || !untracked.is_empty() {
+            Err(failure::Error::from(FileSetError::NotCommitted {
+                changed,
+                untracked
+            }))
         } else {
             Ok(())
         }
     }
 
-    pub fn add_uncommitted(
+    pub fn add_any(
         &mut self,
         file_set: &mut FileSet,
         glob: &str,
     ) -> Result<(), failure::Error> {
-        let mut did_match = false;
         let cglob = CompiledGlob::new(glob)?;
-        for file in &self.files_on_disk {
-            if self.pattern_matches_path_or_ancestor(&cglob, &file) {
+        let mut did_match = false;
+        for file in self.vcs_file_set.keys() {
+            if self.pattern_matches_path_or_ancestor(&cglob, file) {
                 did_match = true;
+                // We add files regardless of their VCS status here. One minor
+                // deficiency is that files that have been deleted but whose
+                // deletion hasn't been commmitted will end up in the file set,
+                // subsequently triggering an IO error.
                 file_set.insert(file.clone());
             }
         }
 
         if !did_match {
-            // We may also want to provide a more helpful error message if a
-            // glob only matches case-insensitively.
-            Err(failure::Error::from(AddUncommittedNotFoundError))
+            Err(failure::Error::from(FileSetError::NotFound))
         } else {
             Ok(())
         }
@@ -136,40 +178,6 @@ impl FilesSectionInterpreter {
         }
         false
     }
-}
-
-fn walk_dir(root: &Path) -> Result<(BTreeSet<String>, BTreeSet<String>), failure::Error> {
-    let mut files = BTreeSet::new();
-    let mut directories = BTreeSet::new();
-    walk_dir_inner(root, "", &mut files, &mut directories)?;
-    Ok((files, directories))
-}
-
-fn walk_dir_inner(
-    root: &Path,
-    prefix: &str,
-    files: &mut BTreeSet<String>,
-    directories: &mut BTreeSet<String>,
-) -> Result<(), failure::Error> {
-    for maybe_entry in root.read_dir()? {
-        let entry = maybe_entry?;
-        // Slightly-lazy error handling: Non-decodable byte sequences on Unix
-        // turn into "U+FFFD REPLACEMENT CHARACTER" here. If the user selects
-        // such a file, then when we later try to read it, we will encounter a
-        // file-not-found error.
-        let entry_name_osstring = entry.file_name();
-        let entry_name = entry_name_osstring.to_string_lossy();
-        let entry_path = format!("{}{}", prefix, entry_name);
-
-        if entry.file_type()?.is_dir() {
-            directories.insert(entry_path.clone());
-            let entry_prefix = format!("{}/", entry_path);
-            walk_dir_inner(&entry.path(), &entry_prefix, files, directories)?;
-        } else {
-            files.insert(entry_path);
-        }
-    }
-    Ok(())
 }
 
 #[derive(Debug)]
@@ -284,25 +292,15 @@ mod test {
     use super::*;
 
     fn make_fsi(files: &[&str]) -> FilesSectionInterpreter {
+        let mut vcs_file_set = VCSFileSet::new();
+        for file in files {
+            vcs_file_set.insert(file.to_string(), VCSFileStatus::Tracked);
+        }
         FilesSectionInterpreter {
             root: PathBuf::from("dummy"),
-            files_on_disk: files.iter().map(ToString::to_string).collect(),
-            directories_on_disk: generate_directories(files),
-            committed_files: Vec::new(),
-            did_initialize_committed_files: true,
+            vcs_file_set,
+            did_initialize_vcs_file_set: true,
         }
-    }
-
-    fn generate_directories(files: &[&str]) -> BTreeSet<String> {
-        let mut directories = BTreeSet::new();
-        for file in files {
-            let mut slice: &str = file;
-            while let Some(i) = slice.rfind('/') {
-                slice = &slice[..i];
-                directories.insert(slice.to_string());
-            }
-        }
-        directories
     }
 
     fn assert_file_set(file_set: &FileSet, files: &[&str]) {
@@ -318,7 +316,7 @@ mod test {
         use super::*;
 
         fn glob_error_for(glob: &str) -> GlobError {
-            unwrap_glob_error(make_fsi(&[]).add_uncommitted(&mut FileSet::new(), glob))
+            unwrap_glob_error(make_fsi(&[]).add_any(&mut FileSet::new(), glob))
         }
 
         fn unwrap_glob_error(glob_result: Result<(), ::failure::Error>) -> GlobError {
@@ -352,9 +350,9 @@ mod test {
                 "test/a.rs",
             ]);
             let mut file_set = FileSet::new();
-            fsi.add_uncommitted(&mut file_set, "src/**").unwrap();
+            fsi.add_any(&mut file_set, "src/**").unwrap();
             fsi.remove(&mut file_set, "src/vendor/*").unwrap();
-            fsi.add_uncommitted(&mut file_set, "src/vendor/a.rs")
+            fsi.add_any(&mut file_set, "src/vendor/a.rs")
                 .unwrap();
 
             assert_file_set(&file_set, &["src/a.rs", "src/b.rs", "src/vendor/a.rs"]);
@@ -364,11 +362,11 @@ mod test {
         fn include_directory() {
             let mut fsi = make_fsi(&["a.rs", "src/b.rs", "src/vendor/c.rs"]);
             let mut file_set = FileSet::new();
-            fsi.add_uncommitted(&mut file_set, "src").unwrap();
+            fsi.add_any(&mut file_set, "src").unwrap();
             assert_file_set(&file_set, &["src/b.rs", "src/vendor/c.rs"]);
 
             let mut file_set2 = FileSet::new();
-            fsi.add_uncommitted(&mut file_set2, "src/").unwrap();
+            fsi.add_any(&mut file_set2, "src/").unwrap();
             assert_file_set(&file_set2, &["src/b.rs", "src/vendor/c.rs"]);
         }
 
@@ -376,7 +374,7 @@ mod test {
         fn exclude_directory() {
             let mut fsi = make_fsi(&["src/a.rs"]);
             let mut file_set = FileSet::new();
-            fsi.add_uncommitted(&mut file_set, "**").unwrap();
+            fsi.add_any(&mut file_set, "**").unwrap();
             fsi.remove(&mut file_set, "src").unwrap();
             assert_file_set(&file_set, &[]);
         }
@@ -385,7 +383,7 @@ mod test {
         fn exclude_directory_trailing_slash() {
             let mut fsi = make_fsi(&["src/a.rs"]);
             let mut file_set = FileSet::new();
-            fsi.add_uncommitted(&mut file_set, "**").unwrap();
+            fsi.add_any(&mut file_set, "**").unwrap();
             fsi.remove(&mut file_set, "src/").unwrap();
             assert_file_set(&file_set, &[]);
         }

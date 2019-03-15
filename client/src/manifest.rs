@@ -227,12 +227,12 @@ pub fn evaluate_files_block(
                     .add_committed(&mut file_set, &glob)
                     .pair_context(&glob_pair)?;
             }
-            "add_uncommitted" => {
+            "add_any" => {
                 let glob_pair = Arguments::get_single(arguments_pair)?;
                 let glob = get_string(&glob_pair)?;
 
                 file_section_interpreter
-                    .add_uncommitted(&mut file_set, &glob)
+                    .add_any(&mut file_set, &glob)
                     .pair_context(&glob_pair)?;
             }
             "remove" => {
@@ -245,7 +245,7 @@ pub fn evaluate_files_block(
             }
             _ => {
                 return Err(::failure::Error::from(
-                    format_err!("Expected `add_committed`, `add_uncommitted`, or `remove`")
+                    format_err!("Expected `add_committed`, `add_any`, or `remove`")
                         .with_pair(&symbol_pair),
                 ));
             }
