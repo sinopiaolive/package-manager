@@ -1,18 +1,3 @@
-CREATE TABLE files (
-  namespace TEXT NOT NULL,
-  name TEXT NOT NULL,
-  version TEXT NOT NULL,
-  tar_br BYTEA NOT NULL,
-  PRIMARY KEY (namespace, name, version)
-);
-
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  avatar TEXT
-);
-
 -- Sessions
 
 CREATE TABLE login_sessions (
@@ -35,6 +20,21 @@ CREATE TRIGGER expire_login_sessions_trigger
   EXECUTE PROCEDURE expire_login_sessions();
 
 -- Packages
+
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  avatar TEXT
+);
+
+CREATE TABLE files (
+  namespace TEXT NOT NULL,
+  name TEXT NOT NULL,
+  version TEXT NOT NULL,
+  tar_br BYTEA NOT NULL,
+  PRIMARY KEY (namespace, name, version)
+);
 
 CREATE TABLE packages (
   namespace TEXT NOT NULL,
