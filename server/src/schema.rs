@@ -1,5 +1,5 @@
 table! {
-    files (namespace, name) {
+    files (namespace, name, version) {
         namespace -> Text,
         name -> Text,
         version -> Text,

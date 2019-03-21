@@ -3,7 +3,7 @@ CREATE TABLE files (
   name TEXT NOT NULL,
   version TEXT NOT NULL,
   tar_br BYTEA NOT NULL,
-  PRIMARY KEY (namespace, name)
+  PRIMARY KEY (namespace, name, version)
 );
 
 CREATE TABLE users (
