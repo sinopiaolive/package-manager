@@ -57,7 +57,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
 
     let tar = build_archive(manifest.files.iter().map(PathBuf::from).collect(), &args)?;
 
-    let mut artifact = vec![];
+    let mut tar_br = vec![];
     let compress_progress = make_progress("Compressing:", tar.len(), args.flag_quiet);
 
     let mut brotli_encoder_params = brotli::enc::BrotliEncoderInitParams();
@@ -65,7 +65,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
     brotli_encoder_params.lgwin = 22; // log2 of window size
     brotli::BrotliCompress(
         &mut ProgressIO::reader_from(tar, |c, _| compress_progress.set_position(c as u64)),
-        &mut artifact,
+        &mut tar_br,
         &brotli_encoder_params,
     )?;
     compress_progress.finish_and_clear();
@@ -79,7 +79,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
         readme: manifest.readme.clone(),
         keywords: manifest.keywords.clone(),
         manifest: String::new(),
-        data: artifact,
+        tar_br,
     };
 
     let payload = encode::to_vec_named(&req)?;

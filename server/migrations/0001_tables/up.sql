@@ -2,7 +2,7 @@ CREATE TABLE files (
   namespace TEXT NOT NULL,
   name TEXT NOT NULL,
   version TEXT NOT NULL,
-  data BYTEA NOT NULL,
+  tar_br BYTEA NOT NULL,
   PRIMARY KEY (namespace, name)
 );
 

@@ -6,6 +6,6 @@ use schema::files;
 pub struct File {
     pub namespace: String,
     pub name: String,
-    pub data: Vec<u8>,
     pub version: String,
+    pub tar_br: Vec<u8>,
 }

@@ -185,7 +185,7 @@ impl Store {
             ).load(&db)?)
     }
 
-    pub fn add_release(&self, release: &Release, data: &[u8]) -> Res<()> {
+    pub fn add_release(&self, release: &Release, tar_br: &[u8]) -> Res<()> {
         let db = self.db()?;
         db.build_transaction().serializable().run(|| {
             diesel::insert_into(package_releases::table)
@@ -204,7 +204,7 @@ impl Store {
                     namespace: release.namespace.to_owned(),
                     name: release.name.to_owned(),
                     version: release.version.to_owned(),
-                    data: data.to_owned(),
+                    tar_br: tar_br.to_owned(),
                 }).execute(&db)?;
             Ok(())
         })

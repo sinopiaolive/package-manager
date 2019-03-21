@@ -18,5 +18,5 @@ pub struct Manifest {
     pub keywords: Vec<String>,
     pub manifest: String,
     pub readme: Option<(String, String)>,
-    pub data: Vec<u8>,
+    pub tar_br: Vec<u8>,
 }

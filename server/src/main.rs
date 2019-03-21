@@ -189,7 +189,7 @@ fn files(store: State<Store>, namespace: String, name: String, version: String) 
         Ok(file) => Response::build()
             .status(Status::Ok)
             .header(ContentType::new("application", "brotli"))
-            .sized_body(Cursor::new(file.data))
+            .sized_body(Cursor::new(file.tar_br))
             .ok(),
     }
 }

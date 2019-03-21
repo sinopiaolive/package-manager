@@ -2,8 +2,8 @@ table! {
     files (namespace, name) {
         namespace -> Text,
         name -> Text,
-        data -> Bytea,
         version -> Text,
+        tar_br -> Bytea,
     }
 }
 
