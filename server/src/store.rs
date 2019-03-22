@@ -132,7 +132,7 @@ impl Store {
                     deleted_on: None,
                 }).execute(&db)
             {
-                Ok(_) => self.add_package_owner(namespace, name, owner),
+                Ok(_) => self.add_package_owner(&db, namespace, name, owner),
                 Err(_) => Ok(()),
             }
         })
@@ -149,15 +149,14 @@ impl Store {
         results.iter().map(|o| User::from_str(&o.user_id)).collect()
     }
 
-    pub fn add_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
-        let db = self.db()?;
+    pub fn add_package_owner(&self, db: &PgConnection, namespace: &str, name: &str, owner: &User) -> Res<()> {
         diesel::insert_into(package_owners::table)
             .values(&PackageOwner {
                 namespace: namespace.to_owned(),
                 name: name.to_owned(),
                 user_id: owner.to_string(),
                 added_time: SystemTime::now(),
-            }).execute(&db)?;
+            }).execute(db)?;
         Ok(())
     }
 
