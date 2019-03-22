@@ -59,6 +59,7 @@ mod manifest_parser_error;
 
 use docopt::Docopt;
 use serde::de::Deserialize;
+use std::env;
 use std::process;
 
 const USAGE: &str = "Your package manager.
@@ -142,7 +143,11 @@ fn main() {
         {
             Ok(_) => process::exit(0),
             Err(e) => {
-                println!("ERROR: {}", e);
+                println!("An unexpected error occurred:");
+                println!("{:?}", e);
+                if env::var_os("RUST_BACKTRACE").is_none() && env::var_os("RUST_FAILURE_BACKTRACE").is_none() {
+                    println!("note: Run with `RUST_BACKTRACE=1` environment variable to display a backtrace.");
+                }
                 process::exit(1)
             }
         }

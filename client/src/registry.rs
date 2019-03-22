@@ -58,12 +58,12 @@ where
     if let Some(data) = body {
         req = req.body(Body::new(data));
     }
-    let res = req.send()?;
+    let mut res = req.send()?;
 
     if res.status().is_success() {
         Ok(Ok(::serde_json::from_reader(res)?))
     } else {
-        Ok(Err(::serde_json::from_reader(res)?))
+        Ok(Err(RegistryError { message: res.text()? }))
     }
 }
 
