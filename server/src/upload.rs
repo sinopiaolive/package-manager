@@ -12,12 +12,6 @@ use user::User;
 use error::{Res, Error};
 use package::Release;
 
-#[derive(Serialize)]
-pub struct Receipt {
-    ok: bool,
-    url: Option<String>,
-}
-
 fn validate_manifest(_manifest: &Manifest) -> Res<()> {
     // TODO pls to validate manifest here
     Ok(())
@@ -35,7 +29,7 @@ fn validate_archive<R: Read>(mut reader: R) -> Res<()> {
     Ok(())
 }
 
-pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<Receipt> {
+pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<()> {
     let manifest: Manifest = decode::from_read(reader)?;
     store.insert_package(
         &manifest.namespace,
@@ -92,10 +86,7 @@ pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<Rec
                 deleted_on: None,
             };
             store.add_release(&release, manifest.tar_br.as_slice())?;
-            Ok(Receipt {
-                ok: true,
-                url: Some(url),
-            })
+            Ok(())
         }
     }
 }

@@ -209,7 +209,7 @@ fn search(query: Form<SearchQuery>, store: Store) -> Res<Json<Vec<search::Search
 
 #[post("/publish", data = "<data>")]
 fn publish(
-    data: Data, auth: Authenticate, store: Store) -> Res<Json<upload::Receipt>> {
+    data: Data, auth: Authenticate, store: Store) -> Res<Json<()>> {
     let token = auth.validate(&store)?;
     Ok(Json(upload::process_upload(
         &store,
