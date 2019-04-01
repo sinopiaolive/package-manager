@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use manifest::Manifest;
 
 fn find_manifest(path: &Path) -> Option<PathBuf> {
-    let manifest = path.join("manifest");
+    let manifest = path.join("deps");
     if manifest.exists() {
         Some(manifest)
     } else {
