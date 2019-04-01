@@ -9,6 +9,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 extern crate rmp_serde;
+#[macro_use]
 extern crate rocket_contrib;
 #[macro_use]
 extern crate quick_error;
@@ -41,12 +42,15 @@ mod user;
 #[cfg(test)]
 mod test;
 
+use std::collections::HashMap;
+use std::env;
 use std::io::Cursor;
 
+use rocket::config::{Config, Environment, Value};
 use rocket::http::{ContentType, Status};
-use rocket::request::{FromRequest, Request, Form};
+use rocket::request::{Form, FromRequest, Request};
 use rocket::response::{content, Redirect, Response};
-use rocket::{Data, Outcome, State};
+use rocket::{Data, Outcome};
 use rocket_contrib::json::Json;
 
 use url::Url;
@@ -171,7 +175,7 @@ impl Authenticate {
 }
 
 #[get("/test")]
-fn test(auth: Authenticate, store: State<Store>) -> Res<String> {
+fn test(auth: Authenticate, store: Store) -> Res<String> {
     auth.validate(&store)?;
     Ok("Hello Joe".to_string())
 }
@@ -183,7 +187,7 @@ struct SearchQuery {
 }
 
 #[get("/files/tar-br/<namespace>/<name>/<version>")]
-fn files(store: State<Store>, namespace: String, name: String, version: String) -> Res<Response> {
+fn files(store: Store, namespace: String, name: String, version: String) -> Res<Response<'static>> {
     match store.get_file(&namespace, &name, &version) {
         Err(_) => Err(Error::Status(Status::NotFound)),
         Ok(file) => Response::build()
@@ -195,7 +199,7 @@ fn files(store: State<Store>, namespace: String, name: String, version: String) 
 }
 
 #[get("/search?<query..>")]
-fn search(query: Form<SearchQuery>, store: State<Store>) -> Res<Json<Vec<search::SearchResult>>> {
+fn search(query: Form<SearchQuery>, store: Store) -> Res<Json<Vec<search::SearchResult>>> {
     Ok(Json(search::search(
         &store,
         &query.ns,
@@ -204,7 +208,8 @@ fn search(query: Form<SearchQuery>, store: State<Store>) -> Res<Json<Vec<search:
 }
 
 #[post("/publish", data = "<data>")]
-fn publish(data: Data, auth: Authenticate, store: State<Store>) -> Res<Json<upload::Receipt>> {
+fn publish(
+    data: Data, auth: Authenticate, store: Store) -> Res<Json<upload::Receipt>> {
     let token = auth.validate(&store)?;
     Ok(Json(upload::process_upload(
         &store,
@@ -231,7 +236,7 @@ struct Login {
 }
 
 #[get("/login_client?<login..>")]
-fn login_client(store: State<Store>, login: Form<Login>) -> Res<content::Html<String>> {
+fn login_client(store: Store, login: Form<Login>) -> Res<content::Html<String>> {
     store.register_login(&login.token, &login.callback)?;
     let github_url = format!(
         "https://github.com/login/oauth/authorize?scope=user:email&client_id={}&state={}",
@@ -264,7 +269,7 @@ struct OAuthCallback {
 }
 
 #[get("/github/callback?<callback..>")]
-fn github_callback(store: State<Store>, callback: Form<OAuthCallback>) -> Res<Redirect> {
+fn github_callback(store: Store, callback: Form<OAuthCallback>) -> Res<Redirect> {
     let mut redirect = Url::parse(&store.validate_login(&callback.state)?)?;
     let github = Github::new()?;
     let token = github.validate_callback(&callback.code)?;
@@ -280,7 +285,7 @@ fn github_callback(store: State<Store>, callback: Form<OAuthCallback>) -> Res<Re
 }
 
 #[get("/gitlab/callback?<callback..>")]
-fn gitlab_callback(store: State<Store>, callback: Form<OAuthCallback>) -> Res<Redirect> {
+fn gitlab_callback(store: Store, callback: Form<OAuthCallback>) -> Res<Redirect> {
     let mut redirect = Url::parse(&store.validate_login(&callback.state)?)?;
     let gitlab = Gitlab::new()?;
     let token = gitlab.validate_callback(&callback.code)?;
@@ -299,9 +304,19 @@ fn main() {
     #[cfg(not(test))]
     dotenv::dotenv().ok();
 
-    let store = Store::new().expect("couldn't connect to Postgres server");
-    rocket::ignite()
-        .manage(store)
+    let mut database_config = HashMap::new();
+    let mut databases = HashMap::new();
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL environment variable not set");
+    database_config.insert("url", Value::from(database_url));
+    databases.insert("registry", Value::from(database_config));
+    let config = Config::build(Environment::Development)
+        .extra("databases", databases)
+        //.log_level(::rocket::config::LoggingLevel::Debug)
+        .finalize()
+        .unwrap();
+
+    rocket::custom(config)
+        .attach(Store::fairing())
         .mount(
             "/",
             routes![
@@ -314,5 +329,6 @@ fn main() {
                 github_callback,
                 gitlab_callback,
             ],
-        ).launch();
+        )
+        .launch();
 }

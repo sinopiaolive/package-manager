@@ -46,7 +46,7 @@ from package_releases, (
 }
 
 pub fn search(store: &Store, ns: &str, query: Vec<String>) -> Result<Vec<SearchResult>, Error> {
-    search_db(&store.db()?, ns, query)
+    search_db(&store.db(), ns, query)
 }
 
 fn group_by_semver(results: Vec<SearchResult>) -> Vec<SearchResult> {

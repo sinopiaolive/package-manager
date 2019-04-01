@@ -14,7 +14,6 @@ quick-error = "1.2.2"
 reqwest = "0.9.10"
 rmp-serde = "0.13.7"
 rocket = "0.4.0"
-rocket_contrib = "0.4.0"
 serde = "1.0.88"
 serde_derive = "1.0.88"
 serde_json = "1.0.38"
@@ -32,6 +31,10 @@ version = "1.4.1"
 [dependencies.im]
 version = "12.3.1"
 features = ["serde"]
+
+[dependencies.rocket_contrib]
+version = "0.4.0"
+features = ["diesel_postgres_pool"]
 
 [dependencies.pm_lib]
 path = "../lib"

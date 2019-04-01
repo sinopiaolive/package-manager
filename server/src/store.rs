@@ -1,4 +1,3 @@
-use std::env;
 use std::str::FromStr;
 use std::time::SystemTime;
 
@@ -32,23 +31,20 @@ pub struct NewLoginSession {
     callback: String,
 }
 
-pub struct Store {
-    db_url: String,
-}
+// This struct is a wrapper around a thread-pooled connection to the Postgres
+// server. It would be called "RegistryDbConn" if we went by the sample code in
+// the Rocket guides. It must only have a single data field, but we can freely
+// add our own methods, which we do in the impl below.
+#[database("registry")]
+pub struct Store(rocket_contrib::databases::diesel::PgConnection);
 
 impl Store {
-    pub fn new() -> Res<Store> {
-        Ok(Store {
-            db_url: env::var("DATABASE_URL")?,
-        })
-    }
-
-    pub fn db(&self) -> Res<PgConnection> {
-        Ok(PgConnection::establish(&self.db_url)?)
+    pub fn db(&self) -> &PgConnection {
+        &self.0
     }
 
     pub fn register_login(&self, token: &str, callback: &str) -> Res<()> {
-        let db = self.db()?;
+        let db = self.db();
         if BASE64.decode(token.as_bytes()).is_err() {
             return Err(Error::InvalidLoginState(token.to_string()));
         }
@@ -56,18 +52,18 @@ impl Store {
             .values(&NewLoginSession {
                 token: token.to_string(),
                 callback: callback.to_string(),
-            }).execute(&db)?;
+            }).execute(db)?;
         Ok(())
     }
 
     pub fn validate_login(&self, token: &str) -> Res<String> {
-        let db = self.db()?;
+        let db = self.db();
         if BASE64.decode(token.as_bytes()).is_err() {
             return Err(Error::InvalidLoginState(token.to_string()));
         }
         let session: LoginSession =
             diesel::delete(login_sessions::table.filter(login_sessions::token.eq(token)))
-                .get_result(&db)
+                .get_result(db)
                 .map_err(|err| match err {
                     NotFound => Error::InvalidLoginState(token.to_string()),
                     e => Error::from(e),
@@ -76,7 +72,7 @@ impl Store {
     }
 
     pub fn update_user(&self, user: &UserRecord) -> Res<()> {
-        let db = self.db()?;
+        let db = self.db();
         assert!(
             user.id.contains(':'),
             "user_record.id must be namespaced to prevent collisions between authentication providers"
@@ -86,15 +82,15 @@ impl Store {
             .on_conflict(users::id)
             .do_update()
             .set(user)
-            .execute(&db)?;
+            .execute(db)?;
         Ok(())
     }
 
     pub fn get_user(&self, user: &User) -> Res<UserRecord> {
-        let db = self.db()?;
+        let db = self.db();
         let user = users::table
             .filter(users::id.eq(user.to_string()))
-            .get_result(&db)
+            .get_result(db)
             .map_err(|err| match err {
                 NotFound => Error::UnknownUser(user.to_string()),
                 e => Error::from(e),
@@ -103,13 +99,13 @@ impl Store {
     }
 
     pub fn get_package(&self, namespace: &str, name: &str) -> Res<Package> {
-        let db = self.db()?;
+        let db = self.db();
         let pkg = packages::table
             .filter(
                 packages::namespace
                     .eq(&namespace)
                     .and(packages::name.eq(&name)),
-            ).get_result(&db)
+            ).get_result(db)
             .map_err(|err| match err {
                 NotFound => Error::UnknownPackage(namespace.to_owned(), name.to_owned()),
                 e => Error::from(e),
@@ -118,7 +114,7 @@ impl Store {
     }
 
     pub fn insert_package(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
-        let db = self.db()?;
+        let db = self.db();
         db.build_transaction().serializable().run(|| {
             // This logic implicitly relies on uniqueness constraints and
             // transaction semantics. If any of these break, it might allow
@@ -130,26 +126,27 @@ impl Store {
                     name: name.to_owned(),
                     deleted: None,
                     deleted_on: None,
-                }).execute(&db)
+                }).execute(db)
             {
-                Ok(_) => self.add_package_owner(&db, namespace, name, owner),
+                Ok(_) => self.add_package_owner(namespace, name, owner),
                 Err(_) => Ok(()),
             }
         })
     }
 
     pub fn get_package_owners(&self, namespace: &str, name: &str) -> Res<Vec<User>> {
-        let db = self.db()?;
+        let db = self.db();
         let results: Vec<PackageOwner> = package_owners::table
             .filter(
                 package_owners::namespace
                     .eq(namespace)
                     .and(package_owners::name.eq(name)),
-            ).load(&db)?;
+            ).load(db)?;
         results.iter().map(|o| User::from_str(&o.user_id)).collect()
     }
 
-    pub fn add_package_owner(&self, db: &PgConnection, namespace: &str, name: &str, owner: &User) -> Res<()> {
+    pub fn add_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
+        let db = self.db();
         diesel::insert_into(package_owners::table)
             .values(&PackageOwner {
                 namespace: namespace.to_owned(),
@@ -161,7 +158,7 @@ impl Store {
     }
 
     pub fn remove_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
-        let db = self.db()?;
+        let db = self.db();
         diesel::delete(
             package_owners::table.filter(
                 package_owners::namespace.eq(namespace).and(
@@ -170,26 +167,26 @@ impl Store {
                         .and(package_owners::user_id.eq(&owner.to_string())),
                 ),
             ),
-        ).execute(&db)?;
+        ).execute(db)?;
         Ok(())
     }
 
     pub fn get_releases(&self, namespace: &str, name: &str) -> Res<Vec<Release>> {
-        let db = self.db()?;
+        let db = self.db();
         Ok(package_releases::table
             .filter(
                 package_releases::namespace
                     .eq(namespace)
                     .and(package_releases::name.eq(name)),
-            ).load(&db)?)
+            ).load(db)?)
     }
 
     pub fn add_release(&self, release: &Release, tar_br: &[u8]) -> Res<()> {
-        let db = self.db()?;
+        let db = self.db();
         db.build_transaction().serializable().run(|| {
             diesel::insert_into(package_releases::table)
                 .values(release)
-                .execute(&db)
+                .execute(db)
                 .map_err(|err| match err {
                     DatabaseError(UniqueViolation, _) => Error::ReleaseAlreadyExists(
                         release.namespace.clone(),
@@ -204,20 +201,20 @@ impl Store {
                     name: release.name.to_owned(),
                     version: release.version.to_owned(),
                     tar_br: tar_br.to_owned(),
-                }).execute(&db)?;
+                }).execute(db)?;
             Ok(())
         })
     }
 
     pub fn get_file(&self, namespace: &str, name: &str, version: &str) -> Res<File> {
-        let db = self.db()?;
+        let db = self.db();
         let file = files::table
             .filter(
                 files::namespace
                     .eq(namespace)
                     .and(files::name.eq(name))
                     .and(files::version.eq(version)),
-            ).get_result(&db)
+            ).get_result(db)
             .map_err(|err| match err {
                 NotFound => Error::UnknownRelease(
                     namespace.to_string(),
