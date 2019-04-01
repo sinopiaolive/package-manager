@@ -1,0 +1,40 @@
+// registries [
+//   "internal.example.com"
+// ]
+
+dependencies {
+  js/mkdirp ^2.0.0
+
+  // js/mocha ^1.2.3 dev
+  // js/debugger ^1.2.3 dev
+
+  // js/foo git="https://github.com/joliss/foo"
+  // js/bar path="C:\\Program Files\\bar"
+}
+
+package {
+  name "js/mypkg"
+  version "1.0.0"
+
+  authors [ "Jo Liss <joliss42@gmail.com>" ]
+  description "The description."
+  license_file "license/GPL"
+  license "MIT"
+  keywords []
+
+  files {
+    // Add all files tracked by Git:
+    //add_committed "."
+    // Alternatively, add only some of the files tracked by Git:
+    add_committed "lib/"
+    //add_committed "data/*.json"
+
+    // Add some files not in Git:
+    //add_any "src/generated/**/*.rs"
+
+    // But do not include the following:
+    remove "vendor"
+  }
+
+  // registry "internal.example.com"
+}
