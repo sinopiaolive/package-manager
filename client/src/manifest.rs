@@ -64,6 +64,7 @@ impl Manifest {
                 "name",
                 "version",
                 "description",
+                "authors",
                 "keywords",
                 "homepage",
                 "repository",
