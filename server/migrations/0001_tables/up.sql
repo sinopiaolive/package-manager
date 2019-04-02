@@ -87,6 +87,18 @@ CREATE INDEX package_releases_by_keyword ON package_releases (keywords);
 CREATE INDEX package_releases_by_license ON package_releases (license);
 CREATE INDEX package_releases_by_publisher ON package_releases (publisher);
 
+CREATE TABLE release_dependencies (
+  namespace TEXT NOT NULL,
+  name TEXT NOT NULL,
+  version TEXT NOT NULL,
+  ordering INTEGER NOT NULL,
+  dependency_namespace TEXT NOT NULL,
+  dependency_name TEXT NOT NULL,
+  dependency_version_constraint TEXT NOT NULL,
+  PRIMARY KEY (namespace, name, version, ordering),
+  FOREIGN KEY (namespace, name, version) REFERENCES package_releases
+);
+
 CREATE FUNCTION package_search(TEXT, TEXT[]) RETURNS TABLE(name TEXT)
   AS $$ SELECT name FROM (
     SELECT package_releases.namespace AS namespace,

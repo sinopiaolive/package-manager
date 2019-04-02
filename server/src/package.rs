@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use schema::{packages, package_owners, package_releases};
+use schema::{packages, package_owners, package_releases, release_dependencies};
 use user::UserRecord;
 
 #[derive(Identifiable, Queryable, Insertable, AsChangeset, Associations, Debug)]
@@ -47,4 +47,19 @@ pub struct Release {
     pub deprecated_on: Option<SystemTime>,
     pub deleted: Option<String>,
     pub deleted_on: Option<SystemTime>
+}
+
+#[derive(Insertable, AsChangeset, Identifiable, Queryable, Associations, Debug)]
+// We'd like to have a #[belongs_to] attribute to link this to Release, but
+// belongs_to doesn't support composite keys yet.
+#[table_name = "release_dependencies"]
+#[primary_key(namespace, name, version, ordering)]
+pub struct Dependency {
+    pub namespace: String,
+    pub name: String,
+    pub version: String,
+    pub ordering: i32,
+    pub dependency_namespace: String,
+    pub dependency_name: String,
+    pub dependency_version_constraint: String
 }

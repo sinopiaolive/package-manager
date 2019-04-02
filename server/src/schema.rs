@@ -57,6 +57,18 @@ table! {
 }
 
 table! {
+    release_dependencies (namespace, name, version, ordering) {
+        namespace -> Text,
+        name -> Text,
+        version -> Text,
+        ordering -> Int4,
+        dependency_namespace -> Text,
+        dependency_name -> Text,
+        dependency_version_constraint -> Text,
+    }
+}
+
+table! {
     users (id) {
         id -> Text,
         name -> Text,
@@ -73,5 +85,6 @@ allow_tables_to_appear_in_same_query!(
     package_owners,
     package_releases,
     packages,
+    release_dependencies,
     users,
 );
