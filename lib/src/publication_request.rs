@@ -19,9 +19,10 @@ pub struct Dependency {
     pub version_constraint: String,
 }
 
-/// Manifest structure used for publishing packages to the registry API.
+/// Structure used for publishing packages through the registry API, containing
+/// manifest data and file contents.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Manifest {
+pub struct PublicationRequest {
     pub namespace: String,
     pub name: String,
     pub version: Version,

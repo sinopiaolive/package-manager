@@ -4,14 +4,14 @@ use rmp_serde::decode;
 use tar;
 use brotli;
 
-use pm_lib::manifest::Manifest;
+use pm_lib::publication_request::PublicationRequest;
 
 use store::Store;
 use user::User;
 use error::{Res, Error};
 use package::Release;
 
-fn validate_manifest(_manifest: &Manifest) -> Res<()> {
+fn validate_manifest(_manifest: &PublicationRequest) -> Res<()> {
     // TODO pls to validate manifest here
     Ok(())
 }
@@ -29,7 +29,7 @@ fn validate_archive<R: Read>(mut reader: R) -> Res<()> {
 }
 
 pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<()> {
-    let manifest: Manifest = decode::from_read(reader)?;
+    let manifest: PublicationRequest = decode::from_read(reader)?;
     store.insert_package(
         &manifest.namespace,
         &manifest.name,

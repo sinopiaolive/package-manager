@@ -8,7 +8,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use rmp_serde::encode;
 use tar;
 
-use pm_lib::manifest::Manifest;
+use pm_lib::publication_request::PublicationRequest;
 
 use failure;
 use io::ProgressIO;
@@ -70,7 +70,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
     )?;
     compress_progress.finish_and_clear();
 
-    let req = Manifest {
+    let req = PublicationRequest {
         namespace: manifest.name.namespace.clone(),
         name: manifest.name.name.clone(),
         version: manifest.version.clone(),

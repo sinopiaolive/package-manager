@@ -20,4 +20,4 @@ pub mod version;
 pub mod constraint;
 pub mod package;
 pub mod index;
-pub mod manifest;
+pub mod publication_request;
