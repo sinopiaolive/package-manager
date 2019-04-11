@@ -11,10 +11,10 @@ use data_encoding::BASE64;
 
 use error::{Error, Res};
 use file::File;
-use package::{Package, PackageOwner, Release};
+use package::{Package, PackageOwner, Release, Dependency};
 use user::{User, UserRecord};
 
-use schema::{files, login_sessions, package_owners, package_releases, packages, users};
+use schema::{files, login_sessions, package_owners, package_releases, packages, release_dependencies, users};
 
 #[allow(dead_code)]
 #[derive(Queryable)]
@@ -177,7 +177,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn add_release(&self, release: &Release, tar_br: &[u8]) -> Res<()> {
+    pub fn add_release(&self, release: &Release, dependencies: &[Dependency], tar_br: &[u8]) -> Res<()> {
         let db = self.db();
         db.build_transaction().serializable().run(|| {
             diesel::insert_into(package_releases::table)
@@ -191,6 +191,9 @@ impl Store {
                     ),
                     e => Error::from(e),
                 })?;
+            diesel::insert_into(release_dependencies::table)
+                .values(dependencies)
+                .execute(db)?;
             diesel::insert_into(files::table)
                 .values(&File {
                     namespace: release.namespace.to_owned(),

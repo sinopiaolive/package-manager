@@ -9,14 +9,10 @@ use pm_lib::publication_request::PublicationRequest;
 use store::Store;
 use user::User;
 use error::{Res, Error};
-use package::Release;
-
-fn validate_manifest(_manifest: &PublicationRequest) -> Res<()> {
-    // TODO pls to validate manifest here
-    Ok(())
-}
+use package;
 
 fn validate_archive<R: Read>(mut reader: R) -> Res<()> {
+    // TODO validate file names, content length
     for entry in tar::Archive::new(brotli::Decompressor::new(&mut reader, 4096))
         .entries()
         .map_err(|_| Error::InvalidArtifact("not a Brotli compressed TAR archive"))?
@@ -29,51 +25,64 @@ fn validate_archive<R: Read>(mut reader: R) -> Res<()> {
 }
 
 pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<()> {
-    let manifest: PublicationRequest = decode::from_read(reader)?;
+    let pr: PublicationRequest = decode::from_read(reader)?;
     store.insert_package(
-        &manifest.namespace,
-        &manifest.name,
+        &pr.namespace,
+        &pr.name,
         user,
     )?;
     let owners = store.get_package_owners(
-        &manifest.namespace,
-        &manifest.name,
+        &pr.namespace,
+        &pr.name,
     )?;
     match owners.iter().find(|o| *o == user) {
         None => Err(Error::AccessDenied(
-            manifest.namespace.clone(),
-            manifest.name.clone(),
+            pr.namespace.clone(),
+            pr.name.clone(),
             user.clone(),
         )),
         Some(_) => {
-            validate_manifest(&manifest)?;
-            validate_archive(&mut manifest.tar_br.as_slice())?;
-            let release = Release {
-                namespace: manifest.namespace.clone(),
-                name: manifest.name.clone(),
-                version: manifest.version.to_string(),
+            // TODO validate metadata
+            validate_archive(&mut pr.tar_br.as_slice())?;
+            let release = package::Release {
+                namespace: pr.namespace.clone(),
+                name: pr.name.clone(),
+                version: pr.version.to_string(),
 
-                description: manifest.description.clone(),
-                authors: manifest.authors.clone(),
-                keywords: manifest.keywords.clone(),
-                homepage_url: manifest.homepage_url.clone(),
-                repository_type: manifest.repository.as_ref().map(|r| r.type_.clone()),
-                repository_url: manifest.repository.as_ref().map(|r| r.url.clone()),
-                bugs_url: manifest.bugs_url.clone(),
+                description: pr.description.clone(),
+                authors: pr.authors.clone(),
+                keywords: pr.keywords.clone(),
+                homepage_url: pr.homepage_url.clone(),
+                repository_type: pr.repository.as_ref().map(|r| r.type_.clone()),
+                repository_url: pr.repository.as_ref().map(|r| r.url.clone()),
+                bugs_url: pr.bugs_url.clone(),
 
-                license: manifest.license.clone(),
-                license_file_name: manifest.license_file.as_ref().map(|named_text_file| named_text_file.name.clone()),
-                license_file_contents: manifest.license_file.as_ref().map(|named_text_file| named_text_file.contents.clone()),
+                license: pr.license.clone(),
+                license_file_name: pr.license_file.as_ref().map(|named_text_file| named_text_file.name.clone()),
+                license_file_contents: pr.license_file.as_ref().map(|named_text_file| named_text_file.contents.clone()),
 
-                manifest_file_name: manifest.manifest.as_ref().map(|named_text_file| named_text_file.name.clone()),
-                manifest_file_contents: manifest.manifest.as_ref().map(|named_text_file| named_text_file.contents.clone()),
+                manifest_file_name: pr.manifest.as_ref().map(|named_text_file| named_text_file.name.clone()),
+                manifest_file_contents: pr.manifest.as_ref().map(|named_text_file| named_text_file.contents.clone()),
 
-                readme_name: manifest.readme.as_ref().map(|named_text_file| named_text_file.name.clone()),
-                readme_contents: manifest.readme.as_ref().map(|named_text_file| named_text_file.contents.clone()),
+                readme_name: pr.readme.as_ref().map(|named_text_file| named_text_file.name.clone()),
+                readme_contents: pr.readme.as_ref().map(|named_text_file| named_text_file.contents.clone()),
 
                 publisher: user.id.clone(),
             };
-            store.add_release(&release, manifest.tar_br.as_slice())?;
+            let dependencies = pr.dependencies.iter().enumerate().map(|(index, dep)|
+                package::Dependency {
+                    namespace: pr.namespace.clone(),
+                    name: pr.name.clone(),
+                    version: pr.version.to_string(),
+
+                    ordering: index as i32,
+
+                    dependency_namespace: dep.namespace.clone(),
+                    dependency_name: dep.name.clone(),
+                    dependency_version_constraint: dep.version_constraint.to_string(),
+                }
+            ).collect::<Vec<package::Dependency>>();
+            store.add_release(&release, &dependencies, pr.tar_br.as_slice())?;
             Ok(())
         }
     }

@@ -1,3 +1,4 @@
+use constraint::VersionConstraint;
 use version::Version;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -16,7 +17,7 @@ pub struct Repository {
 pub struct Dependency {
     pub namespace: String,
     pub name: String,
-    pub version_constraint: String,
+    pub version_constraint: VersionConstraint,
 }
 
 /// Structure used for publishing packages through the registry API, containing
