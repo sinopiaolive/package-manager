@@ -11,6 +11,8 @@ extern crate serde_derive;
 extern crate rmp_serde;
 #[macro_use]
 extern crate rocket_contrib;
+extern crate failure;
+extern crate failure_derive;
 #[macro_use]
 extern crate quick_error;
 extern crate data_encoding;
@@ -29,6 +31,7 @@ mod error;
 mod file;
 mod github;
 mod gitlab;
+mod index;
 mod package;
 mod schema;
 mod search;

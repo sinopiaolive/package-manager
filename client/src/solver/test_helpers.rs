@@ -32,10 +32,10 @@ macro_rules! deps {
 
 macro_rules! gen_registry {
     ( $( $name:ident => ( $( $release:expr => $deps:expr ),+ ) ),+ ) => {{
-        let mut packs = ::std::collections::HashMap::new();
+        let mut packs = ::pm_lib::index::Index::new();
         $({
             let name = ::pm_lib::test_helpers::pkg(stringify!($name));
-            let mut releases = ::std::collections::HashMap::new();
+            let mut releases = ::pm_lib::index::Package::new();
             $({
                 let ver = ::pm_lib::version::Version::from_str($release).unwrap();
 

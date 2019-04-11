@@ -1,7 +1,7 @@
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 use rmp_serde::{self, encode};
@@ -38,8 +38,8 @@ quick_error! {
     }
 }
 
-pub type Index = HashMap<PackageName, Package>;
-pub type Package = HashMap<Version, Dependencies>;
+pub type Index = BTreeMap<PackageName, Package>;
+pub type Package = BTreeMap<Version, Dependencies>;
 pub type Dependencies = BTreeMap<PackageName, VersionConstraint>;
 
 pub fn read_index(path: &Path) -> Result<Arc<Index>, Error> {

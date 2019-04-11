@@ -61,7 +61,7 @@ table! {
 }
 
 table! {
-    release_dependencies (namespace, name, version, ordering) {
+    release_dependencies (namespace, name, version, dependency_namespace, dependency_name) {
         namespace -> Text,
         name -> Text,
         version -> Text,

@@ -100,7 +100,7 @@ CREATE TABLE release_dependencies (
   dependency_namespace TEXT NOT NULL,
   dependency_name TEXT NOT NULL,
   dependency_version_constraint TEXT NOT NULL,
-  PRIMARY KEY (namespace, name, version, ordering),
+  PRIMARY KEY (namespace, name, version, dependency_namespace, dependency_name),
   FOREIGN KEY (namespace, name, version) REFERENCES package_releases
 );
 
