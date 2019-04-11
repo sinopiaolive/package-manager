@@ -74,11 +74,20 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
         namespace: manifest.name.namespace.clone(),
         name: manifest.name.name.clone(),
         version: manifest.version.clone(),
+
         description: manifest.description.clone(),
-        license: manifest.license.clone(),
-        readme: manifest.readme.clone(),
+        authors: manifest.authors.clone(),
         keywords: manifest.keywords.clone(),
-        manifest: String::new(),
+        homepage_url: manifest.homepage.clone(),
+        repository: None, // TODO
+        bugs_url: None, // TODO
+        license: manifest.license.clone(),
+        license_file: None, // TODO
+        manifest: None, // TODO
+        readme: None, // TODO
+
+        dependencies: vec![], // TODO
+
         tar_br,
     };
 

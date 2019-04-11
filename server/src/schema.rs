@@ -1,9 +1,10 @@
 table! {
-    files (namespace, name, version) {
+    files (id) {
+        id -> Int8,
         namespace -> Text,
         name -> Text,
         version -> Text,
-        tar_br -> Bytea,
+        data -> Bytea,
     }
 }
 
@@ -29,19 +30,22 @@ table! {
         namespace -> Text,
         name -> Text,
         version -> Text,
+        description -> Text,
+        authors -> Array<Text>,
+        keywords -> Array<Text>,
+        homepage_url -> Nullable<Text>,
+        repository_type -> Nullable<Text>,
+        repository_url -> Nullable<Text>,
+        bugs_url -> Nullable<Text>,
+        license -> Nullable<Text>,
+        license_file_name -> Nullable<Text>,
+        license_file_contents -> Nullable<Text>,
+        manifest_file_name -> Nullable<Text>,
+        manifest_file_contents -> Nullable<Text>,
+        readme_name -> Nullable<Text>,
+        readme_contents -> Nullable<Text>,
         publisher -> Text,
         publish_time -> Timestamp,
-        artifact_url -> Text,
-        description -> Text,
-        license -> Nullable<Text>,
-        license_file -> Nullable<Text>,
-        keywords -> Array<Text>,
-        manifest -> Text,
-        readme_filename -> Nullable<Text>,
-        readme -> Nullable<Text>,
-        deprecated -> Bool,
-        deprecated_by -> Nullable<Text>,
-        deprecated_on -> Nullable<Timestamp>,
         deleted -> Nullable<Text>,
         deleted_on -> Nullable<Timestamp>,
     }
@@ -78,6 +82,7 @@ table! {
 }
 
 joinable!(package_owners -> users (user_id));
+joinable!(package_releases -> users (publisher));
 
 allow_tables_to_appear_in_same_query!(
     files,

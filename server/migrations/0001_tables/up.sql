@@ -28,14 +28,6 @@ CREATE TABLE users (
   avatar TEXT
 );
 
-CREATE TABLE files (
-  namespace TEXT NOT NULL,
-  name TEXT NOT NULL,
-  version TEXT NOT NULL,
-  tar_br BYTEA NOT NULL,
-  PRIMARY KEY (namespace, name, version)
-);
-
 CREATE TABLE packages (
   namespace TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -61,25 +53,38 @@ CREATE TABLE package_releases (
   namespace TEXT NOT NULL,
   name TEXT NOT NULL,
   version TEXT NOT NULL,
+
+  -- Metadata
+  description TEXT NOT NULL,
+  authors TEXT[] NOT NULL DEFAULT '{}',
+  keywords TEXT[] NOT NULL DEFAULT '{}',
+  homepage_url TEXT,
+  repository_type TEXT,
+  repository_url TEXT,
+  bugs_url TEXT,
+
+  license TEXT,
+  license_file_name TEXT,
+  license_file_contents TEXT,
+
+  manifest_file_name TEXT,
+  manifest_file_contents TEXT,
+
+  readme_name TEXT,
+  readme_contents TEXT,
+
+  -- Bookkeeping
   publisher TEXT NOT NULL,
   publish_time TIMESTAMP NOT NULL DEFAULT NOW(),
-  artifact_url TEXT NOT NULL,
-  description TEXT NOT NULL,
-  license TEXT,
-  license_file TEXT,
-  keywords TEXT[] NOT NULL DEFAULT '{}',
-  manifest TEXT NOT NULL,
-  readme_filename TEXT,
-  readme TEXT,
-  deprecated BOOLEAN NOT NULL DEFAULT FALSE,
-  deprecated_by TEXT,
-  deprecated_on TIMESTAMP,
   deleted TEXT,
   deleted_on TIMESTAMP,
+
+  -- has_many release_dependencies
+  -- has_many[sic!] files
+
   PRIMARY KEY (namespace, name, version),
   FOREIGN KEY (namespace, name) REFERENCES packages (namespace, name),
-  FOREIGN KEY (publisher) REFERENCES users (id),
-  FOREIGN KEY (deprecated_by) REFERENCES users (id)
+  FOREIGN KEY (publisher) REFERENCES users (id)
 );
 
 CREATE INDEX package_releases_by_package_id ON package_releases (namespace, name);
@@ -98,6 +103,19 @@ CREATE TABLE release_dependencies (
   PRIMARY KEY (namespace, name, version, ordering),
   FOREIGN KEY (namespace, name, version) REFERENCES package_releases
 );
+
+CREATE TABLE files (
+  -- id allows us to update data (e.g. for recompression) while keeping old
+  -- revisions around. We always serve the highest (most recent) id for a given
+  -- release.
+  id BIGSERIAL PRIMARY KEY,
+  namespace TEXT NOT NULL,
+  name TEXT NOT NULL,
+  version TEXT NOT NULL,
+  data BYTEA NOT NULL,
+  FOREIGN KEY (namespace, name, version) REFERENCES package_releases (namespace, name, version)
+);
+CREATE INDEX files_by_version ON files (namespace, name, version, id);
 
 CREATE FUNCTION package_search(TEXT, TEXT[]) RETURNS TABLE(name TEXT)
   AS $$ SELECT name FROM (

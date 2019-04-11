@@ -19,9 +19,6 @@ extern crate reqwest;
 extern crate url;
 #[macro_use]
 extern crate diesel;
-#[cfg(test)]
-#[macro_use]
-extern crate diesel_migrations;
 extern crate brotli;
 extern crate im;
 extern crate pm_lib;
@@ -38,9 +35,6 @@ mod search;
 mod store;
 mod upload;
 mod user;
-
-#[cfg(test)]
-mod test;
 
 use std::collections::HashMap;
 use std::env;
@@ -188,12 +182,12 @@ struct SearchQuery {
 
 #[get("/files/tar-br/<namespace>/<name>/<version>")]
 fn files(store: Store, namespace: String, name: String, version: String) -> Res<Response<'static>> {
-    match store.get_file(&namespace, &name, &version) {
+    match store.get_tar_br(&namespace, &name, &version) {
         Err(_) => Err(Error::Status(Status::NotFound)),
-        Ok(file) => Response::build()
+        Ok(tar_br) => Response::build()
             .status(Status::Ok)
             .header(ContentType::new("application", "brotli"))
-            .sized_body(Cursor::new(file.tar_br))
+            .sized_body(Cursor::new(tar_br))
             .ok(),
     }
 }

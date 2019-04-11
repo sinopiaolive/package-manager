@@ -9,7 +9,6 @@ use manifest_parser::{
 use manifest_parser_error::{PestErrorExt, PestResultExt};
 use pm_lib::constraint::VersionConstraint;
 use pm_lib::index::Dependencies;
-use pm_lib::manifest::License;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 use std::collections::HashSet;
@@ -31,7 +30,8 @@ pub struct Manifest {
     pub bugs: Option<String>,
     pub keywords: Vec<String>,
 
-    pub license: License,
+    pub license: Option<String>,
+    pub license_file: Option<String>,
 
     pub readme: Option<(String, String)>,
     pub files: Vec<String>,
@@ -111,17 +111,12 @@ impl Manifest {
         let license = get_optional_string_field(&block_pair, "license")?;
         let license_file = get_optional_string_field(&block_pair, "license_file")?;
 
-        let license_field = match (license, license_file) {
-            (Some(tag), None) => License::SPDX(tag),
-            (None, Some(file)) => License::File(file),
-            (Some(tag), Some(file)) => License::SPDXAndFile(tag, file),
-            (None, None) => {
+        if license.is_none() && license_file.is_none() {
                 return Err(::failure::Error::from(
                     format_err!("package section needs at least one of license or license_file")
                         .with_pos(&block_pair.clone().into_span().start_pos()),
                 ));
-            }
-        };
+        }
 
         let files_block = Arguments::get_block(get_field(&block_pair, "files")?)?;
         let files = evaluate_files_block(&files_block, root)?;
@@ -139,9 +134,10 @@ impl Manifest {
             bugs,
             keywords,
 
-            license: license_field,
+            license,
+            license_file,
 
-            readme: None,
+            readme: None, // TODO
 
             files,
         })

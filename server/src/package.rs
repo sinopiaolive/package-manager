@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use schema::{packages, package_owners, package_releases, release_dependencies};
 use user::UserRecord;
 
-#[derive(Identifiable, Queryable, Insertable, AsChangeset, Associations, Debug)]
+#[derive(Identifiable, Queryable, Insertable, AsChangeset, Debug)]
 #[table_name = "packages"]
 #[primary_key(namespace, name)]
 pub struct Package {
@@ -21,10 +21,11 @@ pub struct PackageOwner {
     pub namespace: String,
     pub name: String,
     pub user_id: String,
+    // need ordering
     pub added_time: SystemTime
 }
 
-#[derive(Insertable, AsChangeset, Identifiable, Queryable, Associations, Debug)]
+#[derive(Insertable, Identifiable, Associations, Debug)]
 #[belongs_to(UserRecord, foreign_key = "publisher")]
 #[table_name = "package_releases"]
 #[primary_key(namespace, name, version)]
@@ -32,21 +33,26 @@ pub struct Release {
     pub namespace: String,
     pub name: String,
     pub version: String,
-    pub publisher: String,
-    pub publish_time: SystemTime,
-    pub artifact_url: String,
+
     pub description: String,
-    pub license: Option<String>,
-    pub license_file: Option<String>,
+    pub authors: Vec<String>,
     pub keywords: Vec<String>,
-    pub manifest: String,
-    pub readme_filename: Option<String>,
-    pub readme: Option<String>,
-    pub deprecated: bool,
-    pub deprecated_by: Option<String>,
-    pub deprecated_on: Option<SystemTime>,
-    pub deleted: Option<String>,
-    pub deleted_on: Option<SystemTime>
+    pub homepage_url: Option<String>,
+    pub repository_type: Option<String>,
+    pub repository_url: Option<String>,
+    pub bugs_url: Option<String>,
+
+    pub license: Option<String>,
+    pub license_file_name: Option<String>,
+    pub license_file_contents: Option<String>,
+
+    pub manifest_file_name: Option<String>,
+    pub manifest_file_contents: Option<String>,
+
+    pub readme_name: Option<String>,
+    pub readme_contents: Option<String>,
+
+    pub publisher: String,
 }
 
 #[derive(Insertable, AsChangeset, Identifiable, Queryable, Associations, Debug)]

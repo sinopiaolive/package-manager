@@ -1,11 +1,10 @@
 use std::io::Read;
-use std::time::SystemTime;
 
 use rmp_serde::decode;
 use tar;
 use brotli;
 
-use pm_lib::manifest::{License, Manifest};
+use pm_lib::manifest::Manifest;
 
 use store::Store;
 use user::User;
@@ -40,8 +39,6 @@ pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<()>
         &manifest.namespace,
         &manifest.name,
     )?;
-    let filename = format!("{}-{}.tar.br", manifest.name, manifest.version);
-    let url = format!("/files/{}/{}", manifest.namespace, filename);
     match owners.iter().find(|o| *o == user) {
         None => Err(Error::AccessDenied(
             manifest.namespace.clone(),
@@ -55,35 +52,26 @@ pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<()>
                 namespace: manifest.namespace.clone(),
                 name: manifest.name.clone(),
                 version: manifest.version.to_string(),
-                publisher: user.to_string(),
-                publish_time: SystemTime::now(),
-                artifact_url: url.clone(),
-                description: manifest.description.to_string(),
-                license: match manifest.license {
-                    License::SPDX(ref tag) => Some(tag.clone()),
-                    License::SPDXAndFile(ref tag, _) => Some(tag.clone()),
-                    _ => None,
-                },
-                license_file: match manifest.license {
-                    License::File(ref file) => Some(file.clone()),
-                    License::SPDXAndFile(_, ref file) => Some(file.clone()),
-                    _ => None,
-                },
+
+                description: manifest.description.clone(),
+                authors: manifest.authors.clone(),
                 keywords: manifest.keywords.clone(),
-                manifest: manifest.manifest.clone(),
-                readme_filename: match manifest.readme {
-                    Some((ref filename, _)) => Some(filename.clone()),
-                    None => None,
-                },
-                readme: match manifest.readme {
-                    Some((_, ref content)) => Some(content.clone()),
-                    None => None,
-                },
-                deprecated: false,
-                deprecated_by: None,
-                deprecated_on: None,
-                deleted: None,
-                deleted_on: None,
+                homepage_url: manifest.homepage_url.clone(),
+                repository_type: manifest.repository.as_ref().map(|r| r.type_.clone()),
+                repository_url: manifest.repository.as_ref().map(|r| r.url.clone()),
+                bugs_url: manifest.bugs_url.clone(),
+
+                license: manifest.license.clone(),
+                license_file_name: manifest.license_file.as_ref().map(|named_text_file| named_text_file.name.clone()),
+                license_file_contents: manifest.license_file.as_ref().map(|named_text_file| named_text_file.contents.clone()),
+
+                manifest_file_name: manifest.manifest.as_ref().map(|named_text_file| named_text_file.name.clone()),
+                manifest_file_contents: manifest.manifest.as_ref().map(|named_text_file| named_text_file.contents.clone()),
+
+                readme_name: manifest.readme.as_ref().map(|named_text_file| named_text_file.name.clone()),
+                readme_contents: manifest.readme.as_ref().map(|named_text_file| named_text_file.contents.clone()),
+
+                publisher: user.id.clone(),
             };
             store.add_release(&release, manifest.tar_br.as_slice())?;
             Ok(())

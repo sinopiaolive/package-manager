@@ -52,7 +52,8 @@ impl Store {
             .values(&NewLoginSession {
                 token: token.to_string(),
                 callback: callback.to_string(),
-            }).execute(db)?;
+            })
+            .execute(db)?;
         Ok(())
     }
 
@@ -105,7 +106,8 @@ impl Store {
                 packages::namespace
                     .eq(&namespace)
                     .and(packages::name.eq(&name)),
-            ).get_result(db)
+            )
+            .get_result(db)
             .map_err(|err| match err {
                 NotFound => Error::UnknownPackage(namespace.to_owned(), name.to_owned()),
                 e => Error::from(e),
@@ -126,7 +128,8 @@ impl Store {
                     name: name.to_owned(),
                     deleted: None,
                     deleted_on: None,
-                }).execute(db)
+                })
+                .execute(db)
             {
                 Ok(_) => self.add_package_owner(namespace, name, owner),
                 Err(_) => Ok(()),
@@ -141,7 +144,8 @@ impl Store {
                 package_owners::namespace
                     .eq(namespace)
                     .and(package_owners::name.eq(name)),
-            ).load(db)?;
+            )
+            .load(db)?;
         results.iter().map(|o| User::from_str(&o.user_id)).collect()
     }
 
@@ -153,7 +157,8 @@ impl Store {
                 name: name.to_owned(),
                 user_id: owner.to_string(),
                 added_time: SystemTime::now(),
-            }).execute(db)?;
+            })
+            .execute(db)?;
         Ok(())
     }
 
@@ -167,18 +172,9 @@ impl Store {
                         .and(package_owners::user_id.eq(&owner.to_string())),
                 ),
             ),
-        ).execute(db)?;
+        )
+        .execute(db)?;
         Ok(())
-    }
-
-    pub fn get_releases(&self, namespace: &str, name: &str) -> Res<Vec<Release>> {
-        let db = self.db();
-        Ok(package_releases::table
-            .filter(
-                package_releases::namespace
-                    .eq(namespace)
-                    .and(package_releases::name.eq(name)),
-            ).load(db)?)
     }
 
     pub fn add_release(&self, release: &Release, tar_br: &[u8]) -> Res<()> {
@@ -200,21 +196,26 @@ impl Store {
                     namespace: release.namespace.to_owned(),
                     name: release.name.to_owned(),
                     version: release.version.to_owned(),
-                    tar_br: tar_br.to_owned(),
-                }).execute(db)?;
+                    data: tar_br.to_owned(),
+                })
+                .execute(db)?;
             Ok(())
         })
     }
 
-    pub fn get_file(&self, namespace: &str, name: &str, version: &str) -> Res<File> {
+    pub fn get_tar_br(&self, namespace: &str, name: &str, version: &str) -> Res<Vec<u8>> {
         let db = self.db();
-        let file = files::table
+        let tar_br = files::table
+            .select(files::data)
             .filter(
                 files::namespace
                     .eq(namespace)
                     .and(files::name.eq(name))
                     .and(files::version.eq(version)),
-            ).get_result(db)
+            )
+            .order(files::id.desc())
+            .limit(1)
+            .get_result::<Vec<u8>>(db)
             .map_err(|err| match err {
                 NotFound => Error::UnknownRelease(
                     namespace.to_string(),
@@ -223,6 +224,6 @@ impl Store {
                 ),
                 e => Error::from(e),
             })?;
-        Ok(file)
+        Ok(tar_br)
     }
 }

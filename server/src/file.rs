@@ -7,5 +7,5 @@ pub struct File {
     pub namespace: String,
     pub name: String,
     pub version: String,
-    pub tar_br: Vec<u8>,
+    pub data: Vec<u8>,
 }
