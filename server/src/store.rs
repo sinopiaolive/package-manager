@@ -4,17 +4,15 @@ use std::time::SystemTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::result::DatabaseErrorKind::UniqueViolation;
-use diesel::result::Error::{DatabaseError, NotFound};
+use diesel::result::Error::NotFound;
 
 use data_encoding::BASE64;
 
 use error::{Error, Res};
-use file::File;
-use package::{Package, PackageOwner, Release, Dependency};
+use package::{Package, PackageOwner};
 use user::{User, UserRecord};
 
-use schema::{files, login_sessions, package_owners, package_releases, packages, release_dependencies, users};
+use schema::{files, login_sessions, package_owners, packages, users};
 
 #[allow(dead_code)]
 #[derive(Queryable)]
@@ -99,7 +97,7 @@ impl Store {
         Ok(user)
     }
 
-    pub fn get_package(&self, namespace: &str, name: &str) -> Res<Package> {
+    pub fn get_package(&self, namespace: &str, name: &str) -> Res<Option<Package>> {
         let db = self.db();
         let pkg = packages::table
             .filter(
@@ -108,33 +106,8 @@ impl Store {
                     .and(packages::name.eq(&name)),
             )
             .get_result(db)
-            .map_err(|err| match err {
-                NotFound => Error::UnknownPackage(namespace.to_owned(), name.to_owned()),
-                e => Error::from(e),
-            })?;
+            .optional()?;
         Ok(pkg)
-    }
-
-    pub fn insert_package(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
-        let db = self.db();
-        db.build_transaction().serializable().run(|| {
-            // This logic implicitly relies on uniqueness constraints and
-            // transaction semantics. If any of these break, it might allow
-            // people to add themselves as owners to other people's packages. We
-            // should make it more robust.
-            match diesel::insert_into(packages::table)
-                .values(&Package {
-                    namespace: namespace.to_owned(),
-                    name: name.to_owned(),
-                    deleted: None,
-                    deleted_on: None,
-                })
-                .execute(db)
-            {
-                Ok(_) => self.add_package_owner(namespace, name, owner),
-                Err(_) => Ok(()),
-            }
-        })
     }
 
     pub fn get_package_owners(&self, namespace: &str, name: &str) -> Res<Vec<User>> {
@@ -147,19 +120,6 @@ impl Store {
             )
             .load(db)?;
         results.iter().map(|o| User::from_str(&o.user_id)).collect()
-    }
-
-    pub fn add_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
-        let db = self.db();
-        diesel::insert_into(package_owners::table)
-            .values(&PackageOwner {
-                namespace: namespace.to_owned(),
-                name: name.to_owned(),
-                user_id: owner.to_string(),
-                added_time: SystemTime::now(),
-            })
-            .execute(db)?;
-        Ok(())
     }
 
     pub fn remove_package_owner(&self, namespace: &str, name: &str, owner: &User) -> Res<()> {
@@ -175,35 +135,6 @@ impl Store {
         )
         .execute(db)?;
         Ok(())
-    }
-
-    pub fn add_release(&self, release: &Release, dependencies: &[Dependency], tar_br: &[u8]) -> Res<()> {
-        let db = self.db();
-        db.build_transaction().serializable().run(|| {
-            diesel::insert_into(package_releases::table)
-                .values(release)
-                .execute(db)
-                .map_err(|err| match err {
-                    DatabaseError(UniqueViolation, _) => Error::ReleaseAlreadyExists(
-                        release.namespace.clone(),
-                        release.name.clone(),
-                        release.version.clone(),
-                    ),
-                    e => Error::from(e),
-                })?;
-            diesel::insert_into(release_dependencies::table)
-                .values(dependencies)
-                .execute(db)?;
-            diesel::insert_into(files::table)
-                .values(&File {
-                    namespace: release.namespace.to_owned(),
-                    name: release.name.to_owned(),
-                    version: release.version.to_owned(),
-                    data: tar_br.to_owned(),
-                })
-                .execute(db)?;
-            Ok(())
-        })
     }
 
     pub fn get_tar_br(&self, namespace: &str, name: &str, version: &str) -> Res<Vec<u8>> {

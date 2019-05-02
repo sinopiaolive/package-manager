@@ -9,7 +9,7 @@ use url::form_urlencoded::Serializer;
 
 use config::get_config;
 
-#[derive(Deserialize)]
+#[derive(Fail, Deserialize, Debug)]
 pub struct RegistryError {
     message: String,
 }

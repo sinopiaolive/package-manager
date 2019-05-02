@@ -21,6 +21,10 @@ package {
   license_file "license/GPL"
   license "MIT"
   keywords []
+//  repository {
+//    type "git"
+//    url "https://github.com/joliss/mypkg"
+//  }
 
   files {
     // Add all files tracked by Git:

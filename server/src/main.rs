@@ -216,7 +216,7 @@ fn publish(
 }
 
 #[get("/")]
-fn index() -> Res<content::Html<String>> {
+fn root() -> Res<content::Html<String>> {
     Ok(html_doc(
         "
 <p class=\"pad\">
@@ -224,6 +224,11 @@ fn index() -> Res<content::Html<String>> {
 </p>
 ",
     ))
+}
+
+#[get("/index")]
+fn index(store: Store) -> Result<Json<::pm_lib::index::Index>, ::failure::Error> {
+    Ok(Json(index::compute_index(&store)?))
 }
 
 #[derive(FromForm)]

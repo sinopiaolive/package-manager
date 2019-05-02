@@ -185,6 +185,8 @@ impl Service for CallbackService {
 }
 
 pub fn execute(_: Args) -> Result<(), failure::Error> {
+    // TODO we need to ensure that attackers cannot inject their own token by
+    // connecting to our callback service via iframe
     let done = Done::new();
     let secret = generate_secret();
     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);

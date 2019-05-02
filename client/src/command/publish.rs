@@ -105,11 +105,11 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
 
     if !args.flag_quiet {
         if args.flag_dry_run {
-            println!("Seems to work!")
+            println!("Dry run successful")
         } else {
             match res {
                 Ok(_) => println!(
-                    "Package {} version {} has been published!",
+                    "Package {} version {} has been published",
                     manifest.name, manifest.version
                 ),
                 Err(msg) => println!("{}: {}", Style::new().red().bold().apply_to("ERROR"), msg),
