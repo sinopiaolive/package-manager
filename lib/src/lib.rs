@@ -19,5 +19,6 @@ pub mod test_helpers;
 pub mod version;
 pub mod constraint;
 pub mod package;
+pub mod dependencies;
 pub mod index;
 pub mod publication_request;

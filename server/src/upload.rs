@@ -105,8 +105,8 @@ pub fn process_upload<R: Read>(store: &Store, user: &User, reader: R) -> Res<()>
 
                 ordering: index as i32,
 
-                dependency_namespace: dep.namespace.clone(),
-                dependency_name: dep.name.clone(),
+                dependency_namespace: dep.package_name.namespace.clone(),
+                dependency_name: dep.package_name.name.clone(),
                 dependency_version_constraint: dep.version_constraint.to_string(),
             }
         ).collect::<Vec<package::Dependency>>();

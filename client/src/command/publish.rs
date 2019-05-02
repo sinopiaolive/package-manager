@@ -86,7 +86,7 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
         manifest: None, // TODO
         readme: None, // TODO
 
-        dependencies: vec![], // TODO
+        dependencies: manifest.dependencies.clone(),
 
         tar_br,
     };

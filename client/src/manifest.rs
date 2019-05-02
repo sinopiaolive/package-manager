@@ -8,20 +8,22 @@ use manifest_parser::{
 };
 use manifest_parser_error::{PestErrorExt, PestResultExt};
 use pm_lib::constraint::VersionConstraint;
-use pm_lib::index::Dependencies;
+use pm_lib::dependencies::Dependency;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 use std::collections::HashSet;
 use std::path::Path;
 
-// The Manifest struct represents a parsed manifest file.
+// The Manifest struct represents a parsed manifest file. This struct should
+// probably go away in favor of constructing PublicationRequest objects directly
+// while parsing.
 
 #[derive(Debug)]
 pub struct Manifest {
     pub name: PackageName,
     pub version: Version,
 
-    pub dependencies: Dependencies,
+    pub dependencies: Vec<Dependency>,
 
     pub authors: Vec<String>,
     pub description: String,
@@ -159,20 +161,22 @@ pub fn parse_and_check_manifest(manifest_source: String) -> Result<Pair, ::failu
     Ok(manifest_pair)
 }
 
-pub fn get_dependencies(manifest_pair: &Pair) -> Result<Dependencies, ::failure::Error> {
-    let mut depset = Dependencies::new();
+pub fn get_dependencies(manifest_pair: &Pair) -> Result<Vec<Dependency>, ::failure::Error> {
+    let mut depset = Vec::<Dependency>::new();
     for (package_name_pair, arguments_pair) in
         get_optional_block_field(&manifest_pair, "dependencies")?
     {
         let arguments = Arguments::from_pair(arguments_pair, 0, 2, &[], Some(false))?;
         let (package_name, version_constraint) =
             make_dependency(&package_name_pair, &arguments.positional_arguments)?;
-        if depset.contains_key(&package_name) {
-            return Err(::failure::Error::from(
-                format_err!("Duplicate dependency").with_pair(&package_name_pair),
-            ));
+        for dep in depset.iter() {
+            if dep.package_name == package_name {
+                return Err(::failure::Error::from(
+                    format_err!("Duplicate dependency").with_pair(&package_name_pair),
+                ));
+            }
         }
-        depset.insert(package_name, version_constraint);
+        depset.push(Dependency { package_name, version_constraint });
     }
     Ok(depset)
 }

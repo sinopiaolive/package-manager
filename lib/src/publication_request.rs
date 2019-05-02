@@ -1,5 +1,5 @@
-use constraint::VersionConstraint;
 use version::Version;
+use dependencies::Dependency;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NamedTextFile {
@@ -11,13 +11,6 @@ pub struct NamedTextFile {
 pub struct Repository {
     pub type_: String,
     pub url: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Dependency {
-    pub namespace: String,
-    pub name: String,
-    pub version_constraint: VersionConstraint,
 }
 
 /// Structure used for publishing packages through the registry API, containing
