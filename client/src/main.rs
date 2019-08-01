@@ -143,11 +143,15 @@ fn main() {
         {
             Ok(_) => process::exit(0),
             Err(e) => {
-                println!("An unexpected error occurred:");
-                println!("{:?}", e);
                 if env::var_os("RUST_BACKTRACE").is_none() && env::var_os("RUST_FAILURE_BACKTRACE").is_none() {
-                    println!("note: Run with `RUST_BACKTRACE=1` environment variable to display a backtrace.");
+                    println!("{}", e);
+                    println!();
+                    println!("Run with `RUST_BACKTRACE=1` environment variable to display a backtrace.");
+                } else {
+                    println!("{:?}", e);
+                    println!();
                 }
+                println!("Exiting due to error.");
                 process::exit(1)
             }
         }
