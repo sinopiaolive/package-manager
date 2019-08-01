@@ -35,8 +35,8 @@ impl PackageName {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<PackageName> {
         let mut it = s.split('/');
-        match (it.next(), it.next()) {
-            (Some(namespace), Some(name))
+        match (it.next(), it.next(), it.next()) {
+            (Some(namespace), Some(name), None)
                 if validate_package_namespace(namespace) && validate_package_name(name) => Some(
                 PackageName {
                     namespace: namespace.to_string(),
@@ -98,6 +98,7 @@ mod test {
 
         assert_eq!(PackageName::from_str("B"), None);
         assert_eq!(PackageName::from_str("A/B"), None);
+        assert_eq!(PackageName::from_str("a/b/c"), None);
         assert_eq!(PackageName::from_str("a/:-)"), None);
     }
 }
