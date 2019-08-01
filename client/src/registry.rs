@@ -3,6 +3,7 @@ use im::OrdMap as Map;
 use reqwest::Body;
 use reqwest::{self, Method};
 use serde::Deserialize;
+use serde_json;
 use std::fmt;
 use std::io::Read;
 use url::form_urlencoded::Serializer;
@@ -63,7 +64,7 @@ where
     if res.status().is_success() {
         Ok(Ok(::serde_json::from_reader(res)?))
     } else {
-        Ok(Err(RegistryError { message: res.text()? }))
+        Ok(Err(serde_json::from_str(&res.text()?)?))
     }
 }
 
