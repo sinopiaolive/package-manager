@@ -171,12 +171,6 @@ impl Authenticate {
     }
 }
 
-#[get("/test")]
-fn test(auth: Authenticate, store: Store) -> Res<String> {
-    auth.validate(&store)?;
-    Ok("Hello Joe".to_string())
-}
-
 #[derive(FromForm)]
 struct SearchQuery {
     ns: String,
@@ -323,7 +317,6 @@ fn main() {
             routes![
                 root,
                 index,
-                test,
                 search,
                 publish,
                 files,
