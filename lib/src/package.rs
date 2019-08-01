@@ -1,4 +1,4 @@
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::fmt::Display;
 use std::str;
@@ -19,16 +19,23 @@ impl fmt::Debug for PackageName {
 // https://msdn.microsoft.com/en-us/library/aa561308.aspx
 
 fn validate_package_namespace(s: &str) -> bool {
-    s.chars().all(|c| {
-        (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
-    }) && !s.is_empty()  && s.len() <= 128 && !s.starts_with('-')
+    s.chars()
+        .all(|c| (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-')
+        && !s.is_empty()
+        && s.len() <= 128
+        && !s.starts_with('-')
 }
 
 fn validate_package_name(s: &str) -> bool {
     s.chars().all(|c| {
-        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' ||
-            c == '-'
-    }) && !s.is_empty() && s.len() <= 128 && !s.starts_with('-')
+        (c >= 'a' && c <= 'z')
+            || (c >= 'A' && c <= 'Z')
+            || (c >= '0' && c <= '9')
+            || c == '_'
+            || c == '-'
+    }) && !s.is_empty()
+        && s.len() <= 128
+        && !s.starts_with('-')
 }
 
 impl PackageName {
@@ -37,14 +44,14 @@ impl PackageName {
         let mut it = s.split('/');
         match (it.next(), it.next(), it.next()) {
             (Some(namespace), Some(name), None)
-                if validate_package_namespace(namespace) && validate_package_name(name) => Some(
-                PackageName {
+                if validate_package_namespace(namespace) && validate_package_name(name) =>
+            {
+                Some(PackageName {
                     namespace: namespace.to_string(),
                     name: name.to_string(),
-                },
-                ),
-            _ => None
-
+                })
+            }
+            _ => None,
         }
     }
 }
@@ -80,8 +87,6 @@ impl<'de> Deserialize<'de> for PackageName {
     }
 }
 
-
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -96,9 +101,9 @@ mod test {
             })
         );
 
-        assert_eq!(PackageName::from_str("B"), None);
-        assert_eq!(PackageName::from_str("A/B"), None);
-        assert_eq!(PackageName::from_str("a/b/c"), None);
-        assert_eq!(PackageName::from_str("a/:-)"), None);
+        assert_eq!(PackageName::from_str("B"), None); // missing namespace
+        assert_eq!(PackageName::from_str("A/B"), None); // invalid namespace
+        assert_eq!(PackageName::from_str("a/b/c"), None); // too many components
+        assert_eq!(PackageName::from_str("a/:-)"), None); // invalid name
     }
 }
