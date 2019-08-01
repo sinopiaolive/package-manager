@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use brotli;
-use console::Style;
 use indicatif::{ProgressBar, ProgressStyle};
 use rmp_serde::encode;
 use tar;
@@ -80,11 +79,11 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
         keywords: manifest.keywords.clone(),
         homepage_url: manifest.homepage.clone(),
         repository: None, // TODO
-        bugs_url: None, // TODO
+        bugs_url: None,   // TODO
         license: manifest.license.clone(),
         license_file: None, // TODO
-        manifest: None, // TODO
-        readme: None, // TODO
+        manifest: None,     // TODO
+        readme: None,       // TODO
 
         dependencies: manifest.dependencies.clone(),
 
@@ -96,10 +95,8 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
     let up = upload_progress.clone(); // lifetime management shenanigans
     let body = ProgressIO::reader_from(payload, move |c, _| up.set_position(c as u64));
 
-    let res = if !args.flag_dry_run {
-        post::<(), _>("publish", ordmap![], body)?
-    } else {
-        Ok(())
+    if !args.flag_dry_run {
+        post::<(), _>("publish", ordmap![], body)??;
     };
     upload_progress.finish_and_clear();
 
@@ -107,13 +104,10 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
         if args.flag_dry_run {
             println!("Dry run successful")
         } else {
-            match res {
-                Ok(_) => println!(
-                    "Package {} version {} has been published",
-                    manifest.name, manifest.version
-                ),
-                Err(msg) => println!("{}: {}", Style::new().red().bold().apply_to("ERROR"), msg),
-            }
+            println!(
+                "Package {} version {} has been published",
+                manifest.name, manifest.version
+            );
         }
     }
 
