@@ -68,6 +68,11 @@ Usage:
     pm <command> [<args>...]
     pm [options]
 
+Subcommands:
+    search
+    login
+    publish
+
 Options:
     -h, --help     Display this message.
     -v, --version  Print version info.
