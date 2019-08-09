@@ -124,6 +124,10 @@ impl FilesSectionInterpreter {
         file_set: &mut FileSet,
         glob: &str,
     ) -> Result<(), failure::Error> {
+        // This relies on Git to give us a list of all the files, including the
+        // untracked ones. This works fine as long as we are in a Git repo, but
+        // we really should not depend on Git here.
+        self.initialize_vcs_file_set()?;
         let cglob = CompiledGlob::new(glob)?;
         let mut did_match = false;
         for file in self.vcs_file_set.keys() {
