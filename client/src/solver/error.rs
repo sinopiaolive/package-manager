@@ -9,10 +9,14 @@ use solver::mappable::Mappable;
 use solver::path::Path;
 use std::sync::Arc;
 
-#[derive(Debug, PartialEq, Eq)]
+// TODO: implement proper Display for error reporting
+#[derive(Debug, PartialEq, Eq, Fail)]
 pub enum Error {
+    #[fail(display = "a conflict occurred" )]
     Conflict(Box<Conflict>),
+    #[fail(display = "a package was not found" )]
     PackageMissing(PackageMissing),
+    #[fail(display = "a constraint was unsatisfiable" )]
     UninhabitedConstraint(UninhabitedConstraint),
 }
 
