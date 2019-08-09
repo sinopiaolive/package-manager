@@ -8,6 +8,7 @@ use rmp_serde::{self, encode};
 use serde_json;
 
 use version::Version;
+use dependencies::Dependency;
 use constraint::VersionConstraint;
 use package::PackageName;
 
@@ -41,6 +42,14 @@ quick_error! {
 pub type Index = BTreeMap<PackageName, Package>;
 pub type Package = BTreeMap<Version, Dependencies>;
 pub type Dependencies = BTreeMap<PackageName, VersionConstraint>;
+
+pub fn dependencies_from_slice(dependency_slice: &[Dependency]) -> Dependencies {
+    let mut dependencies = Dependencies::new();
+    for dep in dependency_slice {
+        dependencies.insert(dep.package_name.clone(), dep.version_constraint.clone());
+    }
+    dependencies
+}
 
 pub fn read_index(path: &Path) -> Result<Arc<Index>, Error> {
     let mut f = File::open(path)?;
