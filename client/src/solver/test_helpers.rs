@@ -12,7 +12,7 @@ macro_rules! solution(
                 m.insert(::std::sync::Arc::new(::pm_lib::test_helpers::pkg(stringify!($dep))),
                              ::std::sync::Arc::new(version));
             )+
-            $crate::solver::Solution::wrap(m)
+            $crate::solver::Solution(m)
         }
      };
 );

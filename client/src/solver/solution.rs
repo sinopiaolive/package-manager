@@ -38,19 +38,6 @@ impl Mappable for PartialSolution {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Solution(pub Map<Arc<PackageName>, Arc<Version>>);
 
-impl Mappable for Solution {
-    type K = Arc<PackageName>;
-    type V = Arc<Version>;
-
-    fn as_map(&self) -> &Map<Self::K, Self::V> {
-        &self.0
-    }
-
-    fn wrap(m: Map<Self::K, Self::V>) -> Self {
-        Solution(m)
-    }
-}
-
 impl FromIterator<(Arc<PackageName>, Arc<Version>)> for Solution {
     fn from_iter<T>(iter: T) -> Solution
     where
