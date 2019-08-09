@@ -56,11 +56,14 @@ mod io;
 #[allow(dead_code)]
 mod manifest_parser;
 mod manifest_parser_error;
+mod resolve;
 
 use docopt::Docopt;
 use serde::de::Deserialize;
 use std::env;
 use std::process;
+
+static REGISTRY_URL: &'static str = "http://localhost:8000";
 
 const USAGE: &str = "Your package manager.
 
@@ -69,6 +72,7 @@ Usage:
     pm [options]
 
 Subcommands:
+    install
     search
     login
     publish
@@ -88,6 +92,7 @@ type Result = std::result::Result<(), failure::Error>;
 
 macro_rules! each_subcommand {
     ($mac:ident) => {
+        $mac!(install);
         $mac!(login);
         $mac!(search);
         $mac!(publish);
