@@ -1,18 +1,18 @@
-use manifest::VersionSet;
+use solver::Solution;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Lockfile(LockfileVersion, VersionSet);
+pub struct Lockfile(LockfileVersion, Solution);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum LockfileVersion {
-    #[serde(rename = "0.0.0")]
+    #[serde(rename = "0.0")]
     Zero, // the only variant
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use test_helpers::*;
+    use ::pm_lib::test_helpers::*;
 
     #[test]
     fn serialize() {
@@ -23,7 +23,7 @@ mod test {
                 .collect(),
         );
         let json = r#"[
-  "0.0.0",
+  "0.0",
   {
     "test/x": "2.0.0",
     "test/y": "1.0.0"

@@ -57,6 +57,7 @@ mod io;
 mod manifest_parser;
 mod manifest_parser_error;
 mod resolve;
+mod lockfile;
 
 use docopt::Docopt;
 use serde::de::Deserialize;
