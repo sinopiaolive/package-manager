@@ -98,8 +98,9 @@ impl FromStr for Lockfile {
         let mut maybe_meta: Option<LockfileMeta> = None;
         let mut dependencies: Vec<LockedDependency> = vec![];
         for line in s.lines() {
-            let line = line.trim_start_matches(" ");
-            if line.is_empty() || line.starts_with("#") {
+            let space: &[_] = &[' ', '\t'];
+            let line = line.trim_start_matches(space);
+            if line.is_empty() || line.starts_with('#') {
                 continue;
             }
             let entry = ::serde_json::from_str::<LockfileEntry>(line)?;
