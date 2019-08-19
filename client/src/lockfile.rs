@@ -1,6 +1,9 @@
 use std::default::Default;
 use std::fmt;
+use std::str::FromStr;
 use std::vec::Vec;
+
+use failure;
 
 use pm_lib::index::Dependencies;
 use pm_lib::package::PackageName;
@@ -14,15 +17,15 @@ pub struct Lockfile {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct LockfileMeta {
-    install: Version,
-    update: Version,
+    install: String,
+    update: String,
 }
 
 impl Default for LockfileMeta {
     fn default() -> Self {
         LockfileMeta {
-            install: Version::from_str("1.0").unwrap(),
-            update: Version::from_str("1.0").unwrap(),
+            install: "1.0".to_string(),
+            update: "1.0".to_string(),
         }
     }
 }
@@ -45,7 +48,7 @@ pub enum LockfileEntry {
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum LockfileEntryGuard<'a> {
     #[serde(rename = "package_manager")]
-    Meta { },
+    Meta {},
     #[serde(rename = "dependency")]
     Dependency { package_name: &'a PackageName },
 }
@@ -53,7 +56,7 @@ pub enum LockfileEntryGuard<'a> {
 impl LockfileEntry {
     pub fn guard(&self) -> LockfileEntryGuard {
         match self {
-            LockfileEntry::Meta(_) => LockfileEntryGuard::Meta { },
+            LockfileEntry::Meta(_) => LockfileEntryGuard::Meta {},
             LockfileEntry::Dependency(locked_dependency) => LockfileEntryGuard::Dependency {
                 package_name: &locked_dependency.package_name,
             },
@@ -88,14 +91,59 @@ impl fmt::Display for Lockfile {
     }
 }
 
+impl FromStr for Lockfile {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut maybe_meta: Option<LockfileMeta> = None;
+        let mut dependencies: Vec<LockedDependency> = vec![];
+        for line in s.lines() {
+            let line = line.trim_start_matches(" ");
+            if line.is_empty() || line.starts_with("#") {
+                continue;
+            }
+            let entry = ::serde_json::from_str::<LockfileEntry>(line)?;
+            match entry {
+                LockfileEntry::Meta(m) => {
+                    if maybe_meta.is_some() {
+                        bail!("duplicate meta entry");
+                    }
+                    if !dependencies.is_empty() {
+                        bail!("meta entry must come before dependencies");
+                    }
+                    if m.install != "1.0" {
+                        bail!("package_manager version {} is required to install dependencies")
+                    }
+                    maybe_meta = Some(m);
+                }
+                LockfileEntry::Dependency(d) => {
+                    if maybe_meta.is_none() {
+                        bail!("missing meta entry");
+                    }
+                    dependencies.push(d);
+                }
+            }
+        }
+        let meta = match maybe_meta {
+            // Allow empty lockfiles
+            None => LockfileMeta::default(),
+            Some(m) => m,
+        };
+        Ok(Lockfile {
+            meta,
+            locked_dependencies: dependencies,
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use pm_lib::test_helpers::*;
 
     #[test]
-    fn serialize() {
-        let lockfile = &Lockfile {
+    fn roundtrip() {
+        let lockfile = Lockfile {
             meta: LockfileMeta::default(),
             locked_dependencies: vec![LockedDependency {
                 package_name: pkg("x"),
@@ -103,9 +151,7 @@ mod test {
                 dependencies: Dependencies::new(),
             }],
         };
-        println!("{}", lockfile.to_string());
-
-        // let out = r#""#;
-        // assert_eq!(lockfile.to_string(), out);
+        let serialized = lockfile.to_string();
+        assert_eq!(Lockfile::from_str(&serialized).unwrap(), lockfile);
     }
 }
