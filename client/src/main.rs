@@ -33,13 +33,13 @@ extern crate git2;
 extern crate glob;
 extern crate indicatif;
 extern crate tar;
+extern crate mime;
+extern crate tokio;
 #[cfg(test)]
 extern crate test;
 #[cfg(test)]
 #[macro_use]
 extern crate matches;
-extern crate mime;
-extern crate tokio;
 
 mod config;
 mod manifest;

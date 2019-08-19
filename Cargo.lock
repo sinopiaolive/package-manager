@@ -1183,7 +1183,6 @@ dependencies = [
  "pest 1.0.0-beta.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest_derive 1.0.0-beta.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "pm_lib 0.0.0",
- "pretty_assertions 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
