@@ -36,19 +36,16 @@ impl Mappable for PartialSolution {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Solution(pub BTreeMap<PackageName, Version>);
+pub type Solution = BTreeMap<PackageName, Version>;
 
 impl From<PartialSolution> for Solution {
     fn from(partial_solution: PartialSolution) -> Solution {
         // Strip all paths from a PartialSolution to obtain a Solution
-        let sln: BTreeMap<PackageName, Version> =
-            partial_solution
-                .iter()
-                .map(|(package_name, justified_version)| {
-                    ((**package_name).clone(), (*justified_version.version).clone())
-                })
-                .collect();
-        Solution(sln)
+        partial_solution
+            .iter()
+            .map(|(package_name, justified_version)| {
+                ((**package_name).clone(), (*justified_version.version).clone())
+            })
+            .collect()
     }
 }

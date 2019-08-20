@@ -45,7 +45,7 @@ pub struct Manifest {
 
 impl Manifest {
     pub fn from_file(project_paths: &ProjectPaths) -> Result<Self, failure::Error> {
-        let data = File::open(project_paths.manifest.clone()).and_then(|mut f| {
+        let data = File::open(&project_paths.manifest).and_then(|mut f| {
             let mut s = String::new();
             f.read_to_string(&mut s).map(|_| s)
         })?;

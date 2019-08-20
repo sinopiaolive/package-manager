@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::default::Default;
 use std::fmt;
+use std::fs::read_to_string;
 use std::str::FromStr;
 use std::vec::Vec;
 
@@ -9,6 +10,8 @@ use failure;
 use pm_lib::dependencies::Dependency;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
+use project::ProjectPaths;
+use solver::Solution;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lockfile {
@@ -16,11 +19,17 @@ pub struct Lockfile {
     pub locked_dependencies: Vec<LockedDependency>,
 }
 
-// We should make solver::Solution an alias instead of newtype and use that.
-type Sln = BTreeMap<PackageName, Version>;
-
 impl Lockfile {
-    pub fn to_solution(&self) -> Result<Sln, failure::Error> {
+    pub fn from_file(project_paths: &ProjectPaths) -> Result<Option<Self>, failure::Error> {
+        if !project_paths.lockfile.exists() {
+            Ok(None)
+        } else {
+            let lockfile_string = read_to_string(&project_paths.lockfile)?;
+            Ok(Some(Lockfile::from_str(&lockfile_string)?))
+        }
+    }
+
+    pub fn to_solution(&self) -> Result<Solution, failure::Error> {
         let mut solution = BTreeMap::new();
         for dep in &self.locked_dependencies {
             if solution.contains_key(&dep.package_name) {
@@ -36,7 +45,7 @@ impl Lockfile {
     pub fn to_solution_if_up_to_date(
         &self,
         dependencies: &[Dependency],
-    ) -> Result<Option<Sln>, failure::Error> {
+    ) -> Result<Option<Solution>, failure::Error> {
         let solution = self.to_solution()?;
         let mut sub_dependencies: BTreeMap<&PackageName, Vec<&Dependency>> = BTreeMap::new();
         for dep in &self.locked_dependencies {
@@ -50,10 +59,10 @@ impl Lockfile {
         // Some(more), where `more` is sub-dependencies we still need to check.
         // (Rust does not let us recurse in closures.)
         let check_dep = |dep: &Dependency,
-                             sln: &Sln,
-                             used: &mut BTreeSet<PackageName>|
+                         solution: &Solution,
+                         used: &mut BTreeSet<PackageName>|
          -> Option<&[&Dependency]> {
-            match sln.get(&dep.package_name) {
+            match solution.get(&dep.package_name) {
                 None => {
                     // Package missing from solution.
                     return None;
@@ -189,6 +198,7 @@ impl FromStr for Lockfile {
             match entry {
                 LockfileEntry::Meta(m) => {
                     if maybe_meta.is_some() {
+                        // TODO allow this to accomodate conflicts; or do we need a separate conflict mode?
                         bail!("duplicate meta entry");
                     }
                     if !dependencies.is_empty() {

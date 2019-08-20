@@ -12,7 +12,7 @@ macro_rules! solution(
                 m.insert(::pm_lib::test_helpers::pkg(stringify!($dep)),
                              version);
             )+
-            $crate::solver::Solution(m)
+            m
         }
      };
 );
