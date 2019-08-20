@@ -39,15 +39,6 @@ impl Mappable for PartialSolution {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Solution(pub BTreeMap<PackageName, Version>);
 
-impl FromIterator<(PackageName, Version)> for Solution {
-    fn from_iter<T>(iter: T) -> Solution
-    where
-        T: IntoIterator<Item = (PackageName, Version)>,
-    {
-        Solution(BTreeMap::<PackageName, Version>::from_iter(iter))
-    }
-}
-
 impl FromIterator<(Arc<PackageName>, Arc<Version>)> for Solution {
     fn from_iter<T>(iter: T) -> Solution
     where
@@ -58,7 +49,7 @@ impl FromIterator<(Arc<PackageName>, Arc<Version>)> for Solution {
             let ver = Arc::try_unwrap(version).unwrap_or_else(|v| (*v).clone());
             (pn, ver)
         });
-        Solution::from_iter(iter_of_owned)
+        Solution(BTreeMap::<PackageName, Version>::from_iter(iter_of_owned))
     }
 }
 
