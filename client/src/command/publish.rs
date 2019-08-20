@@ -11,7 +11,8 @@ use pm_lib::publication_request::PublicationRequest;
 
 use failure;
 use io::ProgressIO;
-use project::{find_project_dir, read_manifest};
+use project::{find_project_paths, ProjectPaths};
+use manifest::Manifest;
 use registry::post;
 
 pub const USAGE: &str = "Publish a package to the registry.
@@ -48,13 +49,18 @@ fn make_progress(msg: &str, len: usize, quiet: bool) -> ProgressBar {
 }
 
 pub fn execute(args: Args) -> Result<(), failure::Error> {
-    let manifest = read_manifest()?;
+    let project_paths = find_project_paths()?;
+    let manifest = Manifest::from_file(&project_paths)?;
 
     if !args.flag_quiet {
         println!("Building release {}-{}...", manifest.name, manifest.version);
     }
 
-    let tar = build_archive(manifest.files.iter().map(PathBuf::from).collect(), &args)?;
+    let tar = build_archive(
+        manifest.files.iter().map(PathBuf::from).collect(),
+        &project_paths,
+        &args,
+    )?;
 
     let mut tar_br = vec![];
     let compress_progress = make_progress("Compressing:", tar.len(), args.flag_quiet);
@@ -114,8 +120,11 @@ pub fn execute(args: Args) -> Result<(), failure::Error> {
     Ok(())
 }
 
-fn build_archive(files: Vec<PathBuf>, args: &Args) -> Result<Vec<u8>, failure::Error> {
-    let project_path = find_project_dir()?;
+fn build_archive(
+    files: Vec<PathBuf>,
+    project_paths: &ProjectPaths,
+    args: &Args,
+) -> Result<Vec<u8>, failure::Error> {
     let mut tar = tar::Builder::new(Vec::new());
     for local_path in files {
         if args.flag_verbose {
@@ -128,7 +137,7 @@ fn build_archive(files: Vec<PathBuf>, args: &Args) -> Result<Vec<u8>, failure::E
                 println!("    {}", repr)
             }
         }
-        let mut path = project_path.clone();
+        let mut path = project_paths.root.clone();
         path.push(local_path.clone());
         let mut file = File::open(path)?;
         tar.append_file(local_path, &mut file)?;

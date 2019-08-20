@@ -2,11 +2,13 @@
 
 use failure;
 use std::env;
-use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use manifest::Manifest;
+pub struct ProjectPaths {
+    pub root: PathBuf,
+    pub manifest: PathBuf,
+    pub lockfile: PathBuf, // might not exist
+}
 
 fn find_manifest(path: &Path) -> Option<PathBuf> {
     let manifest = path.join("deps");
@@ -28,12 +30,23 @@ pub fn find_project_dir() -> Result<PathBuf, failure::Error> {
     Ok(manifest_path)
 }
 
-pub fn read_manifest() -> Result<Manifest, failure::Error> {
-    let manifest_path = find_manifest_path()?;
-    let root = manifest_path.parent().unwrap_or_else(|| Path::new(&"."));
-    let data = File::open(manifest_path.clone()).and_then(|mut f| {
-        let mut s = String::new();
-        f.read_to_string(&mut s).map(|_| s)
-    })?;
-    Ok(Manifest::from_str(data, root)?)
+pub fn find_project_paths() -> Result<ProjectPaths, failure::Error> {
+    let cwd = env::current_dir()?;
+    find_project_paths_from(&cwd)
+}
+
+pub fn find_project_paths_from(root: &Path) -> Result<ProjectPaths, failure::Error> {
+    let manifest = root.join("deps");
+    if manifest.exists() {
+        Ok(ProjectPaths {
+            root: root.to_path_buf(),
+            manifest,
+            lockfile: root.join("deps.lock"),
+        })
+    } else {
+        match root.parent() {
+            None => bail!("File not found: deps"),
+            Some(parent) => find_project_paths_from(parent)
+        }
+    }
 }

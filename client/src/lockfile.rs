@@ -7,7 +7,6 @@ use std::vec::Vec;
 use failure;
 
 use pm_lib::dependencies::Dependency;
-use pm_lib::index::Dependencies;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 
@@ -50,7 +49,7 @@ impl Lockfile {
         // check_dep returns None if the dependency is not satisfied, or
         // Some(more), where `more` is sub-dependencies we still need to check.
         // (Rust does not let us recurse in closures.)
-        let mut check_dep = |dep: &Dependency,
+        let check_dep = |dep: &Dependency,
                              sln: &Sln,
                              used: &mut BTreeSet<PackageName>|
          -> Option<&[&Dependency]> {

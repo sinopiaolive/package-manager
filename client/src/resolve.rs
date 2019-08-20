@@ -3,7 +3,8 @@ use pm_lib::index;
 use pm_lib::index::Index;
 
 use REGISTRY_URL;
-use project::read_manifest;
+use project::ProjectPaths;
+use manifest::Manifest;
 use solver::{Solution, solve};
 
 pub fn fetch_index() -> Result<Index, ::failure::Error> {
@@ -21,8 +22,8 @@ pub fn fetch_index() -> Result<Index, ::failure::Error> {
     }
 }
 
-pub fn resolve() -> Result<Solution, ::failure::Error> {
-    let manifest = read_manifest()?;
+pub fn resolve(project_paths: &ProjectPaths) -> Result<Solution, ::failure::Error> {
+    let manifest = Manifest::from_file(project_paths)?;
     let index = fetch_index()?;
     let dependencies = index::dependencies_from_slice(&manifest.dependencies);
     let solution = solve(&index, &dependencies)?;

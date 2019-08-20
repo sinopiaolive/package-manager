@@ -1,5 +1,10 @@
 #![allow(dead_code)]
 
+use std::collections::HashSet;
+use std::path::Path;
+use std::fs::File;
+use std::io::Read;
+
 use files::FilesSectionInterpreter;
 use manifest_parser::{
     check_block_fields, get_field, get_fields, get_optional_block_field, get_optional_field,
@@ -7,12 +12,11 @@ use manifest_parser::{
     Pair, Rule,
 };
 use manifest_parser_error::{PestErrorExt, PestResultExt};
+use project::ProjectPaths;
 use pm_lib::constraint::VersionConstraint;
 use pm_lib::dependencies::Dependency;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
-use std::collections::HashSet;
-use std::path::Path;
 
 // The Manifest struct represents a parsed manifest file. This struct should
 // probably go away in favor of constructing PublicationRequest objects directly
@@ -40,6 +44,14 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    pub fn from_file(project_paths: &ProjectPaths) -> Result<Self, failure::Error> {
+        let data = File::open(project_paths.manifest.clone()).and_then(|mut f| {
+            let mut s = String::new();
+            f.read_to_string(&mut s).map(|_| s)
+        })?;
+        Ok(Self::from_str(data, &project_paths.root)?)
+    }
+
     pub fn from_str(manifest_source: String, root: &Path) -> Result<Self, ::failure::Error> {
         let manifest_pair = parse_and_check_manifest(manifest_source)?;
 
@@ -255,30 +267,6 @@ pub fn evaluate_files_block(
     let mut file_set_vec: Vec<String> = file_set.into_iter().collect();
     file_set_vec.sort_unstable();
     Ok(file_set_vec)
-}
-
-pub fn test_reader() {
-    println!(
-        "release: {:?}",
-        Manifest::from_str(r#"
-            dependencies {
-                js/left-pad ^1.2.3 // foo
-                // bar
-                js/right-pad >=4.5.6 <5.0.0
-            }
-            package {
-                name "js/foo"
-                version "1.2.3"
-                description "The foo package."
-                license "MIT"
-                files {
-                    // add_committed
-                    add_committed "**/*.rs"
-                    // remove "test/**"
-                }
-            } // commment
-        "#.to_string(), &Path::new(".")).unwrap_or_else(|e| panic!("{}", e))
-    );
 }
 
 fn print_pairs(pairs: ::pest::iterators::Pairs<Rule, ::pest::inputs::StringInput>, indent: usize) {
