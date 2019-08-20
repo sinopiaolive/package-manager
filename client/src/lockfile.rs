@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::default::Default;
 use std::fmt;
 use std::str::FromStr;
@@ -5,6 +6,7 @@ use std::vec::Vec;
 
 use failure;
 
+use pm_lib::dependencies::Dependency;
 use pm_lib::index::Dependencies;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
@@ -13,6 +15,87 @@ use pm_lib::version::Version;
 pub struct Lockfile {
     pub meta: LockfileMeta,
     pub locked_dependencies: Vec<LockedDependency>,
+}
+
+// We should make solver::Solution an alias instead of newtype and use that.
+type Sln = BTreeMap<PackageName, Version>;
+
+impl Lockfile {
+    pub fn to_solution(&self) -> Result<Sln, failure::Error> {
+        let mut solution = BTreeMap::new();
+        for dep in &self.locked_dependencies {
+            if solution.contains_key(&dep.package_name) {
+                bail!("duplicate package in lockfile: {}", &dep.package_name);
+            }
+            solution.insert(dep.package_name.clone(), dep.version.clone());
+        }
+        Ok(solution)
+    }
+
+    // Return the solution only if the lockfile is consistent with the
+    // dependencies provided.
+    pub fn to_solution_if_up_to_date(
+        &self,
+        dependencies: &[Dependency],
+    ) -> Result<Option<Sln>, failure::Error> {
+        let solution = self.to_solution()?;
+        let mut sub_dependencies: BTreeMap<&PackageName, Vec<&Dependency>> = BTreeMap::new();
+        for dep in &self.locked_dependencies {
+            sub_dependencies.insert(&dep.package_name, dep.dependencies.iter().collect());
+        }
+        // The `used` set is used to check that all packages in the solution set
+        // are indeed necessary to satisfy the dependencies, either directly or
+        // indirectly.
+        let mut used: BTreeSet<PackageName> = BTreeSet::new();
+        // check_dep returns None if the dependency is not satisfied, or
+        // Some(more), where `more` is sub-dependencies we still need to check.
+        // (Rust does not let us recurse in closures.)
+        let mut check_dep = |dep: &Dependency,
+                             sln: &Sln,
+                             used: &mut BTreeSet<PackageName>|
+         -> Option<&[&Dependency]> {
+            match sln.get(&dep.package_name) {
+                None => {
+                    // Package missing from solution.
+                    return None;
+                }
+                Some(version) => {
+                    if !dep.version_constraint.contains(&version) {
+                        // Package is in solution but has wrong version.
+                        return None;
+                    }
+                }
+            };
+            if used.contains(&dep.package_name) {
+                // We already checked this package's sub-dependencies, so we
+                // don't need to check again. (This prevents infinite
+                // recursion.)
+                Some(&[])
+            } else {
+                used.insert(dep.package_name.clone());
+                Some(
+                    sub_dependencies
+                        .get(&dep.package_name)
+                        .expect("same keys as solution"),
+                )
+            }
+        };
+        let mut dependencies_to_check: Vec<&Dependency> = dependencies.iter().collect();
+        while let Some(dep) = dependencies_to_check.pop() {
+            match check_dep(&dep, &solution, &mut used) {
+                None => return Ok(None),
+                Some(more) => {
+                    dependencies_to_check.extend_from_slice(more);
+                }
+            }
+        }
+        for dep in &self.locked_dependencies {
+            if !used.contains(&dep.package_name) {
+                return Ok(None);
+            }
+        }
+        Ok(Some(solution))
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -34,7 +117,7 @@ impl Default for LockfileMeta {
 pub struct LockedDependency {
     pub package_name: PackageName,
     pub version: Version,
-    pub dependencies: Dependencies,
+    pub dependencies: Vec<Dependency>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -122,7 +205,9 @@ impl FromStr for Lockfile {
                         bail!("missing meta entry");
                     }
                     dependencies.push(d);
-                }
+                } // TODO: Allow for unrecognized entry types (just check that we
+                  // always have a meta entry first). Also allow for merge
+                  // conflicts.
             }
         }
         let meta = match maybe_meta {
@@ -149,7 +234,7 @@ mod test {
             locked_dependencies: vec![LockedDependency {
                 package_name: pkg("x"),
                 version: ver("1.0.0"),
-                dependencies: Dependencies::new(),
+                dependencies: vec![],
             }],
         };
         let serialized = lockfile.to_string();
