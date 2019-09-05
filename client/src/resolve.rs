@@ -1,10 +1,9 @@
 use reqwest::{self, Method};
-use pm_lib::index;
 use pm_lib::index::Index;
 
 use REGISTRY_URL;
-use manifest::Manifest;
-use solver::{Solution, solve};
+
+// This module should probably be renamed or merged into another module.
 
 pub fn fetch_index() -> Result<Index, ::failure::Error> {
     let http = reqwest::Client::new();
@@ -19,12 +18,4 @@ pub fn fetch_index() -> Result<Index, ::failure::Error> {
     } else {
         bail!("Error: {}", &res.text()?);
     }
-}
-
-pub fn resolve(manifest: &Manifest) -> Result<Solution, ::failure::Error> {
-    let index = fetch_index()?;
-    let dependencies = index::dependencies_from_slice(&manifest.dependencies);
-    let solution = solve(&index, &dependencies)?;
-    println!("{:?}", solution);
-    Ok(solution)
 }

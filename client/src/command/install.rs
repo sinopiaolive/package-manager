@@ -1,8 +1,10 @@
 use lockfile::Lockfile;
 use manifest::Manifest;
 use project::find_project_paths;
-use resolve::resolve;
-use solver::Solution;
+use resolve::fetch_index;
+use solver::{Solution, solve};
+
+use pm_lib::index;
 
 pub const USAGE: &str = "Install dependencies.
 
@@ -20,16 +22,26 @@ pub fn execute(_args: Args) -> Result<(), failure::Error> {
     let project_paths = find_project_paths()?;
     let manifest = Manifest::from_file(&project_paths)?;
     let mut maybe_solution: Option<Solution> = None;
+    let mut maybe_new_lockfile: Option<Lockfile> = None;
     if let Some(lockfile) = Lockfile::from_file(&project_paths)? {
         maybe_solution = lockfile.to_solution_if_up_to_date(&manifest.dependencies)?;
     }
     if maybe_solution.is_none() {
-        maybe_solution = Some(resolve(&manifest)?);
+        let index = fetch_index()?;
+        let dependencies = index::dependencies_from_slice(&manifest.dependencies);
+        maybe_solution = Some(solve(&index, &dependencies)?);
+        if let Some(ref solution) = maybe_solution {
+            maybe_new_lockfile = Some(Lockfile::from_solution(solution, &index)?);
+        }
         // TODO use existing lockfile (if any) in resolution
-        // TODO update lockfile if not up-to-date
     }
     let solution = maybe_solution.expect("resolved");
     println!("{:?}", solution);
+    if let Some(new_lockfile) = maybe_new_lockfile {
+        println!("new lockfile:\n{}", new_lockfile);
+    } else {
+        println!("lockfile is up to date");
+    }
 
     // install_to_disk()
 

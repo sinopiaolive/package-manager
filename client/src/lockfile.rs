@@ -8,6 +8,7 @@ use std::vec::Vec;
 use failure;
 
 use pm_lib::dependencies::Dependency;
+use pm_lib::index::{Index, dependencies_to_vec};
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 use project::ProjectPaths;
@@ -103,6 +104,32 @@ impl Lockfile {
             }
         }
         Ok(Some(solution))
+    }
+
+    pub fn from_solution(solution: &Solution, index: &Index) -> Result<Self, failure::Error> {
+        let mut locked_dependencies: Vec<LockedDependency> = vec![];
+        for (package_name, version) in solution {
+            match index.get(package_name) {
+                None => bail!("package not found in index: {}", package_name),
+                Some(package) => {
+                    match package.get(version) {
+                        None => bail!("package version not found in index: {} {}", package_name, version),
+                        Some(dependencies) => {
+                            locked_dependencies.push(LockedDependency {
+                                package_name: package_name.clone(),
+                                version: version.clone(),
+                                dependencies: dependencies_to_vec(dependencies)
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        let meta = LockfileMeta::default();
+        Ok(Lockfile {
+            meta,
+            locked_dependencies
+        })
     }
 }
 

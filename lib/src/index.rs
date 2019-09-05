@@ -43,12 +43,22 @@ pub type Index = BTreeMap<PackageName, Package>;
 pub type Package = BTreeMap<Version, Dependencies>;
 pub type Dependencies = BTreeMap<PackageName, VersionConstraint>;
 
+// Note that this throws away duplicate dependencies.
 pub fn dependencies_from_slice(dependency_slice: &[Dependency]) -> Dependencies {
     let mut dependencies = Dependencies::new();
     for dep in dependency_slice {
         dependencies.insert(dep.package_name.clone(), dep.version_constraint.clone());
     }
     dependencies
+}
+
+pub fn dependencies_to_vec(dependencies: &Dependencies) -> Vec<Dependency> {
+    dependencies.clone().into_iter().map(|(package_name, version_constraint)|
+        Dependency {
+            package_name,
+            version_constraint
+        }
+    ).collect()
 }
 
 pub fn read_index(path: &Path) -> Result<Arc<Index>, Error> {
