@@ -5,7 +5,6 @@ use solver::mappable::Mappable;
 use solver::path::Path;
 use std::collections::BTreeMap;
 use std::convert::From;
-use std::iter::{FromIterator, IntoIterator};
 use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
