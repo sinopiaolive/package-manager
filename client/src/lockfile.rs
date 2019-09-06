@@ -7,7 +7,7 @@ use std::vec::Vec;
 
 use failure;
 use serde::de::{self, Deserialize, Deserializer, IgnoredAny, SeqAccess, Visitor};
-use serde::ser::{Serialize, SerializeTuple, Serializer};
+use serde::ser::{Serialize, SerializeSeq, Serializer};
 
 use pm_lib::dependencies::Dependency;
 use pm_lib::index::{dependencies_to_vec, Index};
@@ -164,11 +164,16 @@ impl Serialize for LockedDependency {
     where
         S: Serializer,
     {
-        let mut tup = serializer.serialize_tuple(3)?;
-        tup.serialize_element(&self.package_name)?;
-        tup.serialize_element(&self.version)?;
-        tup.serialize_element(&self.dependencies)?;
-        tup.end()
+        let mut seq = serializer.serialize_seq(Some(3))?;
+        seq.serialize_element(&self.package_name)?;
+        seq.serialize_element(&self.version)?;
+        let locked_subdependencies: Vec<LockedSubdependency> = self
+            .dependencies
+            .iter()
+            .map(|dependency| LockedSubdependency(dependency.clone()))
+            .collect();
+        seq.serialize_element(&locked_subdependencies)?;
+        seq.end()
     }
 }
 
@@ -197,9 +202,10 @@ impl<'de> Deserialize<'de> for LockedDependency {
                 let version = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                let dependencies = seq
+                let locked_subdependencies: Vec<LockedSubdependency> = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                let dependencies = locked_subdependencies.into_iter().map(|sd| sd.0).collect();
 
                 while let Some(IgnoredAny) = seq.next_element()? {
                     // Ignore rest for forward compatibility.
@@ -214,6 +220,63 @@ impl<'de> Deserialize<'de> for LockedDependency {
         }
 
         deserializer.deserialize_seq(LockedDependencyVisitor)
+    }
+}
+
+// Wrapper used by the Serialize and Deserialize impls.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LockedSubdependency(Dependency);
+
+impl Serialize for LockedSubdependency {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(2))?;
+        seq.serialize_element(&self.0.package_name)?;
+        seq.serialize_element(&self.0.version_constraint)?;
+        seq.end()
+    }
+}
+
+// Deserialize from tuple, ignoring extra elements. https://stackoverflow.com/a/57558151
+impl<'de> Deserialize<'de> for LockedSubdependency {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct LockedSubdependencyVisitor;
+
+        impl<'de> Visitor<'de> for LockedSubdependencyVisitor {
+            type Value = LockedSubdependency;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a LockedSubdependency tuple")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let package_name = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let version_constraint = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+
+                while let Some(IgnoredAny) = seq.next_element()? {
+                    // Ignore rest for forward compatibility.
+                }
+
+                Ok(LockedSubdependency(Dependency {
+                    package_name,
+                    version_constraint,
+                }))
+            }
+        }
+
+        deserializer.deserialize_seq(LockedSubdependencyVisitor)
     }
 }
 
