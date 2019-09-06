@@ -1,3 +1,5 @@
+use std::fs;
+
 use lockfile::Lockfile;
 use manifest::Manifest;
 use project::find_project_paths;
@@ -38,9 +40,11 @@ pub fn execute(_args: Args) -> Result<(), failure::Error> {
     let solution = maybe_solution.expect("resolved");
     println!("{:?}", solution);
     if let Some(new_lockfile) = maybe_new_lockfile {
-        println!("new lockfile:\n{}", new_lockfile);
+        let lockfile_string = format!("{}", new_lockfile);
+        fs::write(&project_paths.lockfile, &lockfile_string)?;
+        println!("Updating lockfile:\n{}", &lockfile_string);
     } else {
-        println!("lockfile is up to date");
+        println!("Lockfile is up to date.");
     }
 
     // install_to_disk()

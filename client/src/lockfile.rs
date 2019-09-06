@@ -6,9 +6,11 @@ use std::str::FromStr;
 use std::vec::Vec;
 
 use failure;
+use serde::de::{self, Deserialize, Deserializer, IgnoredAny, SeqAccess, Visitor};
+use serde::ser::{Serialize, SerializeTuple, Serializer};
 
 use pm_lib::dependencies::Dependency;
-use pm_lib::index::{Index, dependencies_to_vec};
+use pm_lib::index::{dependencies_to_vec, Index};
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 use project::ProjectPaths;
@@ -111,24 +113,26 @@ impl Lockfile {
         for (package_name, version) in solution {
             match index.get(package_name) {
                 None => bail!("package not found in index: {}", package_name),
-                Some(package) => {
-                    match package.get(version) {
-                        None => bail!("package version not found in index: {} {}", package_name, version),
-                        Some(dependencies) => {
-                            locked_dependencies.push(LockedDependency {
-                                package_name: package_name.clone(),
-                                version: version.clone(),
-                                dependencies: dependencies_to_vec(dependencies)
-                            });
-                        }
+                Some(package) => match package.get(version) {
+                    None => bail!(
+                        "package version not found in index: {} {}",
+                        package_name,
+                        version
+                    ),
+                    Some(dependencies) => {
+                        locked_dependencies.push(LockedDependency {
+                            package_name: package_name.clone(),
+                            version: version.clone(),
+                            dependencies: dependencies_to_vec(dependencies),
+                        });
                     }
-                }
+                },
             }
         }
         let meta = LockfileMeta::default();
         Ok(Lockfile {
             meta,
-            locked_dependencies
+            locked_dependencies,
         })
     }
 }
@@ -148,14 +152,73 @@ impl Default for LockfileMeta {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LockedDependency {
     pub package_name: PackageName,
     pub version: Version,
     pub dependencies: Vec<Dependency>,
 }
 
+impl Serialize for LockedDependency {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut tup = serializer.serialize_tuple(3)?;
+        tup.serialize_element(&self.package_name)?;
+        tup.serialize_element(&self.version)?;
+        tup.serialize_element(&self.dependencies)?;
+        tup.end()
+    }
+}
+
+// Deserialize from tuple, ignoring extra elements. https://stackoverflow.com/a/57558151
+impl<'de> Deserialize<'de> for LockedDependency {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct LockedDependencyVisitor;
+
+        impl<'de> Visitor<'de> for LockedDependencyVisitor {
+            type Value = LockedDependency;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a LockedDependency tuple")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let package_name = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let version = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let dependencies = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+
+                while let Some(IgnoredAny) = seq.next_element()? {
+                    // Ignore rest for forward compatibility.
+                }
+
+                Ok(LockedDependency {
+                    package_name,
+                    version,
+                    dependencies,
+                })
+            }
+        }
+
+        deserializer.deserialize_seq(LockedDependencyVisitor)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(untagged)]
 pub enum LockfileEntry {
     #[serde(rename = "package_manager")]
     Meta(LockfileMeta),
@@ -163,21 +226,14 @@ pub enum LockfileEntry {
     Dependency(LockedDependency),
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
-pub enum LockfileEntryGuard<'a> {
-    #[serde(rename = "package_manager")]
-    Meta {},
-    #[serde(rename = "dependency")]
-    Dependency { package_name: &'a PackageName },
-}
-
 impl LockfileEntry {
-    pub fn guard(&self) -> LockfileEntryGuard {
+    pub fn guard_string(&self) -> String {
         match self {
-            LockfileEntry::Meta(_) => LockfileEntryGuard::Meta {},
-            LockfileEntry::Dependency(locked_dependency) => LockfileEntryGuard::Dependency {
-                package_name: &locked_dependency.package_name,
-            },
+            LockfileEntry::Meta(_) => "{}".to_string(),
+            LockfileEntry::Dependency(locked_dependency) => {
+                ::serde_json::to_string(&(&locked_dependency.package_name,))
+                    .expect("serialization cannot fail")
+            }
         }
     }
 }
@@ -185,8 +241,9 @@ impl LockfileEntry {
 impl fmt::Display for Lockfile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn write_entry(f: &mut fmt::Formatter<'_>, lockfile_entry: &LockfileEntry) -> fmt::Result {
-            let entry_string = ::serde_json::to_string(&lockfile_entry).unwrap();
-            let guard_string = ::serde_json::to_string(&lockfile_entry.guard()).unwrap();
+            let entry_string =
+                ::serde_json::to_string(&lockfile_entry).expect("serialization cannot fail");
+            let guard_string = lockfile_entry.guard_string();
             writeln!(f, "### {}", guard_string)?;
             writeln!(f, "    {}", entry_string)?;
             writeln!(f, "  # {}", guard_string)?;
