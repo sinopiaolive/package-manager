@@ -3,18 +3,20 @@
 // ]
 
 dependencies {
-  js/mkdirp ^2.0.0
+  mylang/mypkg ^1.0.0
 
-  // js/mocha ^1.2.3 dev
-  // js/debugger ^1.2.3 dev
+  // mylang/mocha ^1.2.3 dev
+  // mylang/debugger ^1.2.3 dev
 
-  // js/foo git="https://github.com/joliss/foo"
-  // js/bar path="C:\\Program Files\\bar"
+  // mylang/foo git="https://github.com/joliss/foo"
+  // mylang/bar path="C:\\Program Files\\bar"
+
+  //install namespace="js" target="node_modules"
 }
 
 package {
-  name "js/mypkg"
-  version "1.0.0"
+  name "mylang/mypkg"
+  version "1.0.1-beta.2"
 
   authors [ "Jo Liss <joliss42@gmail.com>" ]
   description "The description."
@@ -30,8 +32,9 @@ package {
     // Add all files tracked by Git:
     //add_committed "."
     // Alternatively, add only some of the files tracked by Git:
-    add_committed "lib/"
+    //add_committed "lib/"
     //add_committed "data/*.json"
+    add_any "lib"
 
     // Add some files not in Git:
     //add_any "src/generated/**/*.rs"
