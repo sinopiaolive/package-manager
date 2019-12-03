@@ -1,6 +1,6 @@
+use crate::package::PackageName;
+use crate::version::Version;
 use im::OrdMap as Map;
-use pm_lib::package::PackageName;
-use pm_lib::version::Version;
 use solver::failure::Failure;
 use solver::mappable::Mappable;
 use solver::path::Path;
@@ -18,6 +18,12 @@ impl PartialEq for Constraint {
 }
 
 impl Eq for Constraint {}
+
+impl Default for Constraint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Constraint {
     pub fn new() -> Constraint {
@@ -131,6 +137,12 @@ impl Iterator for BreadthFirstIter {
 #[derive(Clone, PartialEq, Eq)]
 pub struct ConstraintSet(pub Map<Arc<PackageName>, Constraint>);
 
+impl Default for ConstraintSet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConstraintSet {
     pub fn new() -> ConstraintSet {
         ConstraintSet(Map::new())
@@ -140,35 +152,33 @@ impl ConstraintSet {
         &self,
         cheap_conflict: &Option<Failure>,
     ) -> Option<(ConstraintSet, Arc<PackageName>, Constraint)> {
-        let path_iter: Box<Iterator<Item = (Arc<PackageName>, Arc<Version>)>> = match cheap_conflict
-        {
-            Some(Failure::Conflict(ref conflict)) => Box::new(
-                BreadthFirstIter::new(&conflict.existing, &conflict.conflicting).chain(
-                    ::std::iter::once((
-                        conflict.package.clone(),
-                        Arc::new(Version::new(vec![], vec![], vec![])),
-                    )),
+        let path_iter: Box<dyn Iterator<Item = (Arc<PackageName>, Arc<Version>)>> =
+            match cheap_conflict {
+                Some(Failure::Conflict(ref conflict)) => Box::new(
+                    BreadthFirstIter::new(&conflict.existing, &conflict.conflicting).chain(
+                        ::std::iter::once((
+                            conflict.package.clone(),
+                            Arc::new(Version::new(vec![], vec![], vec![])),
+                        )),
+                    ),
                 ),
-            ),
-            Some(Failure::PackageMissing(ref pkg_missing)) => {
-                Box::new(pkg_missing.path.iter().rev().cloned())
-            }
-            Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
-                Box::new(pkg_missing.path.iter().rev().cloned())
-            }
-            None => Box::new(::std::iter::empty()),
-        };
+                Some(Failure::PackageMissing(ref pkg_missing)) => {
+                    Box::new(pkg_missing.path.iter().rev().cloned())
+                }
+                Some(Failure::UninhabitedConstraint(ref pkg_missing)) => {
+                    Box::new(pkg_missing.path.iter().rev().cloned())
+                }
+                None => Box::new(::std::iter::empty()),
+            };
         for (ref package, _) in path_iter {
             if let Some((constraint, cdr)) = self.uncons(package) {
-                return Some((cdr, package.clone(), constraint.clone()));
+                return Some((cdr, package.clone(), constraint));
             }
         }
         // Fall back to popping alphabetically.
         match self.0.without_min_with_key() {
             (None, _) => None,
-            (Some((package, constraint)), cdr) => {
-                Some((ConstraintSet(cdr), package.clone(), constraint.clone()))
-            }
+            (Some((package, constraint)), cdr) => Some((ConstraintSet(cdr), package, constraint)),
         }
     }
 
@@ -243,9 +253,7 @@ fn contained_in(
         Some(JustifiedVersion {
             ref version,
             ref path,
-        })
-            if !constraint.contains_key(&version.clone()) =>
-        {
+        }) if !constraint.contains_key(&version.clone()) => {
             let exact_constraint = Constraint::new().insert(version.clone(), path.clone());
             Err(Failure::conflict(
                 package.clone(),
@@ -260,7 +268,7 @@ fn contained_in(
 #[cfg(test)]
 mod test {
     use super::*;
-    use pm_lib::test_helpers::{pkg, range};
+    use crate::test_helpers::{pkg, range};
     use solver::test_helpers::{constraint, constraint_set, partial_sln, path};
 
     #[test]
@@ -415,7 +423,8 @@ mod test {
                 Arc::new(pkg("B")),
                 constraint(&[("1", &[])]),
                 constraint(&[("2", &[("A", "1")])]),
-            ))).unwrap()
+            )))
+            .unwrap()
             .1,
             Arc::new(pkg("A"))
         );
@@ -435,7 +444,8 @@ mod test {
                 Arc::new(pkg("B")),
                 null_constraint.clone(),
                 null_constraint.clone(),
-            ))).unwrap()
+            )))
+            .unwrap()
             .1,
             Arc::new(pkg("B"))
         );
@@ -444,8 +454,9 @@ mod test {
             cset.pop(&Some(Failure::conflict(
                 Arc::new(pkg("B")),
                 constraint(&[("1", &[("null", "1"), ("A", "1"), ("C", "1")])],),
-                null_constraint.clone(),
-            ))).unwrap()
+                null_constraint,
+            )))
+            .unwrap()
             .1,
             Arc::new(pkg("A"))
         );
@@ -455,7 +466,8 @@ mod test {
                 Arc::new(pkg("B")),
                 constraint(&[("1", &[("null", "1"), ("A", "1")])]),
                 constraint(&[("1", &[("C", "1"), ("null", "1")])]),
-            ))).unwrap()
+            )))
+            .unwrap()
             .1,
             Arc::new(pkg("C"))
         );

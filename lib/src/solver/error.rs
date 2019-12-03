@@ -1,6 +1,6 @@
-use pm_lib::constraint::VersionConstraint;
-use pm_lib::index::{Dependencies, Index};
-use pm_lib::package::PackageName;
+use crate::constraint::VersionConstraint;
+use crate::index::{Dependencies, Index};
+use crate::package::PackageName;
 use solver::adapter::RegistryAdapter;
 use solver::failure;
 use solver::failure::Failure;
@@ -12,11 +12,11 @@ use std::sync::Arc;
 // TODO: implement proper Display for error reporting
 #[derive(Debug, PartialEq, Eq, Fail)]
 pub enum Error {
-    #[fail(display = "a conflict occurred" )]
+    #[fail(display = "a conflict occurred")]
     Conflict(Box<Conflict>),
-    #[fail(display = "a package was not found" )]
+    #[fail(display = "a package was not found")]
     PackageMissing(PackageMissing),
-    #[fail(display = "a constraint was unsatisfiable" )]
+    #[fail(display = "a constraint was unsatisfiable")]
     UninhabitedConstraint(UninhabitedConstraint),
 }
 
@@ -164,44 +164,44 @@ impl Conflict {
 #[cfg(test)]
 mod test {
     use super::*;
-    use pm_lib::test_helpers::{pkg, range};
+    use crate::test_helpers::{pkg, range};
     use solver::test_helpers::{constraint, path};
 
     #[test]
     fn test_conflict_from_solver_conflict() {
         let registry = gen_registry!(
-                A => (
-                    "1" => deps!(
-                        X => ">= 1 < 3"
-                    ),
-                    "2" => deps!(
-                        X => ">= 2 < 3"
-                    ),
-                    "3" => deps!(
-                        X => ">= 2 < 4"
-                    )
+            A => (
+                "1" => deps!(
+                    X => ">= 1 < 3"
                 ),
-                B => (
-                    "1" => deps!(
-                        A => ">= 1 < 4",
-                        C => ">= 1 < 4"
-                    )
+                "2" => deps!(
+                    X => ">= 2 < 3"
                 ),
-                C => (
-                    "1" => deps!(
-                        X => ">= 1 < 4"
-                    )
-                ),
-                X => (
-                    "1" => deps!(),
-                    "2" => deps!(),
-                    "3" => deps!()
+                "3" => deps!(
+                    X => ">= 2 < 4"
                 )
-            );
+            ),
+            B => (
+                "1" => deps!(
+                    A => ">= 1 < 4",
+                    C => ">= 1 < 4"
+                )
+            ),
+            C => (
+                "1" => deps!(
+                    X => ">= 1 < 4"
+                )
+            ),
+            X => (
+                "1" => deps!(),
+                "2" => deps!(),
+                "3" => deps!()
+            )
+        );
         let ra = RegistryAdapter::new(&registry);
         let deps = deps!(
-                X => ">= 3 < 4"
-            );
+            X => ">= 3 < 4"
+        );
 
         // Disjoint
         let sc1 = failure::Conflict {

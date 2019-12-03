@@ -12,9 +12,9 @@ use serde::ser::{Serialize, SerializeSeq, Serializer};
 use pm_lib::dependencies::Dependency;
 use pm_lib::index::{dependencies_to_vec, Index};
 use pm_lib::package::PackageName;
+use pm_lib::solver::Solution;
 use pm_lib::version::Version;
 use project::ProjectPaths;
-use solver::Solution;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lockfile {

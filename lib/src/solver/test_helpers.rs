@@ -1,15 +1,16 @@
+use crate::index::Index;
+use crate::test_helpers::{pkg, ver};
+use solver::{Constraint, ConstraintSet, JustifiedVersion, PartialSolution, Path};
 use std::sync::Arc;
-use solver::{Path, Constraint, ConstraintSet, JustifiedVersion, PartialSolution};
-use pm_lib::test_helpers::{pkg, ver};
-use pm_lib::index::Index;
 
+#[macro_export]
 macro_rules! solution(
     { $($dep:ident => $version:expr),+ } => {
         {
             let mut m = ::std::collections::BTreeMap::new();
             $(
-                let version = ::pm_lib::version::Version::from_str($version).unwrap();
-                m.insert(::pm_lib::test_helpers::pkg(stringify!($dep)),
+                let version = $crate::version::Version::from_str($version).unwrap();
+                m.insert($crate::test_helpers::pkg(stringify!($dep)),
                              version);
             )+
             m
@@ -17,27 +18,29 @@ macro_rules! solution(
      };
 );
 
+#[macro_export]
 macro_rules! deps {
     () => { ::std::collections::BTreeMap::new() };
 
     ( $( $dep:ident => $constraint:expr ),* ) => {{
         let mut deps = ::std::collections::BTreeMap::new();
         $({
-            let constraint = ::pm_lib::constraint::VersionConstraint::from_str($constraint).unwrap();
-            deps.insert(::pm_lib::test_helpers::pkg(stringify!($dep)), constraint);
+            let constraint = $crate::constraint::VersionConstraint::from_str($constraint).unwrap();
+            deps.insert($crate::test_helpers::pkg(stringify!($dep)), constraint);
         })*;
         deps
     }};
 }
 
+#[macro_export]
 macro_rules! gen_registry {
     ( $( $name:ident => ( $( $release:expr => $deps:expr ),+ ) ),+ ) => {{
-        let mut packs = ::pm_lib::index::Index::new();
+        let mut packs = $crate::index::Index::new();
         $({
-            let name = ::pm_lib::test_helpers::pkg(stringify!($name));
-            let mut releases = ::pm_lib::index::Package::new();
+            let name = $crate::test_helpers::pkg(stringify!($name));
+            let mut releases = $crate::index::Package::new();
             $({
-                let ver = ::pm_lib::version::Version::from_str($release).unwrap();
+                let ver = $crate::version::Version::from_str($release).unwrap();
 
                 releases.insert(ver, $deps);
             })*;

@@ -1,6 +1,6 @@
+use crate::package::PackageName;
+use crate::version::Version;
 use im::OrdMap as Map;
-use pm_lib::package::PackageName;
-use pm_lib::version::Version;
 use solver::mappable::Mappable;
 use solver::path::Path;
 use std::collections::BTreeMap;
@@ -19,6 +19,12 @@ pub struct PartialSolution(pub Map<Arc<PackageName>, JustifiedVersion>);
 impl PartialSolution {
     pub fn new() -> PartialSolution {
         PartialSolution(Map::new())
+    }
+}
+
+impl Default for PartialSolution {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -43,7 +49,10 @@ impl From<PartialSolution> for Solution {
         partial_solution
             .iter()
             .map(|(package_name, justified_version)| {
-                ((**package_name).clone(), (*justified_version.version).clone())
+                (
+                    (**package_name).clone(),
+                    (*justified_version.version).clone(),
+                )
             })
             .collect()
     }

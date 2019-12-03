@@ -1,7 +1,7 @@
-use pm_lib::constraint::VersionConstraint;
-use pm_lib::index::{Dependencies, Index};
-use pm_lib::package::PackageName;
-use pm_lib::version::Version;
+use crate::constraint::VersionConstraint;
+use crate::index::{Dependencies, Index};
+use crate::package::PackageName;
+use crate::version::Version;
 use solver::constraints::{Constraint, ConstraintSet};
 use solver::failure::Failure;
 use solver::mappable::Mappable;

@@ -157,7 +157,8 @@ impl Arguments {
                     "Expected {} argument(s), found {}",
                     min_positional_arguments,
                     positional_arguments.len()
-                ).with_pair(&positional_arguments_pair));
+                )
+                .with_pair(&positional_arguments_pair));
             }
         } else {
             if positional_arguments.len() < min_positional_arguments {
@@ -165,14 +166,16 @@ impl Arguments {
                     "Expected at least {} argument(s), found {}",
                     min_positional_arguments,
                     positional_arguments.len()
-                ).with_pair(&positional_arguments_pair));
+                )
+                .with_pair(&positional_arguments_pair));
             }
             if positional_arguments.len() > max_positional_arguments {
                 return Err(format_err!(
                     "Expected at most {} argument(s), found {}",
                     min_positional_arguments,
                     positional_arguments.len()
-                ).with_pair(&positional_arguments_pair));
+                )
+                .with_pair(&positional_arguments_pair));
             }
         }
 
@@ -244,9 +247,10 @@ pub fn get_fields(block_pair: &Pair) -> Vec<(Pair, Pair)> {
         .map(|field| {
             (
                 find_rule(field.clone(), Rule::symbol),
-                find_rule(field.clone(), Rule::arguments),
+                find_rule(field, Rule::arguments),
             )
-        }).collect()
+        })
+        .collect()
 }
 
 pub fn get_string(pair: &Pair) -> Result<String, ManifestParserError> {

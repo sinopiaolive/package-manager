@@ -1,18 +1,16 @@
 use std::env;
 use std::io::Read;
 
-use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
+use serde::ser::Serialize;
 
 use reqwest;
 
-use error::{Res, Error};
-use auth::{AuthSource, AuthProvider};
-use user::{User, Org, UserRecord, OrgRecord};
+use auth::{AuthProvider, AuthSource};
+use error::{Error, Res};
+use user::{Org, OrgRecord, User, UserRecord};
 
-pub static GITHUB_CLIENT_ID: &'static str = "a009958d6b555fa8c1f7";
-
-
+pub static GITHUB_CLIENT_ID: &str = "a009958d6b555fa8c1f7";
 
 #[derive(Serialize)]
 struct OAuthResponse {
@@ -51,15 +49,15 @@ pub struct GithubOrg {
     // avatar_url: String,
 }
 
-
-
 pub struct Github {
     http: reqwest::Client,
 }
 
 impl Github {
     pub fn new() -> Res<Self> {
-        Ok(Github { http: reqwest::Client::new() })
+        Ok(Github {
+            http: reqwest::Client::new(),
+        })
     }
 
     #[allow(dead_code)]
@@ -68,7 +66,8 @@ impl Github {
         A: Serialize,
         B: DeserializeOwned,
     {
-        Ok(self.http
+        Ok(self
+            .http
             .post(&format!("https://api.github.com/{}", url))
             .header("Accept", "application/json")
             .header("Authorization", format!("token {}", token))
@@ -81,7 +80,8 @@ impl Github {
     where
         B: DeserializeOwned,
     {
-        Ok(self.http
+        Ok(self
+            .http
             .get(&format!("https://api.github.com/{}", url))
             .header("Accept", "application/json")
             .header("Authorization", format!("token {}", token))
@@ -92,7 +92,8 @@ impl Github {
     #[allow(dead_code)]
     fn get_string(&self, url: &str, token: &str) -> Res<String> {
         let mut s = String::new();
-        let mut res = self.http
+        let mut res = self
+            .http
             .get(&format!("https://api.github.com/{}", url))
             .header("Accept", "application/json")
             .header("Authorization", format!("token {}", token))
@@ -102,7 +103,8 @@ impl Github {
     }
 
     pub fn validate_callback(&self, code: &str) -> Res<OAuthToken> {
-        Ok(self.http
+        Ok(self
+            .http
             .post("https://github.com/login/oauth/access_token")
             .header("Accept", "application/json")
             .form(&OAuthResponse {
@@ -123,28 +125,33 @@ impl AuthProvider for Github {
             .iter()
             .find(|e| e.primary)
             .or_else(|| emails.iter().next())
-            .ok_or_else(|| Error::UserHasNoEmail(format!(
-                "{}:{} ({})",
-                AuthSource::Github,
-                user.id,
-                user.login
-            )))?;
-        Ok(UserRecord::new(&User {
+            .ok_or_else(|| {
+                Error::UserHasNoEmail(format!(
+                    "{}:{} ({})",
+                    AuthSource::Github,
+                    user.id,
+                    user.login
+                ))
+            })?;
+        Ok(UserRecord::new(
+            &User {
                 provider: AuthSource::Github,
                 id: format!("{}", user.id),
-            }, &user.login, &email.email, &user.avatar_url))
+            },
+            &user.login,
+            &email.email,
+            &user.avatar_url,
+        ))
     }
 
-    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = OrgRecord>>> {
+    fn orgs(&self, token: &str) -> Res<Box<dyn Iterator<Item = OrgRecord>>> {
         let orgs: Vec<GithubOrg> = self.get("user/orgs", token)?;
-        Ok(Box::new(orgs.into_iter().map(|org| {
-            OrgRecord {
-                id: Org {
-                    provider: AuthSource::Github,
-                    id: format!("{}", org.id),
-                },
-                name: org.login,
-            }
+        Ok(Box::new(orgs.into_iter().map(|org| OrgRecord {
+            id: Org {
+                provider: AuthSource::Github,
+                id: format!("{}", org.id),
+            },
+            name: org.login,
         })))
     }
 }

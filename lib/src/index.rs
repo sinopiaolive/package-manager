@@ -1,18 +1,16 @@
+use rmp_serde::{self, encode};
+use serde_json;
+use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
-use rmp_serde::{self, encode};
-use serde_json;
 
-use version::Version;
-use dependencies::Dependency;
 use constraint::VersionConstraint;
+use dependencies::Dependency;
 use package::PackageName;
-
-
+use version::Version;
 
 quick_error! {
     #[derive(Debug)]
@@ -53,12 +51,14 @@ pub fn dependencies_from_slice(dependency_slice: &[Dependency]) -> Dependencies 
 }
 
 pub fn dependencies_to_vec(dependencies: &Dependencies) -> Vec<Dependency> {
-    dependencies.clone().into_iter().map(|(package_name, version_constraint)|
-        Dependency {
+    dependencies
+        .clone()
+        .into_iter()
+        .map(|(package_name, version_constraint)| Dependency {
             package_name,
-            version_constraint
-        }
-    ).collect()
+            version_constraint,
+        })
+        .collect()
 }
 
 pub fn read_index(path: &Path) -> Result<Arc<Index>, Error> {
@@ -94,14 +94,11 @@ where
         .map(Arc::new)
 }
 
-
 #[cfg(test)]
 mod unit_test {
     use super::*;
-    use test::Bencher;
 
-    #[bench] #[ignore]
-    fn read_cargo_index(_b: &mut Bencher) {
-        read_index(::std::path::Path::new("../client/test/cargo.rmp")).unwrap();
+    fn read_cargo_index() {
+        read_index(::std::path::Path::new("../test/cargo.rmp")).unwrap();
     }
 }

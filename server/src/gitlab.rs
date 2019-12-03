@@ -1,17 +1,16 @@
 use std::env;
 
-use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
+use serde::ser::Serialize;
 
 use reqwest;
 
+use auth::{AuthProvider, AuthSource};
 use error::Res;
-use auth::{AuthSource, AuthProvider};
-use user::{User, Org, UserRecord, OrgRecord};
+use user::{Org, OrgRecord, User, UserRecord};
 
-pub static GITLAB_CLIENT_ID: &'static str = "05568e094f02af3b1593fe1b7e6f6651684885968232d87812334d8b74deb995";
-
-
+pub static GITLAB_CLIENT_ID: &str =
+    "05568e094f02af3b1593fe1b7e6f6651684885968232d87812334d8b74deb995";
 
 #[derive(Serialize)]
 struct OAuthResponse {
@@ -46,15 +45,15 @@ pub struct GitlabGroup {
     // avatar_url: String,
 }
 
-
-
 pub struct Gitlab {
     http: reqwest::Client,
 }
 
 impl Gitlab {
     pub fn new() -> Res<Self> {
-        Ok(Gitlab { http: reqwest::Client::new() })
+        Ok(Gitlab {
+            http: reqwest::Client::new(),
+        })
     }
 
     #[allow(dead_code)]
@@ -63,7 +62,8 @@ impl Gitlab {
         A: Serialize,
         B: DeserializeOwned,
     {
-        Ok(self.http
+        Ok(self
+            .http
             .post(&format!("https://gitlab.com/api/v4/{}", url))
             .header("Accept", "application/json")
             .header("Authorization", format!("Bearer {}", token))
@@ -76,7 +76,8 @@ impl Gitlab {
     where
         B: DeserializeOwned,
     {
-        Ok(self.http
+        Ok(self
+            .http
             .get(&format!("https://gitlab.com/api/v4/{}", url))
             .header("Accept", "application/json")
             .header("Authorization", format!("Bearer {}", token))
@@ -85,7 +86,8 @@ impl Gitlab {
     }
 
     pub fn validate_callback(&self, code: &str) -> Res<OAuthToken> {
-        Ok(self.http
+        Ok(self
+            .http
             .post("https://gitlab.com/oauth/token")
             .header("Accept", "application/json")
             .form(&OAuthResponse {
@@ -114,16 +116,14 @@ impl AuthProvider for Gitlab {
         ))
     }
 
-    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = OrgRecord>>> {
+    fn orgs(&self, token: &str) -> Res<Box<dyn Iterator<Item = OrgRecord>>> {
         let orgs: Vec<GitlabGroup> = self.get("groups", token)?;
-        Ok(Box::new(orgs.into_iter().map(|org| {
-            OrgRecord {
-                id: Org {
-                    provider: AuthSource::Gitlab,
-                    id: format!("{}", org.id),
-                },
-                name: org.path,
-            }
+        Ok(Box::new(orgs.into_iter().map(|org| OrgRecord {
+            id: Org {
+                provider: AuthSource::Gitlab,
+                id: format!("{}", org.id),
+            },
+            name: org.path,
         })))
     }
 }

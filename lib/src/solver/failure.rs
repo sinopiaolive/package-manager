@@ -1,5 +1,5 @@
-use pm_lib::constraint::VersionConstraint;
-use pm_lib::package::PackageName;
+use crate::constraint::VersionConstraint;
+use crate::package::PackageName;
 use solver::constraints::Constraint;
 use solver::path::Path;
 use std::sync::Arc;
@@ -25,10 +25,7 @@ impl Failure {
     }
 
     pub fn package_missing(package: Arc<PackageName>, path: Path) -> Failure {
-        Failure::PackageMissing(PackageMissing {
-            package,
-            path,
-        })
+        Failure::PackageMissing(PackageMissing { package, path })
     }
 
     pub fn uninhabited_constraint(

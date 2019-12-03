@@ -4,11 +4,11 @@ use std::str::FromStr;
 use data_encoding::BASE64URL;
 use serde_json;
 
-use rocket::request::FromFormValue;
 use rocket::http::RawStr;
+use rocket::request::FromFormValue;
 
-use error::{Res, Error};
-use user::{UserRecord, OrgRecord, User};
+use error::{Error, Res};
+use user::{OrgRecord, User, UserRecord};
 
 use github::Github;
 use gitlab::Gitlab;
@@ -17,11 +17,11 @@ use gitlab::Gitlab;
 pub enum AuthSource {
     Test,
     Github,
-    Gitlab
+    Gitlab,
 }
 
 impl AuthSource {
-    pub fn provider(&self) -> Res<Box<AuthProvider>> {
+    pub fn provider(&self) -> Res<Box<dyn AuthProvider>> {
         Ok(match self {
             AuthSource::Test => Box::new(NullAuth),
             AuthSource::Github => Box::new(Github::new()?),
@@ -38,7 +38,7 @@ impl FromStr for AuthSource {
             "test" => Ok(AuthSource::Test),
             "github" => Ok(AuthSource::Github),
             "gitlab" => Ok(AuthSource::Gitlab),
-            _ => Err(Error::NoSuchAuthSource(name.to_string()))
+            _ => Err(Error::NoSuchAuthSource(name.to_string())),
         }
     }
 }
@@ -61,11 +61,9 @@ impl<'v> FromFormValue<'v> for AuthSource {
     }
 }
 
-
-
 pub trait AuthProvider {
     fn user(&self, token: &str) -> Res<UserRecord>;
-    fn orgs(&self, token: &str) -> Res<Box<Iterator<Item = OrgRecord>>>;
+    fn orgs(&self, token: &str) -> Res<Box<dyn Iterator<Item = OrgRecord>>>;
 }
 
 pub struct NullAuth;
@@ -75,24 +73,22 @@ impl AuthProvider for NullAuth {
         Err(Error::UnknownUser("null auth has no users".to_string()))
     }
 
-    fn orgs(&self, _: &str) -> Res<Box<Iterator<Item = OrgRecord>>> {
+    fn orgs(&self, _: &str) -> Res<Box<dyn Iterator<Item = OrgRecord>>> {
         Err(Error::UnknownUser("null auth has no orgs".to_string()))
     }
 }
 
-
-
 #[derive(Serialize, Deserialize, Clone, FromForm)]
 pub struct AuthToken {
     pub user: User,
-    pub token: String
+    pub token: String,
 }
 
 impl AuthToken {
     pub fn new(user: &User, token: &str) -> AuthToken {
         AuthToken {
             user: user.clone(),
-            token: token.to_string()
+            token: token.to_string(),
         }
     }
 

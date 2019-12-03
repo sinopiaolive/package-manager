@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
 use std::collections::HashSet;
-use std::path::Path;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 
 use files::FilesSectionInterpreter;
 use manifest_parser::{
@@ -12,11 +12,11 @@ use manifest_parser::{
     Pair, Rule,
 };
 use manifest_parser_error::{PestErrorExt, PestResultExt};
-use project::ProjectPaths;
 use pm_lib::constraint::VersionConstraint;
 use pm_lib::dependencies::Dependency;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
+use project::ProjectPaths;
 
 // The Manifest struct represents a parsed manifest file. This struct should
 // probably go away in favor of constructing PublicationRequest objects directly
@@ -126,10 +126,10 @@ impl Manifest {
         let license_file = get_optional_string_field(&block_pair, "license_file")?;
 
         if license.is_none() && license_file.is_none() {
-                return Err(::failure::Error::from(
-                    format_err!("package section needs at least one of license or license_file")
-                        .with_pos(&block_pair.clone().into_span().start_pos()),
-                ));
+            return Err(::failure::Error::from(
+                format_err!("package section needs at least one of license or license_file")
+                    .with_pos(&block_pair.into_span().start_pos()),
+            ));
         }
 
         let files_block = Arguments::get_block(get_field(&block_pair, "files")?)?;
@@ -188,7 +188,10 @@ pub fn get_dependencies(manifest_pair: &Pair) -> Result<Vec<Dependency>, ::failu
                 ));
             }
         }
-        depset.push(Dependency { package_name, version_constraint });
+        depset.push(Dependency {
+            package_name,
+            version_constraint,
+        });
     }
     Ok(depset)
 }
@@ -216,7 +219,8 @@ pub fn make_dependency(
             ))
         }
         _ => unreachable!(),
-    }.ok_or_else(|| {
+    }
+    .ok_or_else(|| {
         format_err!("Invalid version constraint")
             .with_pos(&vcc_pairs[0].clone().into_span().start_pos())
     })?;

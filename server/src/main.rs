@@ -58,7 +58,7 @@ use github::{Github, GITHUB_CLIENT_ID};
 use gitlab::{Gitlab, GITLAB_CLIENT_ID};
 use store::Store;
 
-static STYLES: &'static str = "
+static STYLES: &str = "
 body {
     background: white;
     color: black;

@@ -2,9 +2,9 @@ use std::fs;
 
 use lockfile::Lockfile;
 use manifest::Manifest;
+use pm_lib::solver::{solve, Solution};
 use project::find_project_paths;
 use resolve::fetch_index;
-use solver::{Solution, solve};
 
 use pm_lib::index;
 

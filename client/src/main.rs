@@ -1,5 +1,4 @@
 #![warn(clippy::all)]
-#![feature(plugin, test)]
 
 extern crate dirs;
 #[macro_use]
@@ -10,7 +9,6 @@ extern crate docopt;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate pm_lib;
 extern crate rmp_serde;
 extern crate serde_json;
 extern crate toml;
@@ -32,39 +30,34 @@ extern crate console;
 extern crate git2;
 extern crate glob;
 extern crate indicatif;
-extern crate tar;
 extern crate mime;
+extern crate tar;
 extern crate tokio;
-#[cfg(test)]
-extern crate test;
 #[cfg(test)]
 #[macro_use]
 extern crate matches;
+extern crate pm_lib;
 
 mod config;
-mod manifest;
-mod path;
-mod project;
-mod registry;
-#[allow(dead_code)]
-// TODO please remove this when the solver is actually being used
-#[macro_use]
-mod solver;
 mod files;
 mod git;
 mod io;
+mod lockfile;
+mod manifest;
 #[allow(dead_code)]
 mod manifest_parser;
 mod manifest_parser_error;
+mod path;
+mod project;
+mod registry;
 mod resolve;
-mod lockfile;
 
 use docopt::Docopt;
 use serde::de::Deserialize;
 use std::env;
 use std::process;
 
-static REGISTRY_URL: &'static str = "http://localhost:8000";
+static REGISTRY_URL: &str = "http://localhost:8000";
 
 const USAGE: &str = "Your package manager.
 
@@ -154,10 +147,14 @@ fn main() {
         {
             Ok(_) => process::exit(0),
             Err(e) => {
-                if env::var_os("RUST_BACKTRACE").is_none() && env::var_os("RUST_FAILURE_BACKTRACE").is_none() {
+                if env::var_os("RUST_BACKTRACE").is_none()
+                    && env::var_os("RUST_FAILURE_BACKTRACE").is_none()
+                {
                     println!("{}", e);
                     println!();
-                    println!("Run with `RUST_BACKTRACE=1` environment variable to display a backtrace.");
+                    println!(
+                        "Run with `RUST_BACKTRACE=1` environment variable to display a backtrace."
+                    );
                 } else {
                     println!("{:?}", e);
                     println!();

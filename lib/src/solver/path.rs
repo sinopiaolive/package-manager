@@ -1,9 +1,9 @@
-use std::sync::Arc;
-use std::ops::Index;
+use crate::package::PackageName;
+use crate::version::Version;
 use std::fmt;
+use std::ops::Index;
 use std::slice::Iter;
-use pm_lib::package::PackageName;
-use pm_lib::version::Version;
+use std::sync::Arc;
 
 /// A dependency chain of packages.
 pub struct Path(Arc<Vec<(Arc<PackageName>, Arc<Version>)>>);
@@ -21,6 +21,10 @@ impl Path {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn last(&self) -> Option<&(Arc<PackageName>, Arc<Version>)> {
         self.0.last()
     }
@@ -33,6 +37,12 @@ impl Path {
 
     pub fn iter<'a>(&'a self) -> Iter<'a, (Arc<PackageName>, Arc<Version>)> {
         self.0.iter()
+    }
+}
+
+impl Default for Path {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -35,8 +35,8 @@ enum FileSetError {
     #[fail(display = "Some files are untracked or changed")]
     NotCommitted {
         changed: Vec<String>,
-        untracked: Vec<String>
-    }
+        untracked: Vec<String>,
+    },
 }
 
 pub enum VCSFileStatus {
@@ -112,18 +112,14 @@ impl FilesSectionInterpreter {
         } else if !changed.is_empty() || !untracked.is_empty() {
             Err(failure::Error::from(FileSetError::NotCommitted {
                 changed,
-                untracked
+                untracked,
             }))
         } else {
             Ok(())
         }
     }
 
-    pub fn add_any(
-        &mut self,
-        file_set: &mut FileSet,
-        glob: &str,
-    ) -> Result<(), failure::Error> {
+    pub fn add_any(&mut self, file_set: &mut FileSet, glob: &str) -> Result<(), failure::Error> {
         // This relies on Git to give us a list of all the files, including the
         // untracked ones. This works fine as long as we are in a Git repo, but
         // we really should not depend on Git here.
@@ -214,7 +210,7 @@ impl StdError for GlobError {
         }
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         match self {
             GlobError::PatternError(ref pattern_error) => Some(pattern_error),
             _ => None,
@@ -298,7 +294,7 @@ mod test {
     fn make_fsi(files: &[&str]) -> FilesSectionInterpreter {
         let mut vcs_file_set = VCSFileSet::new();
         for file in files {
-            vcs_file_set.insert(file.to_string(), VCSFileStatus::Tracked);
+            vcs_file_set.insert((*file).to_string(), VCSFileStatus::Tracked);
         }
         FilesSectionInterpreter {
             root: PathBuf::from("dummy"),
@@ -312,7 +308,10 @@ mod test {
         file_set_v.sort();
         assert_eq!(
             file_set_v,
-            files.iter().map(ToString::to_string).collect::<Vec<String>>()
+            files
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
         );
     }
 
@@ -356,8 +355,7 @@ mod test {
             let mut file_set = FileSet::new();
             fsi.add_any(&mut file_set, "src/**").unwrap();
             fsi.remove(&mut file_set, "src/vendor/*").unwrap();
-            fsi.add_any(&mut file_set, "src/vendor/a.rs")
-                .unwrap();
+            fsi.add_any(&mut file_set, "src/vendor/a.rs").unwrap();
 
             assert_file_set(&file_set, &["src/a.rs", "src/b.rs", "src/vendor/a.rs"]);
         }
