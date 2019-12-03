@@ -3,7 +3,7 @@ use std::fs::{create_dir_all, File};
 use std::io::{Read, Write};
 use toml;
 
-use path::config_path;
+use crate::path::config_path;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {

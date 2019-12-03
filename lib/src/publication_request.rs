@@ -1,5 +1,5 @@
-use version::Version;
-use dependencies::Dependency;
+use crate::version::Version;
+use crate::dependencies::Dependency;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NamedTextFile {

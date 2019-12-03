@@ -7,10 +7,10 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::Arc;
 
-use constraint::VersionConstraint;
-use dependencies::Dependency;
-use package::PackageName;
-use version::Version;
+use crate::constraint::VersionConstraint;
+use crate::dependencies::Dependency;
+use crate::package::PackageName;
+use crate::version::Version;
 
 quick_error! {
     #[derive(Debug)]

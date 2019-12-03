@@ -3,7 +3,7 @@ use pest;
 use std::convert::From;
 use std::fmt::Display;
 
-use manifest_parser::Rule;
+use crate::manifest_parser::Rule;
 
 // We'd like to store original Pest errors in this error type, but Pest errors
 // don't implement Send (due to Rc fields), which the Fail trait requires. So as

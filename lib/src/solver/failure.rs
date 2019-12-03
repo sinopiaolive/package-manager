@@ -1,7 +1,7 @@
 use crate::constraint::VersionConstraint;
 use crate::package::PackageName;
-use solver::constraints::Constraint;
-use solver::path::Path;
+use crate::solver::constraints::Constraint;
+use crate::solver::path::Path;
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq)]

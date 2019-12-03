@@ -5,38 +5,17 @@ extern crate dirs;
 extern crate failure;
 #[macro_use]
 extern crate failure_derive;
-extern crate docopt;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate rmp_serde;
-extern crate serde_json;
-extern crate toml;
 #[macro_use]
 extern crate quick_error;
 #[macro_use]
 extern crate im_rc as im;
-extern crate data_encoding;
-extern crate hyper;
-extern crate pest;
-extern crate rand;
-extern crate reqwest;
-extern crate url;
-extern crate webbrowser;
 #[macro_use]
 extern crate pest_derive;
-extern crate brotli;
-extern crate console;
-extern crate git2;
-extern crate glob;
-extern crate indicatif;
-extern crate mime;
-extern crate tar;
-extern crate tokio;
 #[cfg(test)]
 #[macro_use]
 extern crate matches;
-extern crate pm_lib;
 
 mod config;
 mod files;
@@ -44,7 +23,6 @@ mod git;
 mod io;
 mod lockfile;
 mod manifest;
-#[allow(dead_code)]
 mod manifest_parser;
 mod manifest_parser_error;
 mod path;

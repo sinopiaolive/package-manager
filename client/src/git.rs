@@ -6,7 +6,7 @@ use git2::{Repository, RepositoryState, StatusOptions};
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
 
-use files::{VCSFileSet, VCSFileStatus};
+use crate::files::{VCSFileSet, VCSFileStatus};
 
 pub struct GitScmProvider {
     pub relative_package_root: PathBuf, // relative to repo.workdir()

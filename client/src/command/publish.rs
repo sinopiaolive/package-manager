@@ -10,10 +10,10 @@ use tar;
 use pm_lib::publication_request::PublicationRequest;
 
 use failure;
-use io::ProgressIO;
-use project::{find_project_paths, ProjectPaths};
-use manifest::Manifest;
-use registry::post;
+use crate::io::ProgressIO;
+use crate::project::{find_project_paths, ProjectPaths};
+use crate::manifest::Manifest;
+use crate::registry::post;
 
 pub const USAGE: &str = "Publish a package to the registry.
 

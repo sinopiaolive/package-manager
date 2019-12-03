@@ -10,7 +10,7 @@ use hyper::header::{CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::server::Server;
 use hyper::service::{NewService, Service};
 use hyper::{Error, Request, Response, StatusCode};
-use im::OrdMap as Map;
+use crate::im::OrdMap as Map;
 use mime;
 use rand::prelude::random;
 use tokio::prelude::future::{ok, Future, FutureResult};
@@ -20,7 +20,7 @@ use tokio::runtime::Runtime;
 use url::{form_urlencoded, Url};
 use webbrowser;
 
-use config::{write_config, Auth, Config};
+use crate::config::{write_config, Auth, Config};
 
 pub const USAGE: &str = "Login.
 

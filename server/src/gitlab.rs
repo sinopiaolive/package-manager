@@ -5,9 +5,9 @@ use serde::ser::Serialize;
 
 use reqwest;
 
-use auth::{AuthProvider, AuthSource};
-use error::Res;
-use user::{Org, OrgRecord, User, UserRecord};
+use crate::auth::{AuthProvider, AuthSource};
+use crate::error::Res;
+use crate::user::{Org, OrgRecord, User, UserRecord};
 
 pub static GITLAB_CLIENT_ID: &str =
     "05568e094f02af3b1593fe1b7e6f6651684885968232d87812334d8b74deb995";

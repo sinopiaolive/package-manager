@@ -1,8 +1,8 @@
 #![allow(unused_macros)]
 
-use constraint::VersionConstraint;
-use package::PackageName;
-use version::Version;
+use crate::constraint::VersionConstraint;
+use crate::package::PackageName;
+use crate::version::Version;
 
 pub fn ver(s: &str) -> Version {
     Version::from_str(s).unwrap()

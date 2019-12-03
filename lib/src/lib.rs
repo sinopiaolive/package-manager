@@ -2,11 +2,8 @@
 #![allow(dead_code, unused_features)]
 
 extern crate im_rc as im;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate rmp_serde;
-extern crate serde_json;
 #[macro_use]
 extern crate quick_error;
 #[macro_use]

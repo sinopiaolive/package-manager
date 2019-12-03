@@ -7,11 +7,11 @@ use serde_json;
 use rocket::http::RawStr;
 use rocket::request::FromFormValue;
 
-use error::{Error, Res};
-use user::{OrgRecord, User, UserRecord};
+use crate::error::{Error, Res};
+use crate::user::{OrgRecord, User, UserRecord};
 
-use github::Github;
-use gitlab::Gitlab;
+use crate::github::Github;
+use crate::gitlab::Gitlab;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum AuthSource {

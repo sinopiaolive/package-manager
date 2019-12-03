@@ -10,7 +10,7 @@ use rocket::response::{Response, Responder};
 use rocket::request::Request;
 use diesel;
 
-use user::User;
+use crate::user::User;
 
 quick_error! {
     #[derive(Debug)]

@@ -6,10 +6,10 @@ use pm_lib::index::Index;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
 
-use package;
-use schema::{package_releases, packages, release_dependencies};
+use crate::package;
+use crate::schema::{package_releases, packages, release_dependencies};
 
-use store::Store;
+use crate::store::Store;
 
 pub fn compute_index(store: &Store) -> Result<Index, ::failure::Error> {
     let mut index = Index::new();

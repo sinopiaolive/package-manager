@@ -1,4 +1,4 @@
-use schema::files;
+use crate::schema::files;
 
 #[derive(Insertable, AsChangeset, Queryable, Identifiable, Associations, Debug)]
 #[table_name = "files"]

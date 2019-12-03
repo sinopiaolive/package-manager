@@ -1,10 +1,10 @@
 use std::fs;
 
-use lockfile::Lockfile;
-use manifest::Manifest;
+use crate::lockfile::Lockfile;
+use crate::manifest::Manifest;
 use pm_lib::solver::{solve, Solution};
-use project::find_project_paths;
-use resolve::fetch_index;
+use crate::project::find_project_paths;
+use crate::resolve::fetch_index;
 
 use pm_lib::index;
 

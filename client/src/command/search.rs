@@ -3,7 +3,7 @@ use std::cmp::{max, min};
 use console::{Style, Term};
 use failure;
 
-use registry;
+use crate::registry;
 
 pub const USAGE: &str = "Search for packages by keyword.
 

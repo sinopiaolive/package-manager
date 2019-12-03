@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use im::ordmap::{Iter, OrdMap as Map};
+use crate::im::ordmap::{Iter, OrdMap as Map};
 
 pub trait Mappable
 where

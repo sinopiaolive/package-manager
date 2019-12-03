@@ -1,12 +1,12 @@
 use crate::constraint::VersionConstraint;
 use crate::index::{Dependencies, Index};
 use crate::package::PackageName;
-use solver::adapter::RegistryAdapter;
-use solver::failure;
-use solver::failure::Failure;
-pub use solver::failure::{PackageMissing, UninhabitedConstraint};
-use solver::mappable::Mappable;
-use solver::path::Path;
+use crate::solver::adapter::RegistryAdapter;
+use crate::solver::failure;
+use crate::solver::failure::Failure;
+pub use crate::solver::failure::{PackageMissing, UninhabitedConstraint};
+use crate::solver::mappable::Mappable;
+use crate::solver::path::Path;
 use std::sync::Arc;
 
 // TODO: implement proper Display for error reporting
@@ -165,7 +165,7 @@ impl Conflict {
 mod test {
     use super::*;
     use crate::test_helpers::{pkg, range};
-    use solver::test_helpers::{constraint, path};
+    use crate::solver::test_helpers::{constraint, path};
 
     #[test]
     fn test_conflict_from_solver_conflict() {

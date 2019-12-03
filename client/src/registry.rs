@@ -1,5 +1,5 @@
 use failure;
-use im::OrdMap as Map;
+use crate::im::OrdMap as Map;
 use reqwest::Body;
 use reqwest::{self, Method};
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use std::fmt;
 use std::io::Read;
 use url::form_urlencoded::Serializer;
 
-use config::get_config;
+use crate::config::get_config;
 
 #[derive(Fail, Deserialize, Debug)]
 pub struct RegistryError {

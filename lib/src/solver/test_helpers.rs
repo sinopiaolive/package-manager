@@ -1,6 +1,6 @@
 use crate::index::Index;
 use crate::test_helpers::{pkg, ver};
-use solver::{Constraint, ConstraintSet, JustifiedVersion, PartialSolution, Path};
+use crate::solver::{Constraint, ConstraintSet, JustifiedVersion, PartialSolution, Path};
 use std::sync::Arc;
 
 #[macro_export]

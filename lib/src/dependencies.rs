@@ -1,5 +1,5 @@
-use package::PackageName;
-use constraint::VersionConstraint;
+use crate::package::PackageName;
+use crate::constraint::VersionConstraint;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Dependency {

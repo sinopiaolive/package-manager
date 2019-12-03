@@ -5,6 +5,7 @@ authors = [
 ]
 name = "pm_server"
 version = "0.0.0"
+edition = "2018"
 
 [dependencies]
 brotli = "3.3.0"

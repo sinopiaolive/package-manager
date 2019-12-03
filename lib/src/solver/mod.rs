@@ -10,13 +10,13 @@ mod mappable;
 mod path;
 mod solution;
 
-pub use solver::adapter::RegistryAdapter;
-pub use solver::constraints::{Constraint, ConstraintSet};
-pub use solver::error::{Conflict, Error};
-pub use solver::failure::Failure;
-use solver::mappable::Mappable;
-pub use solver::path::Path;
-pub use solver::solution::{JustifiedVersion, PartialSolution, Solution};
+pub use crate::solver::adapter::RegistryAdapter;
+pub use crate::solver::constraints::{Constraint, ConstraintSet};
+pub use crate::solver::error::{Conflict, Error};
+pub use crate::solver::failure::Failure;
+use crate::solver::mappable::Mappable;
+pub use crate::solver::path::Path;
+pub use crate::solver::solution::{JustifiedVersion, PartialSolution, Solution};
 
 fn search(
     ra: &RegistryAdapter,
@@ -176,8 +176,8 @@ mod unit_test {
     use super::*;
     use crate::index::{Dependencies, Index, Package};
     use crate::test_helpers::{pkg, range, ver};
-    use solver::constraints::Constraint;
-    use solver::test_helpers::{constraint_set, partial_sln, path};
+    use crate::solver::constraints::Constraint;
+    use crate::solver::test_helpers::{constraint_set, partial_sln, path};
     use std::sync::Arc;
 
     #[test]

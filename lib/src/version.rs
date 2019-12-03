@@ -330,7 +330,7 @@ pub fn version(input: &[u8]) -> nom::IResult<&[u8], Version> {
 #[cfg(test)]
 mod unit_test {
     use super::*;
-    use test_helpers::ver;
+    use crate::test_helpers::ver;
 
     #[test]
     fn weird_constructors() {

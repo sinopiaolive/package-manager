@@ -4,27 +4,14 @@
 
 #[macro_use]
 extern crate rocket;
-extern crate serde;
-extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
-extern crate rmp_serde;
 #[macro_use]
 extern crate rocket_contrib;
-extern crate failure;
-extern crate failure_derive;
 #[macro_use]
 extern crate quick_error;
-extern crate data_encoding;
-extern crate dotenv;
-extern crate reqwest;
-extern crate url;
 #[macro_use]
 extern crate diesel;
-extern crate brotli;
-extern crate im;
-extern crate pm_lib;
-extern crate tar;
 
 mod auth;
 mod error;
@@ -52,11 +39,11 @@ use rocket_contrib::json::Json;
 
 use url::Url;
 
-use auth::{AuthProvider, AuthToken};
-use error::{Error, Res};
-use github::{Github, GITHUB_CLIENT_ID};
-use gitlab::{Gitlab, GITLAB_CLIENT_ID};
-use store::Store;
+use crate::auth::{AuthProvider, AuthToken};
+use crate::error::{Error, Res};
+use crate::github::{Github, GITHUB_CLIENT_ID};
+use crate::gitlab::{Gitlab, GITLAB_CLIENT_ID};
+use crate::store::Store;
 
 static STYLES: &str = "
 body {

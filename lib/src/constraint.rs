@@ -2,7 +2,7 @@ use nom::IResult::Done;
 use self::VersionConstraint::{Exact, Range, Caret};
 use serde::de::Error;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use version::{Version, version, caret_bump};
+use crate::version::{Version, version, caret_bump};
 use std::cmp::Ordering;
 use std::fmt;
 use nom;
@@ -165,8 +165,8 @@ fn version_constraint(input: &[u8]) -> nom::IResult<&[u8], VersionConstraint> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use version::VersionIdentifier;
-    use test_helpers::{ver, range};
+    use crate::version::VersionIdentifier;
+    use crate::test_helpers::{ver, range};
 
     #[test]
     fn parse_exact_constraint() {

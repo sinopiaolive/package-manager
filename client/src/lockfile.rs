@@ -14,7 +14,7 @@ use pm_lib::index::{dependencies_to_vec, Index};
 use pm_lib::package::PackageName;
 use pm_lib::solver::Solution;
 use pm_lib::version::Version;
-use project::ProjectPaths;
+use crate::project::ProjectPaths;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lockfile {

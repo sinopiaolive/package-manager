@@ -7,8 +7,8 @@ use pm_lib::version::Version;
 
 use im::OrdMap as Map;
 
-use error::Error;
-use store::Store;
+use crate::error::Error;
+use crate::store::Store;
 
 #[derive(QueryableByName, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct SearchResult {

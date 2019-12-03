@@ -3,7 +3,7 @@
 use pest;
 use pest::Parser;
 
-use manifest_parser_error::{ManifestParserError, PestErrorExt};
+use crate::manifest_parser_error::{ManifestParserError, PestErrorExt};
 
 // Ensure this file recompiles when the grammar is modified.
 const _GRAMMAR: &str = include_str!("grammar.pest");

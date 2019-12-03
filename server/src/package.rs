@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
-use schema::{packages, package_owners, package_releases, release_dependencies};
-use user::UserRecord;
+use crate::schema::{package_owners, package_releases, packages, release_dependencies};
+use crate::user::UserRecord;
 
 #[derive(Identifiable, Queryable, Insertable, AsChangeset, Debug)]
 #[table_name = "packages"]
@@ -10,7 +10,7 @@ pub struct Package {
     pub namespace: String,
     pub name: String,
     pub deleted: Option<String>,
-    pub deleted_on: Option<SystemTime>
+    pub deleted_on: Option<SystemTime>,
 }
 
 #[derive(Identifiable, Queryable, Insertable, AsChangeset, Associations, Debug)]
@@ -22,7 +22,7 @@ pub struct PackageOwner {
     pub name: String,
     pub user_id: String,
     // need ordering
-    pub added_time: SystemTime
+    pub added_time: SystemTime,
 }
 
 #[derive(Insertable, Identifiable, Associations, Debug)]
@@ -67,5 +67,5 @@ pub struct Dependency {
     pub ordering: i32,
     pub dependency_namespace: String,
     pub dependency_name: String,
-    pub dependency_version_constraint: String
+    pub dependency_version_constraint: String,
 }

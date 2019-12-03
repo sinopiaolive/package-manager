@@ -8,11 +8,11 @@ use diesel::result::Error::NotFound;
 
 use data_encoding::BASE64;
 
-use error::{Error, Res};
-use package::{Package, PackageOwner};
-use user::{User, UserRecord};
+use crate::error::{Error, Res};
+use crate::package::{Package, PackageOwner};
+use crate::user::{User, UserRecord};
 
-use schema::{files, login_sessions, package_owners, packages, users};
+use crate::schema::{files, login_sessions, package_owners, packages, users};
 
 #[allow(dead_code)]
 #[derive(Queryable)]

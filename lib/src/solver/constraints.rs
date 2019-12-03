@@ -1,10 +1,10 @@
 use crate::package::PackageName;
 use crate::version::Version;
-use im::OrdMap as Map;
-use solver::failure::Failure;
-use solver::mappable::Mappable;
-use solver::path::Path;
-use solver::solution::{JustifiedVersion, PartialSolution};
+use crate::im::OrdMap as Map;
+use crate::solver::failure::Failure;
+use crate::solver::mappable::Mappable;
+use crate::solver::path::Path;
+use crate::solver::solution::{JustifiedVersion, PartialSolution};
 use std::fmt;
 use std::sync::Arc;
 
@@ -269,7 +269,7 @@ fn contained_in(
 mod test {
     use super::*;
     use crate::test_helpers::{pkg, range};
-    use solver::test_helpers::{constraint, constraint_set, partial_sln, path};
+    use crate::solver::test_helpers::{constraint, constraint_set, partial_sln, path};
 
     #[test]
     fn constraint_merge() {

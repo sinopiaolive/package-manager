@@ -6,9 +6,9 @@ use serde::ser::Serialize;
 
 use reqwest;
 
-use auth::{AuthProvider, AuthSource};
-use error::{Error, Res};
-use user::{Org, OrgRecord, User, UserRecord};
+use crate::auth::{AuthProvider, AuthSource};
+use crate::error::{Error, Res};
+use crate::user::{Org, OrgRecord, User, UserRecord};
 
 pub static GITHUB_CLIENT_ID: &str = "a009958d6b555fa8c1f7";
 

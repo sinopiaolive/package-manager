@@ -5,18 +5,18 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use files::FilesSectionInterpreter;
-use manifest_parser::{
+use crate::files::FilesSectionInterpreter;
+use crate::manifest_parser::{
     check_block_fields, get_field, get_fields, get_optional_block_field, get_optional_field,
     get_optional_list_field, get_optional_string_field, get_string, parse_manifest, Arguments,
     Pair, Rule,
 };
-use manifest_parser_error::{PestErrorExt, PestResultExt};
+use crate::manifest_parser_error::{PestErrorExt, PestResultExt};
 use pm_lib::constraint::VersionConstraint;
 use pm_lib::dependencies::Dependency;
 use pm_lib::package::PackageName;
 use pm_lib::version::Version;
-use project::ProjectPaths;
+use crate::project::ProjectPaths;
 
 // The Manifest struct represents a parsed manifest file. This struct should
 // probably go away in favor of constructing PublicationRequest objects directly

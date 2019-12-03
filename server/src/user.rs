@@ -4,9 +4,9 @@ use std::str::FromStr;
 use rocket::request::FromFormValue;
 use rocket::http::RawStr;
 
-use error::{Res, Error};
-use auth::AuthSource;
-use schema::users;
+use crate::error::{Res, Error};
+use crate::auth::AuthSource;
+use crate::schema::users;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct User {

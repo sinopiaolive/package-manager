@@ -9,13 +9,13 @@ use pm_lib::publication_request::PublicationRequest;
 use rmp_serde::decode;
 use tar;
 
-use error::{Error, Res};
-use file::File;
-use package;
-use package::{Package, PackageOwner};
-use schema::{files, package_owners, package_releases, packages, release_dependencies};
-use store::Store;
-use user::User;
+use crate::error::{Error, Res};
+use crate::file::File;
+use crate::package;
+use crate::package::{Package, PackageOwner};
+use crate::schema::{files, package_owners, package_releases, packages, release_dependencies};
+use crate::store::Store;
+use crate::user::User;
 
 fn validate_archive<R: Read>(mut reader: R) -> Res<()> {
     // TODO validate file names, content length

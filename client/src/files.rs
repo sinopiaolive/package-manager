@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use failure;
-use git::GitScmProvider;
+use crate::git::GitScmProvider;
 use glob::{MatchOptions, Pattern, PatternError};
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error as StdError;

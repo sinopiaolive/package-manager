@@ -1,8 +1,8 @@
 use crate::package::PackageName;
 use crate::version::Version;
-use im::OrdMap as Map;
-use solver::mappable::Mappable;
-use solver::path::Path;
+use crate::im::OrdMap as Map;
+use crate::solver::mappable::Mappable;
+use crate::solver::path::Path;
 use std::collections::BTreeMap;
 use std::convert::From;
 use std::sync::Arc;

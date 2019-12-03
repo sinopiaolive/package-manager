@@ -1,7 +1,7 @@
 use reqwest::{self, Method};
 use pm_lib::index::Index;
 
-use REGISTRY_URL;
+use crate::REGISTRY_URL;
 
 // This module should probably be renamed or merged into another module.
 
