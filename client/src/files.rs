@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use failure;
 use crate::git::GitScmProvider;
+use failure;
 use glob::{MatchOptions, Pattern, PatternError};
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error as StdError;
@@ -275,7 +275,7 @@ impl CompiledGlob {
     pub fn matches_non_root(&self, p: &str) -> bool {
         match self {
             CompiledGlob::Root => false,
-            CompiledGlob::NonRoot(pattern) => pattern.matches_with(p, &MATCH_OPTIONS),
+            CompiledGlob::NonRoot(pattern) => pattern.matches_with(p, MATCH_OPTIONS),
         }
     }
 

@@ -13,30 +13,30 @@ path = "src/main.rs"
 
 [dependencies]
 brotli = "3.3.0"
-console = "0.7.5"
+console = "0.9.1"
 data-encoding = "2.1.2"
-dirs = "1.0.4"
+dirs = "2.0.2"
 docopt = "1.0.2"
 failure = "0.1.5"
 failure_derive = "0.1.5"
-glob = "0.2.11"
-indicatif = "0.11.0"
+glob = "0.3.0"
+indicatif = "0.13.0"
 pest = "=1.0.0-beta.17" # needs update
 pest_derive = "=1.0.0-beta.17" # needs update
 quick-error = "1.2.2"
-rand = "0.6.5"
+rand = "0.7.2"
 reqwest = "0.9.10"
-rmp-serde = "0.13.7"
+rmp-serde = "0.14.0"
 serde = "1.0.88"
 serde_derive = "1.0.88"
 serde_json = "1.0.38"
 tar = "0.4.20"
-toml = "0.4.10"
-url = "1.7.2"
-webbrowser = "0.4.0"
+toml = "0.5.5"
+url = "2.1.0"
+webbrowser = "0.5.2"
 mime = "0.3.13"
 tokio = "0.1.15"
-im-rc = "12.3.1"
+im-rc = "14.0.0"
 
 [dependencies.hyper]
 version = "0.12.24"
@@ -44,7 +44,7 @@ features = []
 
 [dependencies.git2]
 default-features = false
-version = "0.8.0"
+version = "0.10.2"
 
 [dependencies.pm_lib]
 path = "../lib"
