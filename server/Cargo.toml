@@ -29,7 +29,7 @@ features = [
     "postgres",
     "32-column-tables",
 ]
-version = "1.4.1"
+version = "1.4.6"
 
 [dependencies.im]
 version = "14.0.0"
