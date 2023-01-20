@@ -44,7 +44,7 @@ features = []
 
 [dependencies.git2]
 default-features = false
-version = "0.10.2"
+version = "0.16.1"
 
 [dependencies.pm_lib]
 path = "../lib"
